@@ -1,0 +1,68 @@
+[
+  {
+    "order": 1,
+    "id": "0a7ce80013e24f32a10226c813649e10",
+    "title": "booking_confirmation_modal",
+    "ar_title": "طبيبي - نافذة تأكيد حجز الموعد الطبي",
+    "html_file": "C:\\Users\\workstation\\Documents\\doctor\\stitch_designs\\1_booking_confirmation_modal.html",
+    "img_file": "C:\\Users\\workstation\\Documents\\doctor\\stitch_designs\\1_booking_confirmation_modal.jpeg",
+    "artifact_img_file": "C:\\Users\\workstation\\.gemini\\antigravity\\brain\\41db3e27-007e-4cd4-b8b5-2424acc0d31a\\1_booking_confirmation_modal.jpeg",
+    "html_size": 58535,
+    "img_size": 148651
+  },
+  {
+    "order": 2,
+    "id": "2a3b3f5f09e44ecdaba51d68421a2cb6",
+    "title": "doctor_dashboard_schedule",
+    "ar_title": "طبيبي - لوحة تحكم الطبيب وجدول المواعيد",
+    "html_file": "C:\\Users\\workstation\\Documents\\doctor\\stitch_designs\\2_doctor_dashboard_schedule.html",
+    "img_file": "C:\\Users\\workstation\\Documents\\doctor\\stitch_designs\\2_doctor_dashboard_schedule.png",
+    "artifact_img_file": "C:\\Users\\workstation\\.gemini\\antigravity\\brain\\41db3e27-007e-4cd4-b8b5-2424acc0d31a\\2_doctor_dashboard_schedule.png",
+    "html_size": 48087,
+    "img_size": 745646
+  },
+  {
+    "order": 3,
+    "id": "7d7c6d474bee46488530954d0a30a7a9",
+    "title": "patient_account_appointments",
+    "ar_title": "طبيبي - حسابي ومواعيدي",
+    "html_file": "C:\\Users\\workstation\\Documents\\doctor\\stitch_designs\\3_patient_account_appointments.html",
+    "img_file": "C:\\Users\\workstation\\Documents\\doctor\\stitch_designs\\3_patient_account_appointments.png",
+    "artifact_img_file": "C:\\Users\\workstation\\.gemini\\antigravity\\brain\\41db3e27-007e-4cd4-b8b5-2424acc0d31a\\3_patient_account_appointments.png",
+    "html_size": 40099,
+    "img_size": 1049885
+  },
+  {
+    "order": 4,
+    "id": "8795a59951c34acba12367023ac9d426",
+    "title": "home_page_booking",
+    "ar_title": "طبيبي - الصفحة الرئيسية وحجز المواعيد",
+    "html_file": "C:\\Users\\workstation\\Documents\\doctor\\stitch_designs\\4_home_page_booking.html",
+    "img_file": "C:\\Users\\workstation\\Documents\\doctor\\stitch_designs\\4_home_page_booking.png",
+    "artifact_img_file": "C:\\Users\\workstation\\.gemini\\antigravity\\brain\\41db3e27-007e-4cd4-b8b5-2424acc0d31a\\4_home_page_booking.png",
+    "html_size": 48344,
+    "img_size": 1204029
+  },
+  {
+    "order": 5,
+    "id": "8ccdeff4fe034715ad5a91410da5fa14",
+    "title": "live_queue_tracker",
+    "ar_title": "طبيبي - تتبع دورك الحي والمباشر",
+    "html_file": "C:\\Users\\workstation\\Documents\\doctor\\stitch_designs\\5_live_queue_tracker.html",
+    "img_file": "C:\\Users\\workstation\\Documents\\doctor\\stitch_designs\\5_live_queue_tracker.png",
+    "artifact_img_file": "C:\\Users\\workstation\\.gemini\\antigravity\\brain\\41db3e27-007e-4cd4-b8b5-2424acc0d31a\\5_live_queue_tracker.png",
+    "html_size": 35141,
+    "img_size": 1597791
+  },
+  {
+    "order": 6,
+    "id": "aa814db81f9f479c8c490f9512fe3ba2",
+    "title": "admin_dashboard_analytics",
+    "ar_title": "طبيبي - لوحة القيادة المركزية والتحليلات البيانية",
+    "html_file": "C:\\Users\\workstation\\Documents\\doctor\\stitch_designs\\6_admin_dashboard_analytics.html",
+    "img_file": "C:\\Users\\workstation\\Documents\\doctor\\stitch_designs\\6_admin_dashboard_analytics.png",
+    "artifact_img_file": "C:\\Users\\workstation\\.gemini\\antigravity\\brain\\41db3e27-007e-4cd4-b8b5-2424acc0d31a\\6_admin_dashboard_analytics.png",
+    "html_size": 48335,
+    "img_size": 1050745
+  }
+]
