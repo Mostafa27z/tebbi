@@ -41,10 +41,19 @@ export default function TebibyHeader() {
 
     const navLinks = [
         { name: 'الرئيسية وحجز موعد', href: '/', active: url === '/', icon: Search },
-        { name: 'تتبع الدور الحي', href: '/queue/TB-92841', active: url.startsWith('/queue'), icon: Clock, badge: 'مباشر' },
-        ...(user?.role === 'patient' || !user ? [{ name: 'حسابي ومواعيدي', href: '/patient/portal', active: url.startsWith('/patient'), icon: UserIcon }] : []),
-        ...(user?.role === 'doctor' || user?.role === 'admin' || !user ? [{ name: 'لوحة الطبيب', href: '/doctor/dashboard', active: url.startsWith('/doctor'), icon: Stethoscope }] : []),
-        ...(user?.role === 'admin' || !user ? [{ name: 'إدارة المنصة والتحليلات', href: '/admin/analytics', active: url.startsWith('/admin'), icon: BarChart3 }] : []),
+        ...(user ? [
+            { name: 'تتبع الدور الحي', href: '/queue/TB-92841', active: url.startsWith('/queue'), icon: Clock, badge: 'مباشر' },
+        ] : []),
+        ...(user?.role === 'patient' ? [
+            { name: 'حسابي ومواعيدي', href: '/patient/portal', active: url.startsWith('/patient'), icon: UserIcon },
+        ] : []),
+        ...(user?.role === 'doctor' ? [
+            { name: 'لوحة تحكم الطبيب', href: '/doctor/dashboard', active: url.startsWith('/doctor'), icon: Stethoscope },
+        ] : []),
+        ...(user?.role === 'admin' ? [
+            { name: 'لوحة تحكم الطبيب', href: '/doctor/dashboard', active: url.startsWith('/doctor'), icon: Stethoscope },
+            { name: 'إدارة المنصة والتحليلات', href: '/admin/analytics', active: url.startsWith('/admin'), icon: BarChart3 },
+        ] : []),
     ];
 
     const handleLogout = () => {
@@ -112,13 +121,15 @@ export default function TebibyHeader() {
 
                     {/* Left Actions: User Profile or Login/Register buttons */}
                     <div className="flex items-center gap-3">
-                        <Link
-                            href="/queue/TB-92841"
-                            className="hidden lg:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-xs font-bold hover:bg-emerald-100 transition-colors"
-                        >
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                            <span>دورك الحي: رقم ٤</span>
-                        </Link>
+                        {user && (
+                            <Link
+                                href="/queue/TB-92841"
+                                className="hidden lg:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-xs font-bold hover:bg-emerald-100 transition-colors"
+                            >
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                                <span>دورك الحي: رقم ٤</span>
+                            </Link>
+                        )}
 
                         {user ? (
                             <div className="relative">
@@ -229,25 +240,27 @@ export default function TebibyHeader() {
                 </div>
 
                 {/* Mobile Sub-Navigation Bar */}
-                <div className="flex xl:hidden overflow-x-auto py-2.5 gap-2 border-t border-gray-100 no-scrollbar">
-                    {navLinks.map((item) => {
-                        const Icon = item.icon;
-                        return (
-                            <Link
-                                key={item.name}
-                                href={item.href}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-colors ${
-                                    item.active
-                                        ? 'bg-[#005ab5] text-white'
-                                        : 'bg-gray-100 text-gray-700'
-                                }`}
-                            >
-                                <Icon className="w-3.5 h-3.5" />
-                                <span>{item.name}</span>
-                            </Link>
-                        );
-                    })}
-                </div>
+                {navLinks.length > 1 && (
+                    <div className="flex xl:hidden overflow-x-auto py-2.5 gap-2 border-t border-gray-100 no-scrollbar">
+                        {navLinks.map((item) => {
+                            const Icon = item.icon;
+                            return (
+                                <Link
+                                    key={item.name}
+                                    href={item.href}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-colors ${
+                                        item.active
+                                            ? 'bg-[#005ab5] text-white'
+                                            : 'bg-gray-100 text-gray-700'
+                                    }`}
+                                >
+                                    <Icon className="w-3.5 h-3.5" />
+                                    <span>{item.name}</span>
+                                </Link>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
         </header>
     );
