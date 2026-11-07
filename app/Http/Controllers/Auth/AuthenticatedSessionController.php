@@ -18,32 +18,36 @@ class AuthenticatedSessionController extends Controller
      */
     public function create(Request $request): Response
     {
+        // For development/demo mode, pull sample accounts dynamically from the database
+        $demoAccounts = [];
+        if (! app()->isProduction() && config('app.allow_demo_login', false)) {
+            $roles = ['doctor', 'patient', 'admin'];
+            foreach ($roles as $role) {
+                $user = \App\Models\User::with('doctorProfile.specialty')->where('role', $role)->first();
+                if ($user) {
+                    $demoAccounts[] = [
+                        'role' => $user->role,
+                        'name' => $user->name . ($user->doctorProfile ? ' (' . ($user->doctorProfile->title_ar ?: 'طبيب معتمد') . ')' : ''),
+                        'email' => $user->email,
+                        'badge' => match ($user->role) {
+                            'doctor' => 'طبيب',
+                            'admin' => 'مدير النظام',
+                            default => 'مريض',
+                        },
+                        'icon' => match ($user->role) {
+                            'doctor' => 'stethoscope',
+                            'admin' => 'shield',
+                            default => 'user',
+                        },
+                    ];
+                }
+            }
+        }
+
         return Inertia::render('auth/login', [
             'canResetPassword' => Route::has('password.request'),
             'status' => $request->session()->get('status'),
-            'demoAccounts' => (! app()->isProduction() && config('app.allow_demo_login', false)) ? [
-                [
-                    'role' => 'doctor',
-                    'name' => 'د. عبدالمحسن الشمري (استشاري أسنان)',
-                    'email' => 'dr.shammary@tebiby.com',
-                    'badge' => 'طبيب',
-                    'icon' => 'stethoscope',
-                ],
-                [
-                    'role' => 'patient',
-                    'name' => 'محمد فهد الدوسري (مريض - بوبا)',
-                    'email' => 'patient@tebiby.com',
-                    'badge' => 'مريض',
-                    'icon' => 'user',
-                ],
-                [
-                    'role' => 'admin',
-                    'name' => 'المشرف العام للمنصة',
-                    'email' => 'admin@tebiby.com',
-                    'badge' => 'مدير النظام',
-                    'icon' => 'shield',
-                ],
-            ] : [],
+            'demoAccounts' => $demoAccounts,
         ]);
     }
 

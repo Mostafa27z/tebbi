@@ -57,10 +57,10 @@ class HomeController extends Controller
             ],
             'stats' => [
                 'totalDoctors' => DoctorProfile::count(),
-                'totalClinics' => Clinic::count(),
-                'satisfactionRate' => '99.4%',
-                'avgWaitMinutes' => 12,
-            ]
+                'totalClinics' => Clinic::where('is_active', true)->count(),
+                'satisfactionRate' => (DoctorProfile::avg('rating') ? number_format(DoctorProfile::avg('rating') * 20, 1) : '99.2') . '%',
+                'avgWaitMinutes' => (int) round(DoctorProfile::avg('waiting_time_minutes') ?: 15),
+            ],
         ]);
     }
 }

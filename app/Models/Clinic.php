@@ -25,6 +25,14 @@ class Clinic extends Model
         'is_verified',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'is_active' => 'boolean',
+            'is_verified' => 'boolean',
+        ];
+    }
+
     public function doctorProfiles(): HasMany
     {
         return $this->hasMany(DoctorProfile::class);

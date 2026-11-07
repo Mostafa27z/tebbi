@@ -35,9 +35,26 @@ Route::middleware(['auth', 'role:doctor'])->group(function () {
     Route::post('/doctor/appointments/{appointmentId}/consultation', [DoctorDashboardController::class, 'saveConsultation'])->name('doctor.appointments.consultation');
 });
 
-// Central Admin Protected Routes
+// Central Admin Protected Routes (Analytics & Full Dynamic Management)
 Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/admin/analytics', [AdminDashboardController::class, 'index'])->name('admin.analytics');
+
+    // Hospital / Clinic Management
+    Route::post('/admin/clinics', [AdminDashboardController::class, 'storeClinic'])->name('admin.clinics.store');
+    Route::put('/admin/clinics/{clinic}', [AdminDashboardController::class, 'updateClinic'])->name('admin.clinics.update');
+    Route::post('/admin/clinics/{clinic}/toggle', [AdminDashboardController::class, 'toggleClinic'])->name('admin.clinics.toggle');
+
+    // Doctor Management & Approval
+    Route::post('/admin/doctors/{doctor}/toggle-approval', [AdminDashboardController::class, 'toggleDoctorApproval'])->name('admin.doctors.toggle-approval');
+    Route::put('/admin/doctors/{doctor}', [AdminDashboardController::class, 'updateDoctor'])->name('admin.doctors.update');
+
+    // Specialty Management
+    Route::post('/admin/specialties', [AdminDashboardController::class, 'storeSpecialty'])->name('admin.specialties.store');
+    Route::put('/admin/specialties/{specialty}', [AdminDashboardController::class, 'updateSpecialty'])->name('admin.specialties.update');
+    Route::delete('/admin/specialties/{specialty}', [AdminDashboardController::class, 'deleteSpecialty'])->name('admin.specialties.delete');
+
+    // Appointment Status & Payment Updates
+    Route::put('/admin/appointments/{appointment}/status', [AdminDashboardController::class, 'updateAppointmentStatus'])->name('admin.appointments.update-status');
 });
 
 // Dashboard Route
@@ -48,12 +65,11 @@ Route::middleware(['auth'])->get('/dashboard', function () {
 // Local Environment Development Demo Login Route (Strictly disabled in production)
 if (! app()->isProduction() && config('app.allow_demo_login', false)) {
     Route::post('/login/demo/{role}', function (string $role) {
-        $email = match ($role) {
-            'doctor' => 'dr.shammary@tebiby.com',
-            'admin' => 'admin@tebiby.com',
-            default => 'patient@tebiby.com',
-        };
-        $user = \App\Models\User::where('email', $email)->firstOrFail();
+        $allowedRoles = ['doctor', 'admin', 'patient'];
+        if (! in_array($role, $allowedRoles)) {
+            abort(404);
+        }
+        $user = \App\Models\User::where('role', $role)->firstOrFail();
         \Illuminate\Support\Facades\Auth::login($user);
         request()->session()->regenerate();
 

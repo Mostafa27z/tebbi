@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Appointment;
+use App\Models\Clinic;
 use App\Models\DoctorProfile;
+use App\Models\Specialty;
 use App\Models\User;
 use Database\Seeders\TebibySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -99,5 +101,77 @@ class TebibyTest extends TestCase
         $this->assertNotNull($appt);
         $this->assertNotNull($appt->queueTicket);
         $response->assertRedirect('/queue/' . $appt->booking_reference);
+    }
+
+    public function test_admin_can_create_and_toggle_clinic(): void
+    {
+        $admin = User::where('role', 'admin')->first();
+
+        $response = $this->actingAs($admin)->post('/admin/clinics', [
+            'name' => 'مستشفى الدكتور سليمان فقيه',
+            'branch_name' => 'فرع التحلية',
+            'city' => 'جدة',
+            'district' => 'الأندلس',
+            'address' => 'شارع التحلية، جدة',
+            'phone' => '+966126655000',
+        ]);
+
+        $response->assertStatus(302);
+        $this->assertDatabaseHas('clinics', [
+            'name' => 'مستشفى الدكتور سليمان فقيه',
+            'is_active' => true,
+        ]);
+
+        $clinic = Clinic::where('name', 'مستشفى الدكتور سليمان فقيه')->first();
+        $this->actingAs($admin)->post("/admin/clinics/{$clinic->id}/toggle");
+        $this->assertFalse($clinic->fresh()->is_active);
+    }
+
+    public function test_admin_can_toggle_doctor_approval(): void
+    {
+        $admin = User::where('role', 'admin')->first();
+        $doctor = DoctorProfile::first();
+
+        $initialStatus = $doctor->is_available_today;
+        $response = $this->actingAs($admin)->post("/admin/doctors/{$doctor->id}/toggle-approval");
+
+        $response->assertStatus(302);
+        $this->assertEquals(! $initialStatus, $doctor->fresh()->is_available_today);
+    }
+
+    public function test_admin_can_create_and_delete_specialty(): void
+    {
+        $admin = User::where('role', 'admin')->first();
+
+        $response = $this->actingAs($admin)->post('/admin/specialties', [
+            'name_ar' => 'طب وجراحة المخ والأعصاب التجريبي',
+            'name_en' => 'Neurosurgery',
+            'icon_slug' => 'neurology',
+            'badge_text' => 'قسم تخصصي',
+            'description' => 'جراحة أورام المخ والعمود الفقري',
+        ]);
+
+        $response->assertStatus(302);
+        $spec = Specialty::where('name_ar', 'طب وجراحة المخ والأعصاب التجريبي')->first();
+        $this->assertNotNull($spec);
+
+        $delResponse = $this->actingAs($admin)->delete("/admin/specialties/{$spec->id}");
+        $delResponse->assertStatus(302);
+        $this->assertNull(Specialty::find($spec->id));
+    }
+
+    public function test_admin_can_update_appointment_status(): void
+    {
+        $admin = User::where('role', 'admin')->first();
+        $appt = Appointment::first();
+
+        $response = $this->actingAs($admin)->put("/admin/appointments/{$appt->id}/status", [
+            'status' => 'completed',
+            'payment_status' => 'paid',
+        ]);
+
+        $response->assertStatus(302);
+        $this->assertEquals('completed', $appt->fresh()->status);
+        $this->assertEquals('paid', $appt->fresh()->payment_status);
     }
 }

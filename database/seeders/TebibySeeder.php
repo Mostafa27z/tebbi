@@ -500,6 +500,56 @@ class TebibySeeder extends Seeder
                 'سكر الدم الصائم (FBS)' => '94 mg/dL (طبيعي)',
             ],
         ]);
+
+        // 9. Additional Historical & Recent Appointments for Analytics & Management
+        $extraPatients = [$patient1, $patient2];
+        $allDoctors = DoctorProfile::all();
+
+        for ($d = 1; $d <= 6; $d++) {
+            $pastDay = Carbon::today()->subDays($d);
+            $numAppts = rand(3, 7);
+
+            for ($k = 0; $k < $numAppts; $k++) {
+                $doc = $allDoctors->random();
+                $pat = $extraPatients[array_rand($extraPatients)];
+                $fee = $doc->consultation_fee;
+                $isPaid = (rand(1, 10) > 2); // 80% paid
+                $method = ['online', 'at_clinic', 'insurance'][rand(0, 2)];
+                $status = ($pastDay->isPast()) ? 'completed' : 'waiting';
+
+                $discount = ($method === 'insurance') ? $fee : 0.00;
+                $tax = ($fee - $discount) * 0.15;
+                $total = ($fee - $discount) + $tax;
+
+                $appt = Appointment::create([
+                    'booking_reference' => 'TB-' . $d . $k . rand(1000, 9999),
+                    'patient_id' => $pat->id,
+                    'doctor_id' => $doc->id,
+                    'appointment_date' => $pastDay,
+                    'appointment_time' => sprintf('%02d:%02d:00', rand(16, 21), rand(0, 3) * 15),
+                    'status' => $status,
+                    'payment_method' => $method,
+                    'payment_status' => $isPaid ? 'paid' : 'pending',
+                    'consultation_fee' => $fee,
+                    'discount' => $discount,
+                    'tax' => $tax,
+                    'total_amount' => $total,
+                    'insurance_provider' => $method === 'insurance' ? 'شركة بوبا العربية للتأمين' : null,
+                    'insurance_policy_number' => $method === 'insurance' ? 'BUP-' . rand(100000, 999999) : null,
+                    'patient_notes' => 'متابعة وفحص دوري منتظم',
+                    'notify_whatsapp' => true,
+                    'notify_sms' => true,
+                ]);
+
+                QueueTicket::create([
+                    'appointment_id' => $appt->id,
+                    'ticket_number' => $k + 1,
+                    'current_serving_number' => $k + 1,
+                    'estimated_wait_minutes' => 0,
+                    'status' => 'completed',
+                ]);
+            }
+        }
     }
 }
 

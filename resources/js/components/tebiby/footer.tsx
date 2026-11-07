@@ -22,9 +22,9 @@ export default function TebibyFooter() {
                         <h4 className="font-bold text-gray-900 text-sm mb-4 font-['Cairo']">روابط المنصة</h4>
                         <ul className="space-y-2.5 text-sm text-gray-600">
                             <li><Link href="/" className="hover:text-[#005ab5]">الرئيسية وحجز طبيب</Link></li>
-                            <li><Link href="/queue/TB-92841" className="hover:text-[#005ab5]">تتبع الدور المباشر</Link></li>
                             <li><Link href="/patient/portal" className="hover:text-[#005ab5]">بوابة المريض والملف الطبي</Link></li>
                             <li><Link href="/doctor/dashboard" className="hover:text-[#005ab5]">بوابة الأطباء والعيادات</Link></li>
+                            <li><Link href="/admin/analytics" className="hover:text-[#005ab5]">إدارة المنصة والتحليلات</Link></li>
                         </ul>
                     </div>
 

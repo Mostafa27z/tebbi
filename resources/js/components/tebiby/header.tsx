@@ -30,6 +30,11 @@ interface SharedProps {
                 specialty?: { name_ar: string };
             };
         } | null;
+        activeTicket?: {
+            booking_reference: string;
+            ticket_number: number;
+            status: string;
+        } | null;
     };
     [key: string]: any;
 }
@@ -37,12 +42,13 @@ interface SharedProps {
 export default function TebibyHeader() {
     const { url, props } = usePage<SharedProps>();
     const user = props.auth?.user;
+    const activeTicket = props.auth?.activeTicket;
     const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
     const navLinks = [
         { name: 'الرئيسية وحجز موعد', href: '/', active: url === '/', icon: Search },
-        ...(user ? [
-            { name: 'تتبع الدور الحي', href: '/queue/TB-92841', active: url.startsWith('/queue'), icon: Clock, badge: 'مباشر' },
+        ...(activeTicket ? [
+            { name: 'تتبع الدور الحي', href: `/queue/${activeTicket.booking_reference}`, active: url.startsWith('/queue'), icon: Clock, badge: `رقم ${activeTicket.ticket_number}` },
         ] : []),
         ...(user?.role === 'patient' ? [
             { name: 'حسابي ومواعيدي', href: '/patient/portal', active: url.startsWith('/patient'), icon: UserIcon },
@@ -121,13 +127,13 @@ export default function TebibyHeader() {
 
                     {/* Left Actions: User Profile or Login/Register buttons */}
                     <div className="flex items-center gap-3">
-                        {user && (
+                        {activeTicket && (
                             <Link
-                                href="/queue/TB-92841"
+                                href={`/queue/${activeTicket.booking_reference}`}
                                 className="hidden lg:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-xs font-bold hover:bg-emerald-100 transition-colors"
                             >
                                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                                <span>دورك الحي: رقم ٤</span>
+                                <span>دورك الحي: رقم {activeTicket.ticket_number}</span>
                             </Link>
                         )}
 
@@ -197,14 +203,16 @@ export default function TebibyHeader() {
                                             </Link>
                                         )}
 
-                                        <Link
-                                            href="/queue/TB-92841"
-                                            onClick={() => setUserDropdownOpen(false)}
-                                            className="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 font-bold"
-                                        >
-                                            <Clock className="w-4 h-4 text-emerald-600" />
-                                            <span>تتبع الدور الحي</span>
-                                        </Link>
+                                        {activeTicket && (
+                                            <Link
+                                                href={`/queue/${activeTicket.booking_reference}`}
+                                                onClick={() => setUserDropdownOpen(false)}
+                                                className="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 font-bold"
+                                            >
+                                                <Clock className="w-4 h-4 text-emerald-600" />
+                                                <span>تتبع الدور الحي (رقم {activeTicket.ticket_number})</span>
+                                            </Link>
+                                        )}
 
                                         <div className="border-t border-gray-100 my-1"></div>
 
