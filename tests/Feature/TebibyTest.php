@@ -174,4 +174,21 @@ class TebibyTest extends TestCase
         $this->assertEquals('completed', $appt->fresh()->status);
         $this->assertEquals('paid', $appt->fresh()->payment_status);
     }
+
+    public function test_admin_analytics_reports_no_records_when_empty(): void
+    {
+        $admin = User::where('role', 'admin')->first();
+
+        // Delete all clinics and doctor profiles to test empty state
+        Appointment::query()->delete();
+        DoctorProfile::query()->delete();
+        Clinic::query()->delete();
+
+        $response = $this->actingAs($admin)->get('/admin/analytics');
+        $response->assertStatus(200);
+
+        $props = $response->viewData('page')['props'];
+        $this->assertEquals('لا توجد سجلات حتى الآن', $props['metrics']['complianceRate']);
+        $this->assertEquals('لا توجد سجلات حتى الآن', $props['metrics']['avgWaitingTime']);
+    }
 }

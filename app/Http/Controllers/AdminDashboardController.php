@@ -25,19 +25,23 @@ class AdminDashboardController extends Controller
 
         $totalHospitals = Clinic::count();
         $complianceRate = $totalHospitals > 0
-            ? round((Clinic::where('is_verified', true)->count() / $totalHospitals) * 100, 1)
-            : 100.0;
+            ? round((Clinic::where('is_verified', true)->count() / $totalHospitals) * 100, 1) . '%'
+            : 'لا توجد سجلات حتى الآن';
 
-        $avgWaitingMinutes = (int) round(DoctorProfile::avg('waiting_time_minutes') ?: 15);
+        $totalDoctors = DoctorProfile::count();
+        $avgMinutesRaw = DoctorProfile::where('waiting_time_minutes', '>', 0)->avg('waiting_time_minutes');
+        $avgWaitingTime = ($totalDoctors > 0 && $avgMinutesRaw !== null)
+            ? (int) round($avgMinutesRaw) . ' دقيقة'
+            : 'لا توجد سجلات حتى الآن';
 
         // 2. Specialty Distribution (100% Dynamic)
-        $totalDoctorsAll = max(1, DoctorProfile::count());
+        $totalDoctorsAll = DoctorProfile::count();
         $specialtyDistribution = Specialty::withCount('doctorProfiles')->get()->map(function ($s) use ($totalDoctorsAll) {
             return [
                 'id' => $s->id,
                 'name' => $s->name_ar,
                 'doctors_count' => $s->doctor_profiles_count,
-                'share_percentage' => round(($s->doctor_profiles_count / $totalDoctorsAll) * 100, 1),
+                'share_percentage' => $totalDoctorsAll > 0 ? round(($s->doctor_profiles_count / $totalDoctorsAll) * 100, 1) : 0,
             ];
         });
 
@@ -98,8 +102,8 @@ class AdminDashboardController extends Controller
                 'totalRevenue' => number_format($totalRevenue, 0) . ' ر.س',
                 'activeDoctors' => $activeDoctorsCount,
                 'activeHospitals' => $activeHospitalsCount,
-                'complianceRate' => $complianceRate . '%',
-                'avgWaitingTime' => $avgWaitingMinutes . ' دقيقة',
+                'complianceRate' => $complianceRate,
+                'avgWaitingTime' => $avgWaitingTime,
             ],
             'chartData' => $chartData,
             'specialtyDistribution' => $specialtyDistribution,

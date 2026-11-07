@@ -447,22 +447,38 @@ export default function AdminAnalytics({
                                 <span className="text-[11px] text-gray-400 font-semibold">مجمع معتمد</span>
                             </div>
 
-                            <div className="p-5 rounded-3xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between">
+                            <div className="p-5 rounded-3xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between min-h-[120px]">
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="text-xs text-gray-500 font-bold">الامتثال الصحي</span>
                                     <ShieldCheck className="w-4 h-4 text-[#006b5c]" />
                                 </div>
-                                <div className="text-2xl font-black text-[#006b5c] font-['Cairo']">{metrics.complianceRate}</div>
-                                <span className="text-[11px] text-gray-400 font-semibold">المراكز الموثقة</span>
+                                <div className={`font-['Cairo'] ${
+                                    metrics.complianceRate.includes('لا توجد')
+                                        ? 'text-xs sm:text-sm font-bold text-gray-400 py-1 leading-snug'
+                                        : 'text-2xl font-black text-[#006b5c]'
+                                }`}>
+                                    {metrics.complianceRate}
+                                </div>
+                                <span className="text-[11px] text-gray-400 font-semibold">
+                                    {metrics.complianceRate.includes('لا توجد') ? 'بانتظار تسجيل مستشفيات' : 'المراكز الموثقة'}
+                                </span>
                             </div>
 
-                            <div className="p-5 rounded-3xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between">
+                            <div className="p-5 rounded-3xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between min-h-[120px]">
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="text-xs text-gray-500 font-bold">متوسط الانتظار</span>
                                     <Clock className="w-4 h-4 text-blue-600" />
                                 </div>
-                                <div className="text-2xl font-black text-blue-600 font-['Cairo']">{metrics.avgWaitingTime}</div>
-                                <span className="text-[11px] text-emerald-600 font-bold">تتبع حي</span>
+                                <div className={`font-['Cairo'] ${
+                                    metrics.avgWaitingTime.includes('لا توجد')
+                                        ? 'text-xs sm:text-sm font-bold text-gray-400 py-1 leading-snug'
+                                        : 'text-2xl font-black text-blue-600'
+                                }`}>
+                                    {metrics.avgWaitingTime}
+                                </div>
+                                <span className="text-[11px] font-semibold text-gray-400">
+                                    {metrics.avgWaitingTime.includes('لا توجد') ? 'بانتظار تسجيل أطباء' : 'تتبع حي'}
+                                </span>
                             </div>
                         </div>
 
@@ -490,26 +506,34 @@ export default function AdminAnalytics({
                                         </div>
                                     </div>
 
-                                    {/* Real CSS Bar Graph */}
-                                    <div className="h-48 flex items-end gap-3 sm:gap-6 pt-8 pb-2 border-b border-gray-100">
-                                        {chartData.map((bar) => (
-                                            <div key={bar.date} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
-                                                <div className="w-full flex items-end justify-center gap-1 h-full">
-                                                    <div
-                                                        style={{ height: `${bar.val1}%` }}
-                                                        className="w-full max-w-[20px] bg-[#005ab5] rounded-t-lg group-hover:bg-[#00458e] transition-all relative"
-                                                        title={`${bar.bookings} حجز`}
-                                                    ></div>
-                                                    <div
-                                                        style={{ height: `${bar.val2}%` }}
-                                                        className="w-full max-w-[20px] bg-emerald-400 rounded-t-lg group-hover:bg-emerald-500 transition-all"
-                                                        title={`${bar.revenue} ر.س`}
-                                                    ></div>
+                                    {/* Real CSS Bar Graph or Empty State */}
+                                    {metrics.totalBookings === 0 ? (
+                                        <div className="h-48 flex flex-col items-center justify-center text-center p-6 border-b border-gray-100 text-gray-400">
+                                            <Calendar className="w-8 h-8 mb-2 text-gray-300" />
+                                            <span className="text-xs font-bold">لا توجد سجلات حجوزات حتى الآن</span>
+                                            <span className="text-[11px] text-gray-400 mt-1">سيتم رسم منحنى التدفق المالي والحجوزات فور بدء المرضى بالحجز</span>
+                                        </div>
+                                    ) : (
+                                        <div className="h-48 flex items-end gap-3 sm:gap-6 pt-8 pb-2 border-b border-gray-100">
+                                            {chartData.map((bar) => (
+                                                <div key={bar.date} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
+                                                    <div className="w-full flex items-end justify-center gap-1 h-full">
+                                                        <div
+                                                            style={{ height: `${bar.val1}%` }}
+                                                            className="w-full max-w-[20px] bg-[#005ab5] rounded-t-lg group-hover:bg-[#00458e] transition-all relative"
+                                                            title={`${bar.bookings} حجز`}
+                                                        ></div>
+                                                        <div
+                                                            style={{ height: `${bar.val2}%` }}
+                                                            className="w-full max-w-[20px] bg-emerald-400 rounded-t-lg group-hover:bg-emerald-500 transition-all"
+                                                            title={`${bar.revenue} ر.س`}
+                                                        ></div>
+                                                    </div>
+                                                    <span className="text-[10px] text-gray-500 font-bold">{bar.day}</span>
                                                 </div>
-                                                <span className="text-[10px] text-gray-500 font-bold">{bar.day}</span>
-                                            </div>
-                                        ))}
-                                    </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="pt-4 flex items-center justify-between text-xs text-gray-500">
@@ -526,22 +550,30 @@ export default function AdminAnalytics({
                                     </h3>
                                     <p className="text-xs text-gray-500 mb-6">نسبة تمثيل التخصصات الإكلينيكية بالمنصة</p>
 
-                                    <div className="space-y-4">
-                                        {specialtyDistribution.slice(0, 5).map((spec) => (
-                                            <div key={spec.id} className="space-y-1">
-                                                <div className="flex items-center justify-between text-xs">
-                                                    <span className="font-bold text-gray-800">{spec.name}</span>
-                                                    <span className="font-semibold text-gray-500">{spec.doctors_count} طبيب ({spec.share_percentage}%)</span>
+                                    {specialtyDistribution.length === 0 || specialtyDistribution.every(s => s.doctors_count === 0) ? (
+                                        <div className="py-8 text-center text-gray-400">
+                                            <Users className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                                            <span className="text-xs font-bold block">لا توجد سجلات أطباء بالأقسام حتى الآن</span>
+                                            <span className="text-[11px] text-gray-400 mt-1 block">ستظهر النسب المئوية فور تعيين الأطباء بالأقسام</span>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {specialtyDistribution.slice(0, 5).map((spec) => (
+                                                <div key={spec.id} className="space-y-1">
+                                                    <div className="flex items-center justify-between text-xs">
+                                                        <span className="font-bold text-gray-800">{spec.name}</span>
+                                                        <span className="font-semibold text-gray-500">{spec.doctors_count} طبيب ({spec.share_percentage}%)</span>
+                                                    </div>
+                                                    <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden">
+                                                        <div
+                                                            style={{ width: `${Math.min(100, spec.share_percentage * 2)}%` }}
+                                                            className="h-full bg-gradient-to-r from-[#005ab5] to-[#0072e2] rounded-full"
+                                                        ></div>
+                                                    </div>
                                                 </div>
-                                                <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden">
-                                                    <div
-                                                        style={{ width: `${Math.min(100, spec.share_percentage * 2)}%` }}
-                                                        className="h-full bg-gradient-to-r from-[#005ab5] to-[#0072e2] rounded-full"
-                                                    ></div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="pt-6 border-t border-gray-100 text-center">

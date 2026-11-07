@@ -158,8 +158,12 @@ export default function DoctorDashboard({
 
                     <div className="p-5 rounded-3xl bg-white border border-gray-200/80 shadow-xs">
                         <span className="text-xs text-gray-500 font-bold block mb-1">الدور الفعلي الحالي</span>
-                        <div className="text-3xl font-black text-amber-600 font-['Cairo']">#{stats.currentTicketNum}</div>
-                        <span className="text-[11px] text-amber-700 font-semibold">تذكرة المريض الحالي</span>
+                        <div className="text-2xl font-black text-amber-600 font-['Cairo']">
+                            {stats.currentTicketNum ? `#${stats.currentTicketNum}` : 'لا يوجد حالات'}
+                        </div>
+                        <span className="text-[11px] text-amber-700 font-semibold">
+                            {stats.currentTicketNum ? 'تذكرة المريض الحالي' : 'بانتظار بدء الكشف'}
+                        </span>
                     </div>
                 </div>
 

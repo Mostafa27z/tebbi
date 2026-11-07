@@ -49,7 +49,7 @@ class DoctorDashboardController extends Controller
                 'totalPatients' => $totalToday,
                 'completedCount' => $completedToday,
                 'waitingCount' => $waitingToday,
-                'currentTicketNum' => $currentSession ? $currentSession->queueTicket?->ticket_number ?? 1 : 1,
+                'currentTicketNum' => $currentSession ? ($currentSession->queueTicket?->ticket_number ?? null) : null,
             ]
         ]);
     }

@@ -58,8 +58,12 @@ class HomeController extends Controller
             'stats' => [
                 'totalDoctors' => DoctorProfile::count(),
                 'totalClinics' => Clinic::where('is_active', true)->count(),
-                'satisfactionRate' => (DoctorProfile::avg('rating') ? number_format(DoctorProfile::avg('rating') * 20, 1) : '99.2') . '%',
-                'avgWaitMinutes' => (int) round(DoctorProfile::avg('waiting_time_minutes') ?: 15),
+                'satisfactionRate' => (DoctorProfile::count() > 0 && DoctorProfile::avg('rating') !== null)
+                    ? number_format(DoctorProfile::avg('rating') * 20, 1) . '%'
+                    : 'لا توجد تقييمات حتى الآن',
+                'avgWaitMinutes' => (DoctorProfile::count() > 0 && DoctorProfile::avg('waiting_time_minutes') !== null)
+                    ? (int) round(DoctorProfile::avg('waiting_time_minutes')) . ' دقيقة'
+                    : 'لا توجد سجلات حتى الآن',
             ],
         ]);
     }
