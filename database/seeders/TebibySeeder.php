@@ -4,11 +4,15 @@ namespace Database\Seeders;
 
 use App\Models\Appointment;
 use App\Models\Clinic;
+use App\Models\DoctorFacility;
 use App\Models\DoctorProfile;
 use App\Models\DoctorSchedule;
+use App\Models\Facility;
+use App\Models\Group;
 use App\Models\MedicalRecord;
 use App\Models\Prescription;
 use App\Models\QueueTicket;
+use App\Models\RoleAssignment;
 use App\Models\Specialty;
 use App\Models\User;
 use Carbon\Carbon;
@@ -84,79 +88,207 @@ class TebibySeeder extends Seeder
             $specModels[$sp['icon_slug']] = Specialty::create($sp);
         }
 
-        // 2. Clinics & Hospitals
-        $clinics = [
-            [
-                'name' => 'مجموعة د. سليمان الحبيب الطبية',
-                'branch_name' => 'مجمع العليا الطبي - طريق الملك فهد',
-                'city' => 'الرياض',
-                'district' => 'العليا',
-                'address' => 'طريق الملك فهد، حي العليا، الرياض 12214',
-                'phone' => '+966112833333',
-                'map_url' => 'https://maps.google.com/?q=24.6978,46.6841',
-                'latitude' => 24.6978,
-                'longitude' => 46.6841,
-                'logo_url' => '/images/clinics/habeeb.png',
-                'is_active' => true,
-                'is_verified' => true,
-            ],
-            [
-                'name' => 'مستشفى المواساة الحديث',
-                'branch_name' => 'فرع قرطبة',
-                'city' => 'الرياض',
-                'district' => 'قرطبة',
-                'address' => 'طريق الثمامة، حي قرطبة، الرياض',
-                'phone' => '+966114888888',
-                'map_url' => 'https://maps.google.com/?q=24.8122,46.7410',
-                'latitude' => 24.8122,
-                'longitude' => 46.7410,
-                'logo_url' => '/images/clinics/mouwasat.png',
-                'is_active' => true,
-                'is_verified' => true,
-            ],
-            [
-                'name' => 'المركز الطبي الدولي (IMC)',
-                'branch_name' => 'المقر الرئيسي',
-                'city' => 'جدة',
-                'district' => 'الرويس',
-                'address' => 'طريق حائل، حي الرويس، جدة',
-                'phone' => '+966126509000',
-                'map_url' => 'https://maps.google.com/?q=21.5292,39.1728',
-                'latitude' => 21.5292,
-                'longitude' => 39.1728,
-                'logo_url' => '/images/clinics/imc.png',
-                'is_active' => true,
-                'is_verified' => true,
-            ],
-            [
-                'name' => 'المستشفى السعودي الألماني',
-                'branch_name' => 'فرع حي الصحافة',
-                'city' => 'الرياض',
-                'district' => 'الصحافة',
-                'address' => 'طريق الملك فهد الفرعي، حي الصحافة، الرياض',
-                'phone' => '+966920007997',
-                'map_url' => 'https://maps.google.com/?q=24.7955,46.6433',
-                'latitude' => 24.7955,
-                'longitude' => 46.6433,
-                'logo_url' => '/images/clinics/sgh.png',
-                'is_active' => true,
-                'is_verified' => true,
-            ],
-        ];
+        // 2. Medical Groups (المجمعات والمنظومات الطبية)
+        $habeebGroup = Group::create([
+            'name_ar' => 'مجموعة د. سليمان الحبيب الطبية',
+            'name_en' => 'Dr. Sulaiman Al Habib Medical Group',
+            'slug' => 'habeeb-medical-group',
+            'logo_url' => '/images/clinics/habeeb.png',
+            'cr_number' => '1010187423',
+            'status' => 'active',
+        ]);
 
-        $clinicModels = [];
-        foreach ($clinics as $c) {
-            $clinicModels[] = Clinic::create($c);
-        }
+        $mouwasatGroup = Group::create([
+            'name_ar' => 'مجموعة المواساة للخدمات الطبية',
+            'name_en' => 'Mouwasat Medical Services',
+            'slug' => 'mouwasat-medical-group',
+            'logo_url' => '/images/clinics/mouwasat.png',
+            'cr_number' => '1010245678',
+            'status' => 'active',
+        ]);
 
-        // 3. Super Admin
+        // 2.1 Facilities under Groups (المستشفيات والعيادات التابعة)
+        $facility1 = Facility::create([
+            'group_id' => $habeebGroup->id,
+            'name' => 'مستشفى د. سليمان الحبيب - العليا',
+            'branch_name' => 'مجمع العليا الطبي - طريق الملك فهد',
+            'type' => 'hospital',
+            'moh_license_no' => 'MOH-RYD-9941',
+            'city' => 'الرياض',
+            'district' => 'العليا',
+            'address' => 'طريق الملك فهد، حي العليا، الرياض 12214',
+            'phone' => '+966112833333',
+            'map_url' => 'https://maps.google.com/?q=24.6978,46.6841',
+            'latitude' => 24.6978,
+            'longitude' => 46.6841,
+            'logo_url' => '/images/clinics/habeeb.png',
+            'is_active' => true,
+            'is_verified' => true,
+        ]);
+
+        $facility2 = Facility::create([
+            'group_id' => $habeebGroup->id,
+            'name' => 'عيادات د. سليمان الحبيب التخصصية - الصحافة',
+            'branch_name' => 'مركز الرعاية النهارية والعيادات الخارجية',
+            'type' => 'clinic',
+            'moh_license_no' => 'MOH-RYD-9942',
+            'city' => 'الرياض',
+            'district' => 'الصحافة',
+            'address' => 'طريق الملك فهد الفرعي، حي الصحافة، الرياض',
+            'phone' => '+966112833334',
+            'map_url' => 'https://maps.google.com/?q=24.7955,46.6433',
+            'latitude' => 24.7955,
+            'longitude' => 46.6433,
+            'logo_url' => '/images/clinics/habeeb.png',
+            'is_active' => true,
+            'is_verified' => true,
+        ]);
+
+        $facility3 = Facility::create([
+            'group_id' => $mouwasatGroup->id,
+            'name' => 'مستشفى المواساة الحديث - قرطبة',
+            'branch_name' => 'المقر الإقليمي بالرياض',
+            'type' => 'hospital',
+            'moh_license_no' => 'MOH-RYD-8821',
+            'city' => 'الرياض',
+            'district' => 'قرطبة',
+            'address' => 'طريق الثمامة، حي قرطبة، الرياض',
+            'phone' => '+966114888888',
+            'map_url' => 'https://maps.google.com/?q=24.8122,46.7410',
+            'latitude' => 24.8122,
+            'longitude' => 46.7410,
+            'logo_url' => '/images/clinics/mouwasat.png',
+            'is_active' => true,
+            'is_verified' => true,
+        ]);
+
+        $facility4 = Facility::create([
+            'group_id' => $mouwasatGroup->id,
+            'name' => 'عيادات المواساة اليومية - السليمانية',
+            'branch_name' => 'مجمع العيادات التخصصية',
+            'type' => 'clinic',
+            'moh_license_no' => 'MOH-RYD-8822',
+            'city' => 'الرياض',
+            'district' => 'السليمانية',
+            'address' => 'شارع التحلية، حي السليمانية، الرياض',
+            'phone' => '+966114888889',
+            'map_url' => 'https://maps.google.com/?q=24.7000,46.7000',
+            'latitude' => 24.7000,
+            'longitude' => 46.7000,
+            'logo_url' => '/images/clinics/mouwasat.png',
+            'is_active' => true,
+            'is_verified' => true,
+        ]);
+
+        $clinicModels = [$facility1, $facility2, $facility3, $facility4];
+
+        // 3. Platform & Hierarchy Admins (إدارة المنظومة والأدوار الموزعة)
+        // 3.1 Platform Super Admin (منصة طبيبي) - مشرف المنصة العام فقط (لا يتبع أي مجمع أو عيادة، يدير كافة المستأجرين)
         User::create([
-            'name' => 'مدير منصة طبيبي',
+            'name' => 'مدير منصة طبيبي (مشرف المنصة العام)',
             'email' => 'admin@tebiby.com',
             'password' => Hash::make('password123'),
             'phone' => '+966500000001',
             'role' => 'admin',
             'national_id' => '1000000001',
+        ]);
+
+        // 3.2 Medical Group 1 Admins (مجموعة د. سليمان الحبيب الطبية)
+        // 3.2.1 Group Admin (مدير مجمع الحبيب)
+        $habeebAdmin = User::create([
+            'name' => 'أحمد العلي (مدير مجمع الحبيب)',
+            'email' => 'habeeb.admin@tebiby.com',
+            'password' => Hash::make('password123'),
+            'phone' => '+966500000002',
+            'role' => 'patient',
+            'national_id' => '1000000002',
+        ]);
+        RoleAssignment::create([
+            'user_id' => $habeebAdmin->id,
+            'role' => 'group_admin',
+            'scope_type' => 'group',
+            'scope_id' => $habeebGroup->id,
+        ]);
+
+        // 3.2.2 Facility Admin (مدير مستشفى العليا)
+        $olayaAdmin = User::create([
+            'name' => 'سلمان الرشيد (مدير مستشفى العليا)',
+            'email' => 'olaya.admin@tebiby.com',
+            'password' => Hash::make('password123'),
+            'phone' => '+966500000003',
+            'role' => 'patient',
+            'national_id' => '1000000003',
+        ]);
+        RoleAssignment::create([
+            'user_id' => $olayaAdmin->id,
+            'role' => 'facility_admin',
+            'scope_type' => 'facility',
+            'scope_id' => $facility1->id,
+        ]);
+
+        // 3.2.3 Receptionist (موظف استقبال مستشفى العليا)
+        $olayaReception = User::create([
+            'name' => 'خالد الدوسري (استقبال العليا)',
+            'email' => 'reception.olaya@tebiby.com',
+            'password' => Hash::make('password123'),
+            'phone' => '+966500000004',
+            'role' => 'patient',
+            'national_id' => '1000000004',
+        ]);
+        RoleAssignment::create([
+            'user_id' => $olayaReception->id,
+            'role' => 'receptionist',
+            'scope_type' => 'facility',
+            'scope_id' => $facility1->id,
+        ]);
+
+        // 3.3 Medical Group 2 Admins (مجموعة المواساة للخدمات الطبية)
+        // 3.3.1 Group Admin (مدير مجمع المواساة)
+        $mouwasatAdmin = User::create([
+            'name' => 'فيصل الحربي (مدير مجمع المواساة)',
+            'email' => 'mouwasat.admin@tebiby.com',
+            'password' => Hash::make('password123'),
+            'phone' => '+966500000005',
+            'role' => 'patient',
+            'national_id' => '1000000005',
+        ]);
+        RoleAssignment::create([
+            'user_id' => $mouwasatAdmin->id,
+            'role' => 'group_admin',
+            'scope_type' => 'group',
+            'scope_id' => $mouwasatGroup->id,
+        ]);
+
+        // 3.3.2 Facility Admin (مدير مستشفى المواساة - قرطبة)
+        $qurtubahAdmin = User::create([
+            'name' => 'بندر القحطاني (مدير مستشفى المواساة - قرطبة)',
+            'email' => 'qurtubah.admin@tebiby.com',
+            'password' => Hash::make('password123'),
+            'phone' => '+966500000006',
+            'role' => 'patient',
+            'national_id' => '1000000006',
+        ]);
+        RoleAssignment::create([
+            'user_id' => $qurtubahAdmin->id,
+            'role' => 'facility_admin',
+            'scope_type' => 'facility',
+            'scope_id' => $facility3->id,
+        ]);
+
+        // 3.3.3 Receptionist (موظف استقبال المواساة - قرطبة)
+        $qurtubahReception = User::create([
+            'name' => 'ناصر السبيعي (استقبال المواساة - قرطبة)',
+            'email' => 'reception.qurtubah@tebiby.com',
+            'password' => Hash::make('password123'),
+            'phone' => '+966500000007',
+            'role' => 'patient',
+            'national_id' => '1000000007',
+        ]);
+        RoleAssignment::create([
+            'user_id' => $qurtubahReception->id,
+            'role' => 'receptionist',
+            'scope_type' => 'facility',
+            'scope_id' => $facility3->id,
         ]);
 
         // 4. Doctor Users & Profiles
@@ -187,6 +319,17 @@ class TebibySeeder extends Seeder
             'accepts_insurance' => true,
             'accepted_insurances' => ['شركة بوبا العربية للتأمين', 'شركة التعاونية للتأمين', 'ميدغلف', 'تكافل الراجحي'],
             'is_available_today' => true,
+        ]);
+
+        // Multi-facility Doctor 1: Also assigned to Sahafa Clinic
+        DoctorFacility::firstOrCreate([
+            'doctor_profile_id' => $doc1->id,
+            'facility_id' => $facility2->id,
+        ], [
+            'consultation_fee' => 200.00,
+            'default_slot_minutes' => 15,
+            'accepts_insurance' => true,
+            'is_active' => true,
         ]);
 
         // Doctor 2: د. سارة المنصور (Dermatology)
@@ -302,10 +445,20 @@ class TebibySeeder extends Seeder
             'dob' => '1985-11-20',
         ]);
 
-        // 6. Doctor 1 Schedules
-        for ($day = 0; $day <= 4; $day++) { // Sunday to Thursday
+        // 6. Doctor 1 Schedules (Per-Facility Granular Schedules)
+        $doc1Facility1Pivot = DoctorFacility::where('doctor_profile_id', $doc1->id)
+            ->where('facility_id', $facility1->id)
+            ->first();
+
+        $doc1Facility2Pivot = DoctorFacility::where('doctor_profile_id', $doc1->id)
+            ->where('facility_id', $facility2->id)
+            ->first();
+
+        // Facility 1 (مستشفى العليا): Sunday, Tuesday, Thursday
+        foreach ([0, 2, 4] as $day) {
             DoctorSchedule::create([
                 'doctor_profile_id' => $doc1->id,
+                'doctor_facility_id' => $doc1Facility1Pivot?->id,
                 'day_of_week' => $day,
                 'start_time' => '16:00:00',
                 'end_time' => '22:00:00',
@@ -313,6 +466,22 @@ class TebibySeeder extends Seeder
                 'max_daily_patients' => 18,
                 'is_active' => true,
             ]);
+        }
+
+        // Facility 2 (عيادات الصحافة): Monday, Wednesday
+        if ($doc1Facility2Pivot) {
+            foreach ([1, 3] as $day) {
+                DoctorSchedule::create([
+                    'doctor_profile_id' => $doc1->id,
+                    'doctor_facility_id' => $doc1Facility2Pivot->id,
+                    'day_of_week' => $day,
+                    'start_time' => '17:00:00',
+                    'end_time' => '21:00:00',
+                    'slot_duration_minutes' => 15,
+                    'max_daily_patients' => 16,
+                    'is_active' => true,
+                ]);
+            }
         }
 
         // 7. Today's Appointments & Queue Tickets

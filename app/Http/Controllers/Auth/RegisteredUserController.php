@@ -45,7 +45,7 @@ class RegisteredUserController extends Controller
             'role' => 'nullable|in:patient,doctor',
             'national_id' => 'nullable|string|max:20',
             'specialty_id' => 'nullable|required_if:role,doctor|exists:specialties,id',
-            'clinic_id' => 'nullable|required_if:role,doctor|exists:clinics,id',
+            'clinic_id' => 'nullable|required_if:role,doctor|exists:facilities,id',
             'title_ar' => 'nullable|required_if:role,doctor|string|max:255',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);

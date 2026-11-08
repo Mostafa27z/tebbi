@@ -69,18 +69,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Allow Demo 1-Click Login
-    |--------------------------------------------------------------------------
-    |
-    | When enabled AND not running in production, enables the local quick
-    | demo authentication endpoint. Strictly disabled in production.
-    |
-    */
-
-    'allow_demo_login' => (bool) env('ALLOW_DEMO_LOGIN', false),
-
-    /*
-    |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |

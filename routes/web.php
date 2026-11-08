@@ -3,6 +3,8 @@
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\DoctorDashboardController;
+use App\Http\Controllers\FacilityDashboardController;
+use App\Http\Controllers\GroupDashboardController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LiveQueueController;
 use App\Http\Controllers\PatientPortalController;
@@ -39,10 +41,24 @@ Route::middleware(['auth', 'role:doctor'])->group(function () {
 Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/admin/analytics', [AdminDashboardController::class, 'index'])->name('admin.analytics');
 
+    // Medical Group Management (المجمعات الطبية)
+    Route::post('/admin/groups', [AdminDashboardController::class, 'storeGroup'])->name('admin.groups.store');
+    Route::put('/admin/groups/{group}', [AdminDashboardController::class, 'updateGroup'])->name('admin.groups.update');
+    Route::delete('/admin/groups/{group}', [AdminDashboardController::class, 'deleteGroup'])->name('admin.groups.delete');
+
+    // Scoped Roles & Staff Management (إدارة المشرفين والصلاحيات)
+    Route::post('/admin/role-assignments', [AdminDashboardController::class, 'storeRoleAssignment'])->name('admin.role-assignments.store');
+    Route::delete('/admin/role-assignments/{roleAssignment}', [AdminDashboardController::class, 'deleteRoleAssignment'])->name('admin.role-assignments.delete');
+
+    // Doctor Multi-Facility Assignments (توزيع الأطباء على الفروع)
+    Route::post('/admin/doctor-facilities', [AdminDashboardController::class, 'storeDoctorFacility'])->name('admin.doctor-facilities.store');
+    Route::delete('/admin/doctor-facilities/{doctorFacility}', [AdminDashboardController::class, 'deleteDoctorFacility'])->name('admin.doctor-facilities.delete');
+
     // Hospital / Clinic Management
     Route::post('/admin/clinics', [AdminDashboardController::class, 'storeClinic'])->name('admin.clinics.store');
     Route::put('/admin/clinics/{clinic}', [AdminDashboardController::class, 'updateClinic'])->name('admin.clinics.update');
     Route::post('/admin/clinics/{clinic}/toggle', [AdminDashboardController::class, 'toggleClinic'])->name('admin.clinics.toggle');
+    Route::post('/admin/clinics/{clinic}/toggle-verify', [AdminDashboardController::class, 'toggleClinicVerification'])->name('admin.clinics.toggle-verify');
 
     // Doctor Management & Approval
     Route::post('/admin/doctors/{doctor}/toggle-approval', [AdminDashboardController::class, 'toggleDoctorApproval'])->name('admin.doctors.toggle-approval');
@@ -57,29 +73,23 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::put('/admin/appointments/{appointment}/status', [AdminDashboardController::class, 'updateAppointmentStatus'])->name('admin.appointments.update-status');
 });
 
+// Medical Group Admin Routes (مدير المجمع الطبي)
+Route::middleware(['auth'])->group(function () {
+    Route::get('/group/dashboard', [GroupDashboardController::class, 'index'])->name('group.dashboard');
+    Route::post('/group/{group}/facilities', [GroupDashboardController::class, 'storeFacility'])->name('group.facilities.store');
+    Route::post('/group/{group}/staff', [GroupDashboardController::class, 'storeFacilityStaff'])->name('group.staff.store');
+});
+
+// Facility Admin & Reception Routes (مدير المستشفى/العيادة والاستقبال)
+Route::middleware(['auth'])->group(function () {
+    Route::get('/facility/dashboard', [FacilityDashboardController::class, 'index'])->name('facility.dashboard');
+    Route::post('/facility/{facility}/walkin-ticket', [FacilityDashboardController::class, 'issueWalkInTicket'])->name('facility.walkin');
+});
+
 // Dashboard Route
 Route::middleware(['auth'])->get('/dashboard', function () {
     return Inertia::render('dashboard');
 })->name('dashboard');
-
-// Local Environment Development Demo Login Route (Strictly disabled in production)
-if (! app()->isProduction() && config('app.allow_demo_login', false)) {
-    Route::post('/login/demo/{role}', function (string $role) {
-        $allowedRoles = ['doctor', 'admin', 'patient'];
-        if (! in_array($role, $allowedRoles)) {
-            abort(404);
-        }
-        $user = \App\Models\User::where('role', $role)->firstOrFail();
-        \Illuminate\Support\Facades\Auth::login($user);
-        request()->session()->regenerate();
-
-        return redirect()->intended(match ($role) {
-            'doctor' => route('doctor.dashboard', absolute: false),
-            'admin' => route('admin.analytics', absolute: false),
-            default => route('patient.portal', absolute: false),
-        });
-    })->middleware('throttle:10,1')->name('login.demo');
-}
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

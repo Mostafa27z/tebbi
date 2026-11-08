@@ -15,6 +15,8 @@ class Appointment extends Model
         'booking_reference',
         'patient_id',
         'doctor_id',
+        'doctor_facility_id',
+        'facility_id',
         'appointment_date',
         'appointment_time',
         'status',
@@ -44,6 +46,32 @@ class Appointment extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::creating(function (Appointment $appointment) {
+            if ($appointment->doctor_id) {
+                $doctor = DoctorProfile::find($appointment->doctor_id);
+                if ($doctor) {
+                    if (empty($appointment->facility_id)) {
+                        $appointment->facility_id = $doctor->clinic_id;
+                    }
+                    if (empty($appointment->doctor_facility_id) && $appointment->facility_id) {
+                        $pivot = DoctorFacility::firstOrCreate([
+                            'doctor_profile_id' => $doctor->id,
+                            'facility_id' => $appointment->facility_id,
+                        ], [
+                            'consultation_fee' => $doctor->consultation_fee ?? 200,
+                            'default_slot_minutes' => 20,
+                            'accepts_insurance' => (bool) $doctor->accepts_insurance,
+                            'is_active' => true,
+                        ]);
+                        $appointment->doctor_facility_id = $pivot->id;
+                    }
+                }
+            }
+        });
+    }
+
     public function patient(): BelongsTo
     {
         return $this->belongsTo(User::class, 'patient_id');
@@ -54,9 +82,24 @@ class Appointment extends Model
         return $this->belongsTo(DoctorProfile::class, 'doctor_id');
     }
 
+    public function doctorFacility(): BelongsTo
+    {
+        return $this->belongsTo(DoctorFacility::class);
+    }
+
+    public function facility(): BelongsTo
+    {
+        return $this->belongsTo(Facility::class, 'facility_id');
+    }
+
     public function queueTicket(): HasOne
     {
         return $this->hasOne(QueueTicket::class);
+    }
+
+    public function medicalRecord(): HasOne
+    {
+        return $this->hasOne(MedicalRecord::class);
     }
 
     public function prescription(): HasOne
@@ -64,4 +107,3 @@ class Appointment extends Model
         return $this->hasOne(Prescription::class);
     }
 }
-

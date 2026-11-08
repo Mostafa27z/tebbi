@@ -117,7 +117,7 @@ class TebibyTest extends TestCase
         ]);
 
         $response->assertStatus(302);
-        $this->assertDatabaseHas('clinics', [
+        $this->assertDatabaseHas('facilities', [
             'name' => 'مستشفى الدكتور سليمان فقيه',
             'is_active' => true,
         ]);
@@ -125,6 +125,10 @@ class TebibyTest extends TestCase
         $clinic = Clinic::where('name', 'مستشفى الدكتور سليمان فقيه')->first();
         $this->actingAs($admin)->post("/admin/clinics/{$clinic->id}/toggle");
         $this->assertFalse($clinic->fresh()->is_active);
+
+        $initialVerification = $clinic->fresh()->is_verified;
+        $this->actingAs($admin)->post("/admin/clinics/{$clinic->id}/toggle-verify");
+        $this->assertEquals(! $initialVerification, $clinic->fresh()->is_verified);
     }
 
     public function test_admin_can_toggle_doctor_approval(): void
@@ -190,5 +194,30 @@ class TebibyTest extends TestCase
         $props = $response->viewData('page')['props'];
         $this->assertEquals('لا توجد سجلات حتى الآن', $props['metrics']['complianceRate']);
         $this->assertEquals('لا توجد سجلات حتى الآن', $props['metrics']['avgWaitingTime']);
+    }
+
+    public function test_admin_analytics_reports_no_records_for_compliance_when_no_doctors_exist(): void
+    {
+        $admin = User::where('role', 'admin')->first();
+
+        Appointment::query()->delete();
+        DoctorProfile::query()->delete();
+        Clinic::query()->delete();
+
+        // 1 Clinic created without doctors
+        Clinic::create([
+            'name' => 'مجمع الفحص التجريبي',
+            'city' => 'الرياض',
+            'district' => 'العليا',
+            'address' => 'طريق الملك فهد',
+            'is_active' => true,
+            'is_verified' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->get('/admin/analytics');
+        $response->assertStatus(200);
+
+        $props = $response->viewData('page')['props'];
+        $this->assertEquals('لا توجد سجلات حتى الآن', $props['metrics']['complianceRate']);
     }
 }

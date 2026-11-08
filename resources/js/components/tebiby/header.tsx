@@ -14,7 +14,8 @@ import {
     LogOut,
     LogIn,
     UserPlus,
-    ChevronDown
+    ChevronDown,
+    Building2
 } from 'lucide-react';
 
 interface SharedProps {
@@ -24,6 +25,9 @@ interface SharedProps {
             name: string;
             email: string;
             role: 'patient' | 'doctor' | 'admin';
+            is_group_admin?: boolean;
+            is_facility_admin?: boolean;
+            is_receptionist?: boolean;
             avatar?: string;
             doctor_profile?: {
                 title_ar: string;
@@ -50,14 +54,19 @@ export default function TebibyHeader() {
         ...(activeTicket ? [
             { name: 'تتبع الدور الحي', href: `/queue/${activeTicket.booking_reference}`, active: url.startsWith('/queue'), icon: Clock, badge: `رقم ${activeTicket.ticket_number}` },
         ] : []),
-        ...(user?.role === 'patient' ? [
+        ...(user?.role === 'patient' && !user?.is_group_admin && !user?.is_facility_admin ? [
             { name: 'حسابي ومواعيدي', href: '/patient/portal', active: url.startsWith('/patient'), icon: UserIcon },
         ] : []),
         ...(user?.role === 'doctor' ? [
             { name: 'لوحة تحكم الطبيب', href: '/doctor/dashboard', active: url.startsWith('/doctor'), icon: Stethoscope },
         ] : []),
+        ...(user?.is_group_admin && user?.role !== 'admin' ? [
+            { name: 'إدارة المجمع الطبي', href: '/group/dashboard', active: url.startsWith('/group'), icon: Building2 },
+        ] : []),
+        ...((user?.is_facility_admin || user?.is_receptionist) && user?.role !== 'admin' ? [
+            { name: 'إدارة المنشأة والطابور', href: '/facility/dashboard', active: url.startsWith('/facility'), icon: Building2 },
+        ] : []),
         ...(user?.role === 'admin' ? [
-            { name: 'لوحة تحكم الطبيب', href: '/doctor/dashboard', active: url.startsWith('/doctor'), icon: Stethoscope },
             { name: 'إدارة المنصة والتحليلات', href: '/admin/analytics', active: url.startsWith('/admin'), icon: BarChart3 },
         ] : []),
     ];
@@ -66,18 +75,27 @@ export default function TebibyHeader() {
         router.post('/logout');
     };
 
-    const getRoleBadge = (role?: string) => {
-        switch (role) {
-            case 'doctor':
-                return { text: 'طبيب معتمد', bg: 'bg-purple-100 text-purple-700' };
-            case 'admin':
-                return { text: 'مشرف النظام', bg: 'bg-amber-100 text-amber-800' };
-            default:
-                return { text: 'مريض', bg: 'bg-emerald-100 text-emerald-700' };
+    const getRoleBadge = (u?: any) => {
+        if (!u) return { text: '', bg: '' };
+        if (u.role === 'admin') {
+            return { text: 'مشرف المنصة', bg: 'bg-amber-100 text-amber-800' };
         }
+        if (u.is_group_admin) {
+            return { text: 'مدير مجمع طبي', bg: 'bg-blue-100 text-[#005ab5]' };
+        }
+        if (u.is_facility_admin) {
+            return { text: 'مدير مستشفى / عيادة', bg: 'bg-emerald-100 text-emerald-800' };
+        }
+        if (u.is_receptionist) {
+            return { text: 'موظف استقبال', bg: 'bg-teal-100 text-teal-800' };
+        }
+        if (u.role === 'doctor') {
+            return { text: 'طبيب معتمد', bg: 'bg-purple-100 text-purple-700' };
+        }
+        return { text: 'مريض', bg: 'bg-emerald-100 text-emerald-700' };
     };
 
-    const roleBadge = getRoleBadge(user?.role);
+    const roleBadge = getRoleBadge(user);
 
     return (
         <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-xs">
@@ -199,7 +217,29 @@ export default function TebibyHeader() {
                                                 className="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 font-bold"
                                             >
                                                 <BarChart3 className="w-4 h-4 text-amber-600" />
-                                                <span>لوحة القيادة المركزية</span>
+                                                <span>لوحة القيادة المركزية وإدارة المنظومة</span>
+                                            </Link>
+                                        )}
+
+                                        {user.is_group_admin && user.role !== 'admin' && (
+                                            <Link
+                                                href="/group/dashboard"
+                                                onClick={() => setUserDropdownOpen(false)}
+                                                className="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 font-bold"
+                                            >
+                                                <Building2 className="w-4 h-4 text-blue-600" />
+                                                <span>لوحة تحكم المجمع الطبي</span>
+                                            </Link>
+                                        )}
+
+                                        {(user.is_facility_admin || user.is_receptionist) && user.role !== 'admin' && (
+                                            <Link
+                                                href="/facility/dashboard"
+                                                onClick={() => setUserDropdownOpen(false)}
+                                                className="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 font-bold"
+                                            >
+                                                <Building2 className="w-4 h-4 text-emerald-600" />
+                                                <span>إدارة المنشأة والطابور</span>
                                             </Link>
                                         )}
 

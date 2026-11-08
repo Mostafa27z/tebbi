@@ -18,26 +18,15 @@ class TebibyAuthTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['app.allow_demo_login' => true]);
         $this->seed(TebibySeeder::class);
     }
 
-    public function test_login_screen_renders_with_demo_accounts(): void
+    public function test_login_screen_renders(): void
     {
         $response = $this->get('/login');
         $response->assertStatus(200);
-    }
-
-    public function test_demo_login_disabled_when_flag_is_off_or_production(): void
-    {
-        config(['app.allow_demo_login' => false]);
-
-        $response = $this->get('/login');
         $page = $response->viewData('page');
-        $this->assertEmpty($page['props']['demoAccounts']);
-
-        // Reset config back for subsequent tests
-        config(['app.allow_demo_login' => true]);
+        $this->assertArrayNotHasKey('demoAccounts', $page['props']);
     }
 
     public function test_register_screen_renders(): void
@@ -199,29 +188,23 @@ class TebibyAuthTest extends TestCase
         $response->assertRedirect('/');
     }
 
-    public function test_demo_login_endpoint_works_for_roles(): void
+    public function test_standard_credential_login_works_for_roles(): void
     {
-        $response = $this->post('/login/demo/doctor');
+        $response = $this->post('/login', [
+            'email' => 'dr.shammary@tebiby.com',
+            'password' => 'password123',
+        ]);
         $this->assertAuthenticated();
         $response->assertRedirect('/doctor/dashboard');
 
         $this->post('/logout');
 
-        $response = $this->post('/login/demo/admin');
+        $response = $this->post('/login', [
+            'email' => 'admin@tebiby.com',
+            'password' => 'password123',
+        ]);
         $this->assertAuthenticated();
         $response->assertRedirect('/admin/analytics');
-    }
-
-    public function test_demo_accounts_payload_does_not_contain_plaintext_passwords(): void
-    {
-        $response = $this->get('/login');
-        $response->assertStatus(200);
-        $page = $response->viewData('page');
-        $demoAccounts = $page['props']['demoAccounts'] ?? [];
-
-        foreach ($demoAccounts as $account) {
-            $this->assertArrayNotHasKey('password', $account);
-        }
     }
 
     public function test_guest_cannot_takeover_existing_user_via_booking(): void

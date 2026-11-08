@@ -1,32 +1,19 @@
 import React from 'react';
-import { Head, Link, useForm, router } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { 
-    Stethoscope, 
-    User as UserIcon, 
-    ShieldCheck, 
     Lock, 
     Mail, 
-    ArrowLeft, 
     CheckCircle2, 
-    AlertCircle, 
-    HeartHandshake
+    AlertCircle,
+    ArrowLeft
 } from 'lucide-react';
-
-interface DemoAccount {
-    role: string;
-    name: string;
-    email: string;
-    badge: string;
-    icon: string;
-}
 
 interface LoginProps {
     status?: string;
     canResetPassword: boolean;
-    demoAccounts: DemoAccount[];
 }
 
-export default function Login({ status, canResetPassword, demoAccounts }: LoginProps) {
+export default function Login({ status, canResetPassword }: LoginProps) {
     const { data, setData, post, processing, errors, reset } = useForm({
         email: '',
         password: '',
@@ -38,10 +25,6 @@ export default function Login({ status, canResetPassword, demoAccounts }: LoginP
         post(route('login'), {
             onFinish: () => reset('password'),
         });
-    };
-
-    const handleQuickLogin = (role: string) => {
-        router.post(route('login.demo', { role }));
     };
 
     return (
@@ -64,7 +47,7 @@ export default function Login({ status, canResetPassword, demoAccounts }: LoginP
                     تسجيل الدخول إلى حسابك
                 </h2>
                 <p className="mt-1 text-xs text-gray-500">
-                    أدخل بريدك الإلكتروني وكلمة المرور أو استخدم الدخول السريع كأي دور تجريبي
+                    أدخل بريدك الإلكتروني وكلمة المرور للوصول إلى لوحة التحكم والخدمات الطبية
                 </p>
             </div>
 
@@ -75,40 +58,6 @@ export default function Login({ status, canResetPassword, demoAccounts }: LoginP
                         <div className="mb-6 p-4 rounded-2xl bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200 flex items-center gap-2">
                             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                             <span>{status}</span>
-                        </div>
-                    )}
-
-                    {/* Quick 1-Click Role Logins (Local/Staging environment only) */}
-                    {demoAccounts && demoAccounts.length > 0 && (
-                        <div className="mb-8 p-4 rounded-2xl bg-blue-50/60 border border-blue-100">
-                            <span className="block text-xs font-bold text-[#005ab5] font-['Cairo'] mb-2.5 flex items-center gap-1.5">
-                                <HeartHandshake className="w-4 h-4" />
-                                <span>تسجيل دخول فوري بحسابات الأدوار التجريبية:</span>
-                            </span>
-                            
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                {demoAccounts.map((acc) => (
-                                    <button
-                                        key={acc.role}
-                                        type="button"
-                                        onClick={() => handleQuickLogin(acc.role)}
-                                        className="p-2.5 rounded-xl bg-white border border-blue-200/80 hover:border-[#005ab5] hover:bg-blue-50 text-right transition-all group shadow-2xs"
-                                    >
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                                                acc.role === 'doctor' ? 'bg-purple-100 text-purple-700' :
-                                                acc.role === 'admin' ? 'bg-amber-100 text-amber-800' :
-                                                'bg-emerald-100 text-emerald-700'
-                                            }`}>
-                                                {acc.badge}
-                                            </span>
-                                            <ArrowLeft className="w-3 h-3 text-gray-400 group-hover:text-[#005ab5] transition-colors" />
-                                        </div>
-                                        <span className="block text-xs font-bold text-gray-800 line-clamp-1">{acc.name}</span>
-                                        <span className="block text-[10px] text-gray-400 font-mono mt-0.5" dir="ltr">{acc.email}</span>
-                                    </button>
-                                ))}
-                            </div>
                         </div>
                     )}
 
