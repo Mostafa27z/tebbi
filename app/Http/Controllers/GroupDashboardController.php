@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Appointment;
+use App\Models\DoctorFacility;
 use App\Models\DoctorProfile;
 use App\Models\Facility;
 use App\Models\Group;
 use App\Models\RoleAssignment;
+use App\Models\Specialty;
 use App\Models\User;
 use App\Services\ScopeResolver;
 use Carbon\Carbon;
@@ -101,8 +103,70 @@ class GroupDashboardController extends Controller
             ],
             'facilities' => $facilities,
             'doctors' => $doctors,
+            'specialties' => Specialty::orderBy('name_ar')->get(),
             'staffAssignments' => $staffAssignments,
         ]);
+    }
+
+    public function storeDoctor(Request $request, Group $group): RedirectResponse
+    {
+        $user = $request->user();
+        $resolver = new ScopeResolver();
+        if (!$resolver->canManageGroup($user, $group->id)) {
+            abort(403, 'غير مصرح لك بإضافة طبيب لهذا المجمع.');
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email',
+            'phone' => 'nullable|string|max:20',
+            'password' => 'required|string|min:6',
+            'facility_id' => 'required|exists:facilities,id',
+            'specialty_id' => 'required|exists:specialties,id',
+            'title_ar' => 'required|string|max:255',
+            'subspecialty' => 'nullable|string|max:255',
+            'consultation_fee' => 'required|numeric|min:0',
+            'waiting_time_minutes' => 'nullable|integer|min:5|max:120',
+            'experience_years' => 'nullable|integer|min:0|max:50',
+            'accepts_insurance' => 'nullable|boolean',
+        ]);
+
+        $facility = Facility::where('id', $validated['facility_id'])->where('group_id', $group->id)->firstOrFail();
+
+        $doctorUser = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'] ?? '0500000000',
+            'role' => 'doctor',
+            'password' => Hash::make($validated['password']),
+            'avatar' => 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=300&h=300&fit=crop&crop=faces',
+        ]);
+
+        $doctorProfile = DoctorProfile::create([
+            'user_id' => $doctorUser->id,
+            'clinic_id' => $facility->id,
+            'specialty_id' => $validated['specialty_id'],
+            'title_ar' => $validated['title_ar'],
+            'subspecialty' => $validated['subspecialty'] ?? '',
+            'consultation_fee' => $validated['consultation_fee'],
+            'waiting_time_minutes' => $validated['waiting_time_minutes'] ?? 15,
+            'experience_years' => $validated['experience_years'] ?? 5,
+            'accepts_insurance' => $validated['accepts_insurance'] ?? true,
+            'accepted_insurances' => ['بوبا العربية', 'التعاونية', 'ميدغلف', 'تكافل الراجحي'],
+            'is_available_today' => true,
+        ]);
+
+        DoctorFacility::firstOrCreate([
+            'doctor_profile_id' => $doctorProfile->id,
+            'facility_id' => $facility->id,
+        ], [
+            'consultation_fee' => $validated['consultation_fee'],
+            'default_slot_minutes' => $validated['waiting_time_minutes'] ?? 15,
+            'accepts_insurance' => $validated['accepts_insurance'] ?? true,
+            'is_active' => true,
+        ]);
+
+        return back()->with('success', "تم تسجيل الطبيب {$validated['name']} واعتماده في {$facility->name} بنجاح.");
     }
 
     public function storeFacility(Request $request, Group $group): RedirectResponse

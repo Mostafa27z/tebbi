@@ -80,13 +80,15 @@ interface Props {
     };
     facilities: Facility[];
     doctors: Doctor[];
+    specialties?: Array<{ id: number; name_ar: string }>;
     staffAssignments: StaffAssignment[];
 }
 
-export default function GroupDashboard({ group, metrics, facilities, doctors, staffAssignments }: Props) {
+export default function GroupDashboard({ group, metrics, facilities, doctors, specialties = [], staffAssignments }: Props) {
     const [activeTab, setActiveTab] = useState<'facilities' | 'doctors' | 'staff'>('facilities');
     const [facilityModalOpen, setFacilityModalOpen] = useState(false);
     const [staffModalOpen, setStaffModalOpen] = useState(false);
+    const [doctorModalOpen, setDoctorModalOpen] = useState(false);
     const [searchFacility, setSearchFacility] = useState('');
     const [searchDoctor, setSearchDoctor] = useState('');
 
@@ -114,6 +116,22 @@ export default function GroupDashboard({ group, metrics, facilities, doctors, st
         new_phone: '',
     });
 
+    // Doctor Form
+    const doctorForm = useForm({
+        name: '',
+        email: '',
+        phone: '',
+        password: '',
+        facility_id: facilities[0]?.id || 0,
+        specialty_id: specialties[0]?.id || 1,
+        title_ar: 'استشاري',
+        subspecialty: '',
+        consultation_fee: 250,
+        waiting_time_minutes: 15,
+        experience_years: 5,
+        accepts_insurance: true,
+    });
+
     const handleSaveFacility = (e: React.FormEvent) => {
         e.preventDefault();
         facilityForm.post(`/group/${group.id}/facilities`, {
@@ -130,6 +148,16 @@ export default function GroupDashboard({ group, metrics, facilities, doctors, st
             onSuccess: () => {
                 setStaffModalOpen(false);
                 staffForm.reset();
+            },
+        });
+    };
+
+    const handleSaveDoctor = (e: React.FormEvent) => {
+        e.preventDefault();
+        doctorForm.post(`/group/${group.id}/doctors`, {
+            onSuccess: () => {
+                setDoctorModalOpen(false);
+                doctorForm.reset();
             },
         });
     };
@@ -176,6 +204,15 @@ export default function GroupDashboard({ group, metrics, facilities, doctors, st
                             >
                                 <Plus className="w-4 h-4" />
                                 <span>إضافة مستشفى أو عيادة تابعة</span>
+                            </button>
+                        )}
+                        {activeTab === 'doctors' && (
+                            <button
+                                onClick={() => setDoctorModalOpen(true)}
+                                className="px-4 py-2.5 rounded-2xl bg-[#005ab5] hover:bg-[#00458e] text-white text-xs font-bold flex items-center gap-2 shadow-md shadow-blue-500/20 transition-all"
+                            >
+                                <UserPlus className="w-4 h-4" />
+                                <span>إضافة طبيب / استشاري جديد</span>
                             </button>
                         )}
                         {activeTab === 'staff' && (
@@ -342,15 +379,24 @@ export default function GroupDashboard({ group, metrics, facilities, doctors, st
                 {/* TAB 2: DOCTORS */}
                 {activeTab === 'doctors' && (
                     <div className="space-y-6">
-                        <div className="relative max-w-md">
-                            <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder="البحث عن طبيب أو تخصص..."
-                                value={searchDoctor}
-                                onChange={e => setSearchDoctor(e.target.value)}
-                                className="w-full pr-10 pl-4 py-2 rounded-2xl bg-white border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5] focus:outline-none"
-                            />
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                            <div className="relative max-w-md w-full">
+                                <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="البحث عن طبيب أو تخصص..."
+                                    value={searchDoctor}
+                                    onChange={e => setSearchDoctor(e.target.value)}
+                                    className="w-full pr-10 pl-4 py-2.5 rounded-2xl bg-white border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5] focus:outline-none"
+                                />
+                            </div>
+                            <button
+                                onClick={() => setDoctorModalOpen(true)}
+                                className="px-4 py-2.5 rounded-2xl bg-[#005ab5] hover:bg-[#00458e] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all shrink-0"
+                            >
+                                <UserPlus className="w-4 h-4" />
+                                <span>+ إضافة طبيب واستشاري جديد</span>
+                            </button>
                         </div>
 
                         <div className="bg-white rounded-3xl border border-gray-200/80 shadow-xs overflow-hidden">
@@ -724,6 +770,203 @@ export default function GroupDashboard({ group, metrics, facilities, doctors, st
                                     className="px-5 py-2 rounded-xl bg-[#005ab5] text-white font-bold hover:bg-[#00458e]"
                                 >
                                     حفظ وتعيين المشرف
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL 3: ADD DOCTOR */}
+            {doctorModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 font-['Tajawal']" dir="rtl">
+                    <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto">
+                        <button
+                            onClick={() => setDoctorModalOpen(false)}
+                            className="absolute left-6 top-6 text-gray-400 hover:text-gray-600"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+
+                        <h3 className="text-xl font-black text-gray-900 font-['Cairo'] mb-1">
+                            إضافة طبيب واستشاري جديد بالمجمع
+                        </h3>
+                        <p className="text-xs text-gray-500 mb-6">
+                            إنشاء حساب الطبيب واعتماده بالمنشأة وتحديد سعر الكشف ومدة الموعد
+                        </p>
+
+                        <form onSubmit={handleSaveDoctor} className="space-y-4 text-xs">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block font-bold text-gray-700 mb-1">اسم الطبيب بالكامل</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={doctorForm.data.name}
+                                        onChange={e => doctorForm.setData('name', e.target.value)}
+                                        placeholder="د. ماجد السبيعي"
+                                        className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                    />
+                                    {doctorForm.errors.name && (
+                                        <p className="text-[10px] text-red-600 mt-1">{doctorForm.errors.name}</p>
+                                    )}
+                                </div>
+                                <div>
+                                    <label className="block font-bold text-gray-700 mb-1">البريد الإلكتروني للولوج</label>
+                                    <input
+                                        type="email"
+                                        required
+                                        value={doctorForm.data.email}
+                                        onChange={e => doctorForm.setData('email', e.target.value)}
+                                        placeholder="dr.majed@tebiby.com"
+                                        className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                        dir="ltr"
+                                    />
+                                    {doctorForm.errors.email && (
+                                        <p className="text-[10px] text-red-600 mt-1">{doctorForm.errors.email}</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block font-bold text-gray-700 mb-1">كلمة المرور</label>
+                                    <input
+                                        type="password"
+                                        required
+                                        value={doctorForm.data.password}
+                                        onChange={e => doctorForm.setData('password', e.target.value)}
+                                        placeholder="••••••••"
+                                        className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block font-bold text-gray-700 mb-1">رقم الجوال</label>
+                                    <input
+                                        type="text"
+                                        value={doctorForm.data.phone}
+                                        onChange={e => doctorForm.setData('phone', e.target.value)}
+                                        placeholder="+966500000000"
+                                        className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                        dir="ltr"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block font-bold text-gray-700 mb-1">المنشأة المتاح بها</label>
+                                    <select
+                                        value={doctorForm.data.facility_id}
+                                        onChange={e => doctorForm.setData('facility_id', parseInt(e.target.value))}
+                                        className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                    >
+                                        {facilities.map(f => (
+                                            <option key={f.id} value={f.id}>{f.name} ({f.city})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block font-bold text-gray-700 mb-1">التخصص الطبي</label>
+                                    <select
+                                        value={doctorForm.data.specialty_id}
+                                        onChange={e => doctorForm.setData('specialty_id', parseInt(e.target.value))}
+                                        className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                    >
+                                        {specialties.map(s => (
+                                            <option key={s.id} value={s.id}>{s.name_ar}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block font-bold text-gray-700 mb-1">اللقب والمسمى المهني</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={doctorForm.data.title_ar}
+                                    onChange={e => doctorForm.setData('title_ar', e.target.value)}
+                                    placeholder="استشاري جراحة العظام والمفاصل والعمود الفقري"
+                                    className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block font-bold text-gray-700 mb-1">التخصص الدقيق والاهتمام الإكلينيكي</label>
+                                <input
+                                    type="text"
+                                    value={doctorForm.data.subspecialty}
+                                    onChange={e => doctorForm.setData('subspecialty', e.target.value)}
+                                    placeholder="زراعة المفاصل، مناظير الركبة، إصابات الملاعب المتقدمة"
+                                    className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div>
+                                    <label className="block font-bold text-gray-700 mb-1">سعر الكشف (ر.س)</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="10"
+                                        required
+                                        value={doctorForm.data.consultation_fee}
+                                        onChange={e => doctorForm.setData('consultation_fee', parseFloat(e.target.value))}
+                                        className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block font-bold text-gray-700 mb-1">مدة الكشف (بالدقائق)</label>
+                                    <input
+                                        type="number"
+                                        min="5"
+                                        max="120"
+                                        required
+                                        value={doctorForm.data.waiting_time_minutes}
+                                        onChange={e => doctorForm.setData('waiting_time_minutes', parseInt(e.target.value))}
+                                        className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block font-bold text-gray-700 mb-1">سنوات الخبرة</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="50"
+                                        value={doctorForm.data.experience_years}
+                                        onChange={e => doctorForm.setData('experience_years', parseInt(e.target.value))}
+                                        className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="pt-2">
+                                <label className="flex items-center gap-2 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={doctorForm.data.accepts_insurance}
+                                        onChange={e => doctorForm.setData('accepts_insurance', e.target.checked)}
+                                        className="rounded text-[#005ab5] focus:ring-[#005ab5] w-4 h-4"
+                                    />
+                                    <span className="font-bold text-gray-700">قبول شركات التأمين الطبي المعتمدة بالمجمع</span>
+                                </label>
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setDoctorModalOpen(false)}
+                                    className="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-bold hover:bg-gray-200"
+                                >
+                                    إلغاء
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={doctorForm.processing}
+                                    className="px-5 py-2 rounded-xl bg-[#005ab5] text-white font-bold hover:bg-[#00458e] shadow-md shadow-blue-500/20"
+                                >
+                                    حفظ واعتماد الطبيب
                                 </button>
                             </div>
                         </form>

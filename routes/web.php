@@ -60,7 +60,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::post('/admin/clinics/{clinic}/toggle', [AdminDashboardController::class, 'toggleClinic'])->name('admin.clinics.toggle');
     Route::post('/admin/clinics/{clinic}/toggle-verify', [AdminDashboardController::class, 'toggleClinicVerification'])->name('admin.clinics.toggle-verify');
 
-    // Doctor Management & Approval
+    // Doctor Management & Creation
+    Route::post('/admin/doctors', [AdminDashboardController::class, 'storeDoctor'])->name('admin.doctors.store');
     Route::post('/admin/doctors/{doctor}/toggle-approval', [AdminDashboardController::class, 'toggleDoctorApproval'])->name('admin.doctors.toggle-approval');
     Route::put('/admin/doctors/{doctor}', [AdminDashboardController::class, 'updateDoctor'])->name('admin.doctors.update');
 
@@ -77,6 +78,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('/group/dashboard', [GroupDashboardController::class, 'index'])->name('group.dashboard');
     Route::post('/group/{group}/facilities', [GroupDashboardController::class, 'storeFacility'])->name('group.facilities.store');
+    Route::post('/group/{group}/doctors', [GroupDashboardController::class, 'storeDoctor'])->name('group.doctors.store');
     Route::post('/group/{group}/staff', [GroupDashboardController::class, 'storeFacilityStaff'])->name('group.staff.store');
 });
 

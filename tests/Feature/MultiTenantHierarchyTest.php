@@ -261,5 +261,63 @@ class MultiTenantHierarchyTest extends TestCase
             'status' => 'waiting',
         ]);
     }
+
+    public function test_group_admin_can_add_doctor_to_group(): void
+    {
+        $groupAdmin = User::where('email', 'habeeb.admin@tebiby.com')->first();
+        $group = Group::where('slug', 'habeeb-medical-group')->first();
+        $facility = $group->facilities()->first();
+        $specialty = \App\Models\Specialty::first();
+
+        $response = $this->actingAs($groupAdmin)->post("/group/{$group->id}/doctors", [
+            'name' => 'د. ماجد السبيعي',
+            'email' => 'dr.majed@habeeb.com',
+            'phone' => '0555112233',
+            'password' => 'password123',
+            'facility_id' => $facility->id,
+            'specialty_id' => $specialty->id,
+            'title_ar' => 'استشاري جراحة المخ والأعصاب',
+            'subspecialty' => 'جراحة أورام المخ والعمود الفقري',
+            'consultation_fee' => 350.00,
+            'waiting_time_minutes' => 20,
+            'experience_years' => 12,
+            'accepts_insurance' => true,
+        ]);
+
+        $response->assertStatus(302);
+        $this->assertDatabaseHas('users', ['email' => 'dr.majed@habeeb.com', 'role' => 'doctor']);
+        $newDoctorUser = User::where('email', 'dr.majed@habeeb.com')->first();
+        $this->assertNotNull($newDoctorUser->doctorProfile);
+        $this->assertEquals(350.00, (float) $newDoctorUser->doctorProfile->consultation_fee);
+        $this->assertEquals($facility->id, $newDoctorUser->doctorProfile->clinic_id);
+    }
+
+    public function test_admin_can_add_doctor_centrally(): void
+    {
+        $admin = User::where('role', 'admin')->first();
+        $facility = Facility::first();
+        $specialty = \App\Models\Specialty::first();
+
+        $response = $this->actingAs($admin)->post('/admin/doctors', [
+            'name' => 'د. نورة الشهري',
+            'email' => 'dr.noura@tebiby.com',
+            'phone' => '0555990011',
+            'password' => 'password123',
+            'facility_id' => $facility->id,
+            'specialty_id' => $specialty->id,
+            'title_ar' => 'استشارية طب وجراحة العيون',
+            'subspecialty' => 'تصحيح الإبصار بالليزك',
+            'consultation_fee' => 280.00,
+            'waiting_time_minutes' => 15,
+            'experience_years' => 8,
+            'accepts_insurance' => true,
+        ]);
+
+        $response->assertStatus(302);
+        $this->assertDatabaseHas('users', ['email' => 'dr.noura@tebiby.com', 'role' => 'doctor']);
+        $newDoctorUser = User::where('email', 'dr.noura@tebiby.com')->first();
+        $this->assertNotNull($newDoctorUser->doctorProfile);
+        $this->assertEquals(280.00, (float) $newDoctorUser->doctorProfile->consultation_fee);
+    }
 }
 

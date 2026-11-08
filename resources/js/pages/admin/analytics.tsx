@@ -217,6 +217,7 @@ export default function AdminAnalytics({
 
     const [doctorModalOpen, setDoctorModalOpen] = useState(false);
     const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
+    const [newDoctorModalOpen, setNewDoctorModalOpen] = useState(false);
 
     // Filter states
     const [groupSearch, setGroupSearch] = useState('');
@@ -294,6 +295,32 @@ export default function AdminAnalytics({
         clinic_id: clinics[0]?.id || 1,
         is_available_today: true,
     });
+
+    // New Doctor Form
+    const newDoctorForm = useForm({
+        name: '',
+        email: '',
+        phone: '',
+        password: '',
+        facility_id: clinics[0]?.id || 0,
+        specialty_id: specialties[0]?.id || 1,
+        title_ar: 'استشاري',
+        subspecialty: '',
+        consultation_fee: 250,
+        waiting_time_minutes: 15,
+        experience_years: 5,
+        accepts_insurance: true,
+    });
+
+    const handleSaveNewDoctor = (e: React.FormEvent) => {
+        e.preventDefault();
+        newDoctorForm.post('/admin/doctors', {
+            onSuccess: () => {
+                setNewDoctorModalOpen(false);
+                newDoctorForm.reset();
+            },
+        });
+    };
 
     // ==========================================
     // MODAL HANDLERS
@@ -549,6 +576,15 @@ export default function AdminAnalytics({
                             >
                                 <UserPlus className="w-4 h-4" />
                                 <span>تعيين مشرف جديد (مدير مجمع / فرع / استقبال)</span>
+                            </button>
+                        )}
+                        {activeTab === 'doctors' && (
+                            <button
+                                onClick={() => setNewDoctorModalOpen(true)}
+                                className="px-4 py-2.5 rounded-2xl bg-[#005ab5] hover:bg-[#00458e] text-white text-xs font-bold flex items-center gap-2 shadow-md shadow-blue-500/20 transition-all"
+                            >
+                                <UserPlus className="w-4 h-4" />
+                                <span>إضافة طبيب واستشاري جديد</span>
                             </button>
                         )}
                         {activeTab === 'specialties' && (
@@ -1958,6 +1994,201 @@ export default function AdminAnalytics({
                                 </button>
                                 <button type="submit" disabled={doctorForm.processing} className="px-5 py-2 rounded-xl bg-[#005ab5] text-white font-bold hover:bg-[#00458e]">
                                     حفظ التعديلات
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* ========================================================= */}
+            {/* MODAL 7: ADD NEW DOCTOR */}
+            {/* ========================================================= */}
+            {newDoctorModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 font-['Tajawal']" dir="rtl">
+                    <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto">
+                        <button onClick={() => setNewDoctorModalOpen(false)} className="absolute left-6 top-6 text-gray-400 hover:text-gray-600">
+                            <X className="w-5 h-5" />
+                        </button>
+                        <h3 className="text-xl font-black text-gray-900 font-['Cairo'] mb-1">
+                            إضافة واعتماد طبيب جديد بالمنظومة
+                        </h3>
+                        <p className="text-xs text-gray-500 mb-6">
+                            إنشاء حساب الطبيب واعتماده بالمستشفى أو العيادة وتحديد سعر الكشف ومدة الموعد
+                        </p>
+
+                        <form onSubmit={handleSaveNewDoctor} className="space-y-4 text-xs">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block font-bold text-gray-700 mb-1">اسم الطبيب بالكامل</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={newDoctorForm.data.name}
+                                        onChange={e => newDoctorForm.setData('name', e.target.value)}
+                                        placeholder="د. ماجد السبيعي"
+                                        className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                    />
+                                    {newDoctorForm.errors.name && (
+                                        <p className="text-[10px] text-red-600 mt-1">{newDoctorForm.errors.name}</p>
+                                    )}
+                                </div>
+                                <div>
+                                    <label className="block font-bold text-gray-700 mb-1">البريد الإلكتروني للولوج</label>
+                                    <input
+                                        type="email"
+                                        required
+                                        value={newDoctorForm.data.email}
+                                        onChange={e => newDoctorForm.setData('email', e.target.value)}
+                                        placeholder="dr.majed@tebiby.com"
+                                        className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                        dir="ltr"
+                                    />
+                                    {newDoctorForm.errors.email && (
+                                        <p className="text-[10px] text-red-600 mt-1">{newDoctorForm.errors.email}</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block font-bold text-gray-700 mb-1">كلمة المرور المؤقتة</label>
+                                    <input
+                                        type="password"
+                                        required
+                                        value={newDoctorForm.data.password}
+                                        onChange={e => newDoctorForm.setData('password', e.target.value)}
+                                        placeholder="••••••••"
+                                        className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block font-bold text-gray-700 mb-1">رقم الجوال</label>
+                                    <input
+                                        type="text"
+                                        value={newDoctorForm.data.phone}
+                                        onChange={e => newDoctorForm.setData('phone', e.target.value)}
+                                        placeholder="+966500000000"
+                                        className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                        dir="ltr"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block font-bold text-gray-700 mb-1">المنشأة الطبية التابع لها</label>
+                                    <select
+                                        value={newDoctorForm.data.facility_id}
+                                        onChange={e => newDoctorForm.setData('facility_id', parseInt(e.target.value))}
+                                        className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                    >
+                                        {clinics.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name} ({c.city})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block font-bold text-gray-700 mb-1">التخصص الطبي</label>
+                                    <select
+                                        value={newDoctorForm.data.specialty_id}
+                                        onChange={e => newDoctorForm.setData('specialty_id', parseInt(e.target.value))}
+                                        className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                    >
+                                        {specialties.map(s => (
+                                            <option key={s.id} value={s.id}>{s.name_ar}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block font-bold text-gray-700 mb-1">اللقب والمسمى المهني</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={newDoctorForm.data.title_ar}
+                                    onChange={e => newDoctorForm.setData('title_ar', e.target.value)}
+                                    placeholder="استشاري جراحة العظام والمفاصل والعمود الفقري"
+                                    className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block font-bold text-gray-700 mb-1">التخصص الدقيق والاهتمام الإكلينيكي</label>
+                                <input
+                                    type="text"
+                                    value={newDoctorForm.data.subspecialty}
+                                    onChange={e => newDoctorForm.setData('subspecialty', e.target.value)}
+                                    placeholder="زراعة المفاصل، مناظير الركبة، إصابات الملاعب المتقدمة"
+                                    className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div>
+                                    <label className="block font-bold text-gray-700 mb-1">سعر الكشف (ر.س)</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="10"
+                                        required
+                                        value={newDoctorForm.data.consultation_fee}
+                                        onChange={e => newDoctorForm.setData('consultation_fee', parseFloat(e.target.value))}
+                                        className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block font-bold text-gray-700 mb-1">مدة الكشف (بالدقائق)</label>
+                                    <input
+                                        type="number"
+                                        min="5"
+                                        max="120"
+                                        required
+                                        value={newDoctorForm.data.waiting_time_minutes}
+                                        onChange={e => newDoctorForm.setData('waiting_time_minutes', parseInt(e.target.value))}
+                                        className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block font-bold text-gray-700 mb-1">سنوات الخبرة</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="50"
+                                        value={newDoctorForm.data.experience_years}
+                                        onChange={e => newDoctorForm.setData('experience_years', parseInt(e.target.value))}
+                                        className="w-full p-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#005ab5]"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="pt-2">
+                                <label className="flex items-center gap-2 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={newDoctorForm.data.accepts_insurance}
+                                        onChange={e => newDoctorForm.setData('accepts_insurance', e.target.checked)}
+                                        className="rounded text-[#005ab5] focus:ring-[#005ab5] w-4 h-4"
+                                    />
+                                    <span className="font-bold text-gray-700">قبول شركات التأمين الطبي المعتمدة</span>
+                                </label>
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setNewDoctorModalOpen(false)}
+                                    className="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-bold hover:bg-gray-200"
+                                >
+                                    إلغاء
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={newDoctorForm.processing}
+                                    className="px-5 py-2 rounded-xl bg-[#005ab5] text-white font-bold hover:bg-[#00458e] shadow-md shadow-blue-500/20"
+                                >
+                                    حفظ واعتماد الطبيب
                                 </button>
                             </div>
                         </form>
