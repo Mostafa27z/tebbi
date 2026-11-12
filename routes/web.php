@@ -13,6 +13,9 @@ use Inertia\Inertia;
 
 // Public Routes (Accessible by all visitors)
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/doctors', [HomeController::class, 'doctors'])->name('doctors.index');
+Route::get('/specialties', [HomeController::class, 'specialties'])->name('specialties.index');
+Route::get('/about', [HomeController::class, 'about'])->name('about');
 Route::post('/appointments/book', [BookingController::class, 'store'])
     ->middleware('throttle:10,1')
     ->name('appointments.book');
@@ -37,9 +40,17 @@ Route::middleware(['auth', 'role:doctor'])->group(function () {
     Route::post('/doctor/appointments/{appointmentId}/consultation', [DoctorDashboardController::class, 'saveConsultation'])->name('doctor.appointments.consultation');
 });
 
-// Central Admin Protected Routes (Analytics & Full Dynamic Management)
+// Central Admin Protected Routes (Analytics & Dedicated Section Pages)
 Route::middleware(['auth', 'role:admin'])->group(function () {
-    Route::get('/admin/analytics', [AdminDashboardController::class, 'index'])->name('admin.analytics');
+    Route::get('/admin', fn() => redirect()->route('admin.analytics'));
+    Route::get('/admin/dashboard', fn() => redirect()->route('admin.analytics'));
+    Route::get('/admin/analytics', [AdminDashboardController::class, 'analytics'])->name('admin.analytics');
+    Route::get('/admin/groups', [AdminDashboardController::class, 'groups'])->name('admin.groups');
+    Route::get('/admin/clinics', [AdminDashboardController::class, 'clinics'])->name('admin.clinics');
+    Route::get('/admin/admins', [AdminDashboardController::class, 'admins'])->name('admin.admins');
+    Route::get('/admin/doctors', [AdminDashboardController::class, 'doctors'])->name('admin.doctors');
+    Route::get('/admin/specialties', [AdminDashboardController::class, 'specialties'])->name('admin.specialties');
+    Route::get('/admin/appointments', [AdminDashboardController::class, 'appointments'])->name('admin.appointments');
 
     // Medical Group Management (المجمعات الطبية)
     Route::post('/admin/groups', [AdminDashboardController::class, 'storeGroup'])->name('admin.groups.store');
@@ -71,7 +82,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::delete('/admin/specialties/{specialty}', [AdminDashboardController::class, 'deleteSpecialty'])->name('admin.specialties.delete');
 
     // Appointment Status & Payment Updates
-    Route::put('/admin/appointments/{appointment}/status', [AdminDashboardController::class, 'updateAppointmentStatus'])->name('admin.appointments.update-status');
+    Route::match(['put', 'post'], '/admin/appointments/{appointment}/status', [AdminDashboardController::class, 'updateAppointmentStatus'])->name('admin.appointments.update-status');
 });
 
 // Medical Group Admin Routes (مدير المجمع الطبي)
@@ -85,12 +96,50 @@ Route::middleware(['auth'])->group(function () {
 // Facility Admin & Reception Routes (مدير المستشفى/العيادة والاستقبال)
 Route::middleware(['auth'])->group(function () {
     Route::get('/facility/dashboard', [FacilityDashboardController::class, 'index'])->name('facility.dashboard');
+    Route::get('/facility/doctors', [FacilityDashboardController::class, 'doctors'])->name('facility.doctors');
+    Route::get('/facility/specialties', [FacilityDashboardController::class, 'specialties'])->name('facility.specialties');
+    Route::get('/facility/appointments', [FacilityDashboardController::class, 'appointments'])->name('facility.appointments');
     Route::post('/facility/{facility}/walkin-ticket', [FacilityDashboardController::class, 'issueWalkInTicket'])->name('facility.walkin');
+    Route::post('/facility/appointments/{appointment}/check-in', [FacilityDashboardController::class, 'markArrived'])->name('facility.appointments.check-in');
+    Route::post('/facility/appointments/{appointment}/status', [FacilityDashboardController::class, 'updateStatus'])->name('facility.appointments.status');
+    Route::post('/facility/appointments/{appointment}/payment', [FacilityDashboardController::class, 'updatePayment'])->name('facility.appointments.payment');
+    Route::post('/facility/appointments/{appointment}/no-show', [FacilityDashboardController::class, 'markNoShow'])->name('facility.appointments.no-show');
+    Route::post('/facility/doctors/{doctor}/toggle-presence', [FacilityDashboardController::class, 'toggleDoctorPresence'])->name('facility.doctors.toggle-presence');
 });
 
-// Dashboard Route
+// Doctor Operational Dashboard & Live Consultation Routes (لوحة الطبيب وإدارة الكشوفات)
+Route::middleware(['auth'])->group(function () {
+    Route::get('/doctor/dashboard', [DoctorDashboardController::class, 'index'])->name('doctor.dashboard');
+    Route::get('/doctor/history', [DoctorDashboardController::class, 'history'])->name('doctor.history');
+    Route::get('/doctor/schedule', [DoctorDashboardController::class, 'schedule'])->name('doctor.schedule');
+    Route::post('/doctor/queue/call-next', [DoctorDashboardController::class, 'callNext'])->name('doctor.call-next');
+    Route::post('/doctor/appointments/{appointment}/start', [DoctorDashboardController::class, 'startConsultation'])->name('doctor.appointments.start');
+    Route::post('/doctor/appointments/{appointment}/complete', [DoctorDashboardController::class, 'completeConsultation'])->name('doctor.appointments.complete');
+    Route::post('/doctor/toggle-availability', [DoctorDashboardController::class, 'toggleAvailability'])->name('doctor.toggle-availability');
+});
+
+// Patient Portal Routes (بوابة المريض والتتبع الحي والخرائط)
+Route::middleware(['auth'])->group(function () {
+    Route::get('/portal', fn() => redirect()->route('patient.portal'));
+    Route::get('/patient/portal', [PatientPortalController::class, 'index'])->name('patient.portal');
+});
+
+// Dashboard Route - Smart Role-based Redirect
 Route::middleware(['auth'])->get('/dashboard', function () {
-    return Inertia::render('dashboard');
+    $user = auth()->user();
+    if ($user->role === 'admin') {
+        return redirect()->route('admin.analytics');
+    }
+    if ($user->isGroupAdmin()) {
+        return redirect()->route('group.dashboard');
+    }
+    if ($user->isFacilityAdmin() || $user->isReceptionist()) {
+        return redirect()->route('facility.dashboard');
+    }
+    if ($user->role === 'doctor') {
+        return redirect()->route('doctor.dashboard');
+    }
+    return redirect()->route('patient.portal');
 })->name('dashboard');
 
 require __DIR__.'/settings.php';

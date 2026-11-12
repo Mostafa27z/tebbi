@@ -1,21 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { router } from '@inertiajs/react';
-import { X, Calendar, Clock, MapPin, ShieldCheck, CheckCircle2, CreditCard, Banknote, Building2 } from 'lucide-react';
-
-interface Doctor {
-    id: number;
-    title_ar: string;
-    consultation_fee: number;
-    user: {
-        name: string;
-        avatar: string;
-    };
-    clinic: {
-        name: string;
-        district: string;
-        city: string;
-    };
-}
+import toast from 'react-hot-toast';
+import { showAlert } from '@/components/common/toast';
+import { 
+    Doctor,
+    PRESET_DAYS,
+    INSURANCE_COMPANIES,
+    BookingHeader,
+    BookingDateSelector,
+    BookingTimeSelector,
+    BookingPatientForm,
+    BookingPaymentSelector,
+    BookingSummarySidebar,
+    BookingFooter,
+} from './booking';
 
 interface BookingModalProps {
     doctor: Doctor | null;
@@ -27,265 +25,214 @@ interface BookingModalProps {
 export default function BookingModal({ doctor, selectedSlot, isOpen, onClose }: BookingModalProps) {
     if (!isOpen || !doctor) return null;
 
+    // Appointment Schedule State
+    const [selectedDayIso, setSelectedDayIso] = useState<string>(PRESET_DAYS[0].iso);
+    const [selectedDayLabel, setSelectedDayLabel] = useState<string>(selectedSlot?.date || PRESET_DAYS[0].fullFormatted);
+    const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>(selectedSlot?.time || '05:40 م');
+    const [timePeriod, setTimePeriod] = useState<'all' | 'morning' | 'evening'>('all');
+    const [showCustomDatePicker, setShowCustomDatePicker] = useState<boolean>(false);
+
+    // Patient Form State
     const [patientName, setPatientName] = useState('محمد فهد الدوسري');
-    const [patientPhone, setPatientPhone] = useState('0555123456');
+    const [patientPhone, setPatientPhone] = useState('+966555123456');
     const [patientNationalId, setPatientNationalId] = useState('1098765432');
-    const [paymentMethod, setPaymentMethod] = useState<'insurance' | 'at-clinic' | 'online'>('insurance');
-    const [insuranceProvider, setInsuranceProvider] = useState('شركة بوبا العربية للتأمين');
-    const [insurancePolicyNumber, setInsurancePolicyNumber] = useState('BUP-8491023');
     const [patientNotes, setPatientNotes] = useState('');
+    const [paymentMethod, setPaymentMethod] = useState<'insurance' | 'at-clinic' | 'online'>('insurance');
+    const [insuranceProvider, setInsuranceProvider] = useState(INSURANCE_COMPANIES[0]);
+    const [insurancePolicyNumber, setInsurancePolicyNumber] = useState('BUP-8491023');
     const [notifyWhatsapp, setNotifyWhatsapp] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+    // Sync when selectedSlot prop changes
+    useEffect(() => {
+        if (selectedSlot?.time) {
+            setSelectedTimeSlot(selectedSlot.time);
+        }
+        if (selectedSlot?.date) {
+            setSelectedDayLabel(selectedSlot.date);
+        }
+    }, [selectedSlot]);
 
     const fee = Number(doctor.consultation_fee) || 250;
     const isInsurance = paymentMethod === 'insurance';
-    const totalAmount = isInsurance ? 0 : fee * 1.15;
+    const vat = isInsurance ? 0 : fee * 0.15;
+    const totalAmount = isInsurance ? 0 : fee + vat;
+
+    const handleSelectDay = (iso: string, formattedLabel: string) => {
+        setSelectedDayIso(iso);
+        setSelectedDayLabel(formattedLabel);
+    };
+
+    const handleCustomDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        if (!val) return;
+        setSelectedDayIso(val);
+
+        try {
+            const dateObj = new Date(val);
+            const formatted = dateObj.toLocaleDateString('ar-SA-u-ca-gregory', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+            });
+            setSelectedDayLabel(formatted);
+        } catch {
+            setSelectedDayLabel(val);
+        }
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (submitting) return;
+
+        // Validation
+        const errs: { [key: string]: string } = {};
+        if (!patientName.trim()) errs.name = 'اسم المريض مطلوب';
+        if (!patientPhone.trim() || patientPhone.length < 8) errs.phone = 'رقم الجوال غير صحيح أو ناقص';
+        if (!patientNationalId.trim()) errs.nid = 'رقم الهوية الوطنية أو الإقامة مطلوب';
+
+        if (Object.keys(errs).length > 0) {
+            setErrors(errs);
+            toast.error('يرجى التأكد من استكمال كافة البيانات الإلزامية');
+            return;
+        }
+
+        setErrors({});
         setSubmitting(true);
 
-        router.post('/appointments/book', {
-            doctor_id: doctor.id,
-            patient_name: patientName,
-            patient_phone: patientPhone,
-            patient_national_id: patientNationalId,
-            appointment_date: selectedSlot?.date || '2026-11-06',
-            appointment_time: selectedSlot?.time || '17:40:00',
-            payment_method: paymentMethod === 'at-clinic' ? 'at_clinic' : paymentMethod,
-            insurance_provider: isInsurance ? insuranceProvider : null,
-            insurance_policy_number: isInsurance ? insurancePolicyNumber : null,
-            patient_notes: patientNotes,
-            notify_whatsapp: notifyWhatsapp,
-        }, {
-            onFinish: () => {
-                setSubmitting(false);
-                onClose();
+        router.post(
+            '/appointments/book',
+            {
+                doctor_id: doctor.id,
+                patient_name: patientName,
+                patient_phone: patientPhone,
+                patient_national_id: patientNationalId,
+                appointment_date: selectedDayIso,
+                appointment_time: selectedTimeSlot,
+                payment_method: paymentMethod === 'at-clinic' ? 'at_clinic' : paymentMethod,
+                insurance_provider: isInsurance ? insuranceProvider : null,
+                insurance_policy_number: isInsurance ? insurancePolicyNumber : null,
+                patient_notes: patientNotes,
+                notify_whatsapp: notifyWhatsapp,
+            },
+            {
+                onSuccess: () => {
+                    setSubmitting(false);
+                    onClose();
+                    showAlert({
+                        title: 'تم تأكيد حجز الموعد وتفعيل التتبع الحي!',
+                        message: `تم حجز موعدك بنجاح مع ${doctor.user.name} في (${doctor.clinic.name}) ليوم [${selectedDayLabel}] الساعة [${selectedTimeSlot}]. تم إرسال تذكرة الحجز ورابط المتابعة الحية إلى رقم واتساب ${patientPhone}.`,
+                        type: 'success',
+                        confirmText: 'تم، شكراً لك',
+                    });
+                    toast.success('تم إصدار تذكرة الحجز وتفعيل التتبع الحي بنجاح!');
+                },
+                onError: (backendErrors) => {
+                    setSubmitting(false);
+                    setErrors(backendErrors as any);
+                    toast.error('تعذر إكمال الحجز، يرجى مراجعة البيانات المدخلة.');
+                },
+                onFinish: () => {
+                    setSubmitting(false);
+                },
             }
-        });
+        );
     };
 
+    // Close on Escape key
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [onClose]);
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-            <div className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-8">
-                {/* Header */}
-                <div className="bg-gradient-to-r from-[#005ab5] to-[#0072e2] text-white p-6 relative">
-                    <button
-                        onClick={onClose}
-                        className="absolute top-5 left-5 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
-                    <div className="flex items-center gap-2 mb-2">
-                        <span className="material-symbols-outlined text-white text-[22px]">event_available</span>
-                        <span className="text-xs font-bold uppercase tracking-wider text-blue-100">تأكيد حجز الموعد الفوري</span>
-                    </div>
-                    <h3 className="text-xl font-bold font-['Cairo']">إتمام بيانات الحجز وتفعيل تتبع الدور الحي</h3>
-                </div>
+        <div
+            onClick={(e) => {
+                if (e.target === e.currentTarget) onClose();
+            }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs overflow-y-auto font-['Tajawal']"
+            dir="rtl"
+        >
+            <div className="relative w-full max-w-4xl max-h-[92vh] flex flex-col bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+                {/* 1. FIXED MODAL HEADER */}
+                <BookingHeader
+                    doctor={doctor}
+                    selectedDayLabel={selectedDayLabel}
+                    selectedTimeSlot={selectedTimeSlot}
+                    onClose={onClose}
+                />
 
-                {/* Body Form */}
-                <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                    {/* Doctor Info Card */}
-                    <div className="flex items-center gap-4 p-4 rounded-2xl bg-[#f7f9fb] border border-gray-200/80">
-                        <img
-                            src={doctor.user.avatar || 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=200&h=200&fit=crop&crop=faces'}
-                            alt={doctor.user.name}
-                            className="w-16 h-16 rounded-2xl object-cover ring-2 ring-[#005ab5]/20"
-                        />
-                        <div className="flex-1 min-w-0">
-                            <h4 className="font-bold text-gray-900 text-base font-['Cairo']">{doctor.user.name}</h4>
-                            <p className="text-xs text-[#005ab5] font-semibold">{doctor.title_ar}</p>
-                            <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                                <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                                {doctor.clinic.name} - {doctor.clinic.district}
-                            </p>
-                        </div>
-                    </div>
+                {/* 2. SCROLLABLE FORM BODY (2-Column Grid on Laptop/Desktop) */}
+                <form id="booking-modal-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 sm:p-7 overscroll-contain">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                        {/* RIGHT COLUMN (8 cols): Interactive Step-by-Step Selection Flow */}
+                        <div className="lg:col-span-8 space-y-6">
+                            <BookingDateSelector
+                                selectedDayIso={selectedDayIso}
+                                onSelectDay={handleSelectDay}
+                                showCustomDatePicker={showCustomDatePicker}
+                                onToggleCustomPicker={() => setShowCustomDatePicker(!showCustomDatePicker)}
+                                onCustomDateChange={handleCustomDateChange}
+                            />
 
-                    {/* Appointment Slot Details */}
-                    <div className="grid grid-cols-2 gap-3 p-3.5 rounded-2xl bg-blue-50/60 border border-blue-100 text-xs">
-                        <div className="flex items-center gap-2 text-blue-900 font-bold">
-                            <Calendar className="w-4 h-4 text-[#005ab5]" />
-                            <span>التاريخ: {selectedSlot?.date || 'اليوم - الجمعة 6 نوفمبر'}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-blue-900 font-bold">
-                            <Clock className="w-4 h-4 text-[#005ab5]" />
-                            <span>الوقت: {selectedSlot?.time || '05:40 م'}</span>
-                        </div>
-                    </div>
+                            <BookingTimeSelector
+                                selectedTimeSlot={selectedTimeSlot}
+                                onSelectTime={setSelectedTimeSlot}
+                                timePeriod={timePeriod}
+                                setTimePeriod={setTimePeriod}
+                            />
 
-                    {/* Patient Fields */}
-                    <div className="space-y-4">
-                        <h5 className="font-bold text-gray-900 text-sm font-['Cairo'] flex items-center gap-2">
-                            <span className="material-symbols-outlined text-[#005ab5] text-[18px]">person</span>
-                            بيانات المريض
-                        </h5>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-700 mb-1">اسم المريض ثلاثي</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={patientName}
-                                    onChange={(e) => setPatientName(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-[#005ab5] focus:outline-hidden"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-700 mb-1">رقم الجوال (لرسائل الواتساب)</label>
-                                <input
-                                    type="tel"
-                                    required
-                                    value={patientPhone}
-                                    onChange={(e) => setPatientPhone(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-[#005ab5] focus:outline-hidden text-left"
-                                    dir="ltr"
-                                />
-                            </div>
-                        </div>
+                            <BookingPatientForm
+                                patientName={patientName}
+                                setPatientName={setPatientName}
+                                patientNationalId={patientNationalId}
+                                setPatientNationalId={setPatientNationalId}
+                                patientPhone={patientPhone}
+                                setPatientPhone={setPatientPhone}
+                                patientNotes={patientNotes}
+                                setPatientNotes={setPatientNotes}
+                                errors={errors}
+                            />
 
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1">رقم الهوية الوطنية / الإقامة</label>
-                            <input
-                                type="text"
-                                required
-                                value={patientNationalId}
-                                onChange={(e) => setPatientNationalId(e.target.value)}
-                                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-[#005ab5] focus:outline-hidden text-left"
-                                dir="ltr"
+                            <BookingPaymentSelector
+                                paymentMethod={paymentMethod}
+                                setPaymentMethod={setPaymentMethod}
+                                insuranceProvider={insuranceProvider}
+                                setInsuranceProvider={setInsuranceProvider}
+                                insurancePolicyNumber={insurancePolicyNumber}
+                                setInsurancePolicyNumber={setInsurancePolicyNumber}
+                                notifyWhatsapp={notifyWhatsapp}
+                                setNotifyWhatsapp={setNotifyWhatsapp}
                             />
                         </div>
-                    </div>
 
-                    {/* Payment Method Selector */}
-                    <div className="space-y-3">
-                        <h5 className="font-bold text-gray-900 text-sm font-['Cairo'] flex items-center gap-2">
-                            <span className="material-symbols-outlined text-[#005ab5] text-[18px]">payments</span>
-                            طريقة السداد وتغطية التأمين
-                        </h5>
-                        <div className="grid grid-cols-3 gap-2.5">
-                            {/* Insurance Option */}
-                            <label
-                                className={`flex flex-col p-3 rounded-2xl border cursor-pointer transition-all ${
-                                    paymentMethod === 'insurance'
-                                        ? 'border-[#005ab5] bg-blue-50/50 shadow-xs'
-                                        : 'border-gray-200 hover:border-gray-300'
-                                }`}
-                            >
-                                <input
-                                    type="radio"
-                                    name="payment"
-                                    checked={paymentMethod === 'insurance'}
-                                    onChange={() => setPaymentMethod('insurance')}
-                                    className="sr-only"
-                                />
-                                <div className="flex items-center gap-1.5 mb-1 text-[#005ab5]">
-                                    <ShieldCheck className="w-4 h-4" />
-                                    <span className="text-xs font-bold font-['Cairo']">تأمين طبي</span>
-                                </div>
-                                <span className="text-[11px] text-gray-500">موافقة فورية من شبكة بوبا/التعاونية</span>
-                            </label>
-
-                            {/* At Clinic Option */}
-                            <label
-                                className={`flex flex-col p-3 rounded-2xl border cursor-pointer transition-all ${
-                                    paymentMethod === 'at-clinic'
-                                        ? 'border-[#005ab5] bg-blue-50/50 shadow-xs'
-                                        : 'border-gray-200 hover:border-gray-300'
-                                }`}
-                            >
-                                <input
-                                    type="radio"
-                                    name="payment"
-                                    checked={paymentMethod === 'at-clinic'}
-                                    onChange={() => setPaymentMethod('at-clinic')}
-                                    className="sr-only"
-                                />
-                                <div className="flex items-center gap-1.5 mb-1 text-[#006b5c]">
-                                    <Banknote className="w-4 h-4" />
-                                    <span className="text-xs font-bold font-['Cairo']">عند الحضور</span>
-                                </div>
-                                <span className="text-[11px] text-gray-500">سداد في استقبال العيادة (نقداً/مدى)</span>
-                            </label>
-
-                            {/* Online Pay Option */}
-                            <label
-                                className={`flex flex-col p-3 rounded-2xl border cursor-pointer transition-all ${
-                                    paymentMethod === 'online'
-                                        ? 'border-[#005ab5] bg-blue-50/50 shadow-xs'
-                                        : 'border-gray-200 hover:border-gray-300'
-                                }`}
-                            >
-                                <input
-                                    type="radio"
-                                    name="payment"
-                                    checked={paymentMethod === 'online'}
-                                    onChange={() => setPaymentMethod('online')}
-                                    className="sr-only"
-                                />
-                                <div className="flex items-center gap-1.5 mb-1 text-purple-700">
-                                    <CreditCard className="w-4 h-4" />
-                                    <span className="text-xs font-bold font-['Cairo']">دفع إلكتروني</span>
-                                </div>
-                                <span className="text-[11px] text-gray-500">Apple Pay وبطاقات مدى الائتمانية</span>
-                            </label>
-                        </div>
-
-                        {/* If Insurance Selected, show policy inputs */}
-                        {isInsurance && (
-                            <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <span className="font-bold text-emerald-900">الشركة المعتمدة: {insuranceProvider}</span>
-                                    <span className="bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">مغطى بنسبة ١٠٠٪</span>
-                                </div>
-                                <p className="text-emerald-700 text-[11px]">رقم وثيقة التأمين: <strong>{insurancePolicyNumber}</strong></p>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Agreement & Live WhatsApp Tracker */}
-                    <div className="flex items-start gap-2.5 p-3.5 rounded-2xl bg-gray-50 border border-gray-200">
-                        <input
-                            type="checkbox"
-                            id="whatsapp-agree"
-                            checked={notifyWhatsapp}
-                            onChange={(e) => setNotifyWhatsapp(e.target.checked)}
-                            className="mt-0.5 rounded-md text-[#005ab5] focus:ring-[#005ab5] w-4 h-4"
+                        {/* LEFT COLUMN (4 cols): Sticky Summary Card on Desktop */}
+                        <BookingSummarySidebar
+                            doctor={doctor}
+                            selectedDayLabel={selectedDayLabel}
+                            selectedTimeSlot={selectedTimeSlot}
+                            fee={fee}
+                            vat={vat}
+                            totalAmount={totalAmount}
+                            isInsurance={isInsurance}
                         />
-                        <label htmlFor="whatsapp-agree" className="text-xs text-gray-600 leading-relaxed cursor-pointer select-none">
-                            أوافق على استلام <strong>رابط تتبع الدور الحي ومستجدات وقت الانتظار عبر الواتساب والرسائل النصية</strong>، والالتزام بسياسة الحضور قبل الموعد بـ 15 دقيقة.
-                        </label>
-                    </div>
-
-                    {/* Summary and Buttons */}
-                    <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-4">
-                        <div>
-                            <span className="block text-[11px] text-gray-500">إجمالي المبلغ المستحق</span>
-                            <span className="font-black text-xl text-[#005ab5] font-['Cairo']">
-                                {isInsurance ? '0.00 ر.س (مغطى بالكامل)' : `${totalAmount.toFixed(2)} ر.س`}
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="px-5 py-3 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs transition-colors"
-                            >
-                                رجوع
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={submitting}
-                                className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-[#005ab5] hover:bg-[#00458e] text-white font-bold text-xs shadow-md shadow-blue-600/30 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50"
-                            >
-                                <CheckCircle2 className="w-4 h-4" />
-                                <span>{submitting ? 'جارٍ التأكيد...' : 'تأكيد الحجز الفوري وإصدار التذكرة'}</span>
-                            </button>
-                        </div>
                     </div>
                 </form>
+
+                {/* 3. FIXED BOTTOM ACTION BAR (Never cut off, always visible) */}
+                <BookingFooter
+                    isInsurance={isInsurance}
+                    totalAmount={totalAmount}
+                    submitting={submitting}
+                    onClose={onClose}
+                    formId="booking-modal-form"
+                />
             </div>
         </div>
     );
 }
-

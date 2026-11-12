@@ -79,6 +79,8 @@ class LiveQueueController extends Controller
                 'address' => $doctor->clinic->address,
                 'phone' => $doctor->clinic->phone,
                 'mapUrl' => $doctor->clinic->map_url,
+                'latitude' => (float) ($doctor->clinic->latitude ?? 24.6978),
+                'longitude' => (float) ($doctor->clinic->longitude ?? 46.6841),
             ]
         ]);
     }

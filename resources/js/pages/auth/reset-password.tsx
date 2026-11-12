@@ -1,97 +1,84 @@
-import { Head, useForm } from '@inertiajs/react';
-import { LoaderCircle } from 'lucide-react';
-import { FormEventHandler } from 'react';
-
-import InputError from '@/components/input-error';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import AuthLayout from '@/layouts/auth-layout';
+import React from 'react';
+import { useForm } from '@inertiajs/react';
+import { Mail, KeyRound } from 'lucide-react';
+import { AuthLayout } from '@/components/common/auth-layout';
+import { FormInput } from '@/components/common/form-input';
+import { PasswordInput } from '@/components/common/password-input';
+import { LoadingButton } from '@/components/common/loading-button';
+import { toast } from '@/components/common/toast';
 
 interface ResetPasswordProps {
     token: string;
     email: string;
 }
 
-interface ResetPasswordForm {
-    token: string;
-    email: string;
-    password: string;
-    password_confirmation: string;
-}
-
 export default function ResetPassword({ token, email }: ResetPasswordProps) {
-    const { data, setData, post, processing, errors, reset } = useForm<ResetPasswordForm>({
+    const { data, setData, post, processing, errors, reset } = useForm({
         token: token,
         email: email,
         password: '',
         password_confirmation: '',
     });
 
-    const submit: FormEventHandler = (e) => {
+    const submit = (e: React.FormEvent) => {
         e.preventDefault();
         post(route('password.store'), {
             onFinish: () => reset('password', 'password_confirmation'),
+            onError: (errs) => {
+                const firstError = Object.values(errs)[0];
+                toast.error(firstError || 'تعذر تعيين كلمة المرور، يرجى مراجعة البيانات المدخلة');
+            },
         });
     };
 
     return (
-        <AuthLayout title="Reset password" description="Please enter your new password below">
-            <Head title="Reset password" />
+        <AuthLayout
+            title="تعيين كلمة مرور جديدة"
+            subtitle="أدخل بريدك الإلكتروني وكلمة المرور الجديدة لإكمال استعادة الحساب"
+            maxWidth="md"
+        >
+            <form onSubmit={submit} className="space-y-4">
+                <FormInput
+                    label="البريد الإلكتروني"
+                    type="email"
+                    required
+                    value={data.email}
+                    onChange={(e) => setData('email', e.target.value)}
+                    error={errors.email}
+                    icon={<Mail className="w-4 h-4 text-gray-400" />}
+                    dir="ltr"
+                />
 
-            <form onSubmit={submit}>
-                <div className="grid gap-6">
-                    <div className="grid gap-2">
-                        <Label htmlFor="email">Email</Label>
-                        <Input
-                            id="email"
-                            type="email"
-                            name="email"
-                            autoComplete="email"
-                            value={data.email}
-                            className="mt-1 block w-full"
-                            readOnly
-                            onChange={(e) => setData('email', e.target.value)}
-                        />
-                        <InputError message={errors.email} className="mt-2" />
-                    </div>
+                <PasswordInput
+                    label="كلمة المرور الجديدة"
+                    required
+                    autoFocus
+                    placeholder="••••••••"
+                    value={data.password}
+                    onChange={(e) => setData('password', e.target.value)}
+                    error={errors.password}
+                />
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="password">Password</Label>
-                        <Input
-                            id="password"
-                            type="password"
-                            name="password"
-                            autoComplete="new-password"
-                            value={data.password}
-                            className="mt-1 block w-full"
-                            autoFocus
-                            onChange={(e) => setData('password', e.target.value)}
-                            placeholder="Password"
-                        />
-                        <InputError message={errors.password} />
-                    </div>
+                <PasswordInput
+                    label="تأكيد كلمة المرور"
+                    required
+                    placeholder="••••••••"
+                    value={data.password_confirmation}
+                    onChange={(e) => setData('password_confirmation', e.target.value)}
+                    error={errors.password_confirmation}
+                />
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="password_confirmation">Confirm password</Label>
-                        <Input
-                            id="password_confirmation"
-                            type="password"
-                            name="password_confirmation"
-                            autoComplete="new-password"
-                            value={data.password_confirmation}
-                            className="mt-1 block w-full"
-                            onChange={(e) => setData('password_confirmation', e.target.value)}
-                            placeholder="Confirm password"
-                        />
-                        <InputError message={errors.password_confirmation} className="mt-2" />
-                    </div>
-
-                    <Button type="submit" className="mt-4 w-full" disabled={processing}>
-                        {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                        Reset password
-                    </Button>
-                </div>
+                <LoadingButton
+                    type="submit"
+                    loading={processing}
+                    loadingText="جارٍ حفظ كلمة المرور..."
+                    variant="primary"
+                    size="lg"
+                    icon={<KeyRound className="w-4 h-4" />}
+                    className="w-full h-11 rounded-xl text-sm font-bold mt-2"
+                >
+                    حفظ كلمة المرور الجديدة
+                </LoadingButton>
             </form>
         </AuthLayout>
     );

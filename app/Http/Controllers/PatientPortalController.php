@@ -20,10 +20,11 @@ class PatientPortalController extends Controller
             abort(401);
         }
 
-        $upcomingAppointments = Appointment::with([
+        $rawUpcoming = Appointment::with([
             'doctor.user',
             'doctor.specialty',
             'doctor.clinic',
+            'facility',
             'queueTicket',
         ])
         ->where('patient_id', $user->id)
@@ -32,10 +33,39 @@ class PatientPortalController extends Controller
         ->orderBy('appointment_time')
         ->get();
 
+        $upcomingAppointments = $rawUpcoming->map(function ($appt) {
+            $facility = $appt->facility ?? $appt->doctor?->clinic;
+
+            // Calculate how many people ahead in lobby waiting for the same doctor today
+            $peopleAhead = 0;
+            if ($appt->status === 'waiting') {
+                $peopleAhead = Appointment::where('doctor_id', $appt->doctor_id)
+                    ->whereDate('appointment_date', $appt->appointment_date)
+                    ->where('status', 'waiting')
+                    ->where('id', '<', $appt->id)
+                    ->count();
+            }
+
+            return array_merge($appt->toArray(), [
+                'clinic_location' => $facility ? [
+                    'name' => $facility->name,
+                    'branch_name' => $facility->branch_name,
+                    'address' => $facility->address,
+                    'city' => $facility->city,
+                    'district' => $facility->district,
+                    'phone' => $facility->phone,
+                    'latitude' => $facility->latitude ?? 24.6978,
+                    'longitude' => $facility->longitude ?? 46.6841,
+                ] : null,
+                'people_ahead' => $peopleAhead,
+            ]);
+        });
+
         $pastAppointments = Appointment::with([
             'doctor.user',
             'doctor.specialty',
             'doctor.clinic',
+            'facility',
             'prescription',
         ])
         ->where('patient_id', $user->id)
@@ -76,4 +106,3 @@ class PatientPortalController extends Controller
         ]);
     }
 }
-

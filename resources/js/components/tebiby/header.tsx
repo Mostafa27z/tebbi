@@ -17,6 +17,7 @@ import {
     ChevronDown,
     Building2
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface SharedProps {
     auth?: {
@@ -50,24 +51,12 @@ export default function TebibyHeader() {
     const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
     const navLinks = [
-        { name: 'الرئيسية وحجز موعد', href: '/', active: url === '/', icon: Search },
+        { name: 'الرئيسية', href: '/', active: url === '/', icon: Activity },
+        { name: 'الأطباء', href: '/doctors', active: url.startsWith('/doctors'), icon: Search },
+        { name: 'الأقسام الطبية', href: '/specialties', active: url.startsWith('/specialties'), icon: Stethoscope },
+        { name: 'عن المنصة', href: '/about', active: url.startsWith('/about'), icon: ShieldCheck },
         ...(activeTicket ? [
             { name: 'تتبع الدور الحي', href: `/queue/${activeTicket.booking_reference}`, active: url.startsWith('/queue'), icon: Clock, badge: `رقم ${activeTicket.ticket_number}` },
-        ] : []),
-        ...(user?.role === 'patient' && !user?.is_group_admin && !user?.is_facility_admin ? [
-            { name: 'حسابي ومواعيدي', href: '/patient/portal', active: url.startsWith('/patient'), icon: UserIcon },
-        ] : []),
-        ...(user?.role === 'doctor' ? [
-            { name: 'لوحة تحكم الطبيب', href: '/doctor/dashboard', active: url.startsWith('/doctor'), icon: Stethoscope },
-        ] : []),
-        ...(user?.is_group_admin && user?.role !== 'admin' ? [
-            { name: 'إدارة المجمع الطبي', href: '/group/dashboard', active: url.startsWith('/group'), icon: Building2 },
-        ] : []),
-        ...((user?.is_facility_admin || user?.is_receptionist) && user?.role !== 'admin' ? [
-            { name: 'إدارة المنشأة والطابور', href: '/facility/dashboard', active: url.startsWith('/facility'), icon: Building2 },
-        ] : []),
-        ...(user?.role === 'admin' ? [
-            { name: 'إدارة المنصة والتحليلات', href: '/admin/analytics', active: url.startsWith('/admin'), icon: BarChart3 },
         ] : []),
     ];
 
@@ -99,10 +88,10 @@ export default function TebibyHeader() {
 
     return (
         <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-xs">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-20">
                     {/* Logo */}
-                    <div className="flex items-center gap-8">
+                    <div className="flex items-center gap-10">
                         <Link href="/" className="flex items-center gap-3 group">
                             <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#005ab5] to-[#0072e2] flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
                                 <span className="material-symbols-outlined text-[28px]">health_and_safety</span>
@@ -116,27 +105,41 @@ export default function TebibyHeader() {
                             </div>
                         </Link>
 
-                        {/* Navigation Links */}
-                        <nav className="hidden xl:flex items-center gap-1">
+                        {/* Navigation Links with animated left-to-right underline */}
+                        <nav className="hidden lg:flex items-center gap-2">
                             {navLinks.map((item) => {
                                 const Icon = item.icon;
                                 return (
                                     <Link
                                         key={item.name}
                                         href={item.href}
-                                        className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all ${
+                                        className={cn(
+                                            'relative group flex items-center gap-2 px-3.5 py-2.5 text-sm font-bold whitespace-nowrap transition-colors select-none',
                                             item.active
-                                                ? 'bg-[#d6e3ff]/60 text-[#005ab5]'
-                                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/70'
-                                        }`}
+                                                ? 'text-[#005ab5]'
+                                                : 'text-gray-600 hover:text-[#005ab5]'
+                                        )}
                                     >
-                                        <Icon className="w-4 h-4" />
+                                        <Icon className={cn(
+                                            'w-4 h-4 transition-colors',
+                                            item.active ? 'text-[#005ab5]' : 'text-gray-400 group-hover:text-[#005ab5]'
+                                        )} />
                                         <span>{item.name}</span>
                                         {item.badge && (
-                                            <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.2 rounded-full animate-pulse">
+                                            <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.2 rounded-full animate-pulse font-mono">
                                                 {item.badge}
                                             </span>
                                         )}
+
+                                        {/* Animated Bottom Border Line: Appears left-to-right, exits left-to-right */}
+                                        <span
+                                            className={cn(
+                                                'absolute bottom-0 inset-x-2 h-[2.5px] bg-[#005ab5] rounded-full transition-transform duration-300 ease-in-out',
+                                                item.active
+                                                    ? 'scale-x-100 origin-center'
+                                                    : 'scale-x-0 origin-right group-hover:scale-x-100 group-hover:origin-left'
+                                            )}
+                                        />
                                     </Link>
                                 );
                             })}
@@ -182,20 +185,42 @@ export default function TebibyHeader() {
 
                                 {/* Dropdown Menu */}
                                 {userDropdownOpen && (
-                                    <div className="absolute left-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 text-xs">
+                                    <div className="absolute left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 text-xs animate-in fade-in slide-in-from-top-1">
                                         <div className="px-4 py-2 border-b border-gray-100 sm:hidden">
                                             <span className="block font-bold text-gray-900">{user.name}</span>
                                             <span className="text-[10px] text-gray-500">{user.email}</span>
                                         </div>
 
-                                        {user.role === 'patient' && (
+                                        {user.role === 'patient' && !user.is_group_admin && !user.is_facility_admin && !user.is_receptionist && (
                                             <Link
                                                 href="/patient/portal"
                                                 onClick={() => setUserDropdownOpen(false)}
-                                                className="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 font-bold"
+                                                className="flex items-center gap-2.5 px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-[#005ab5] font-bold whitespace-nowrap transition-colors"
                                             >
                                                 <UserIcon className="w-4 h-4 text-[#005ab5]" />
                                                 <span>بوابة المريض والملف الطبي</span>
+                                            </Link>
+                                        )}
+
+                                        {user.is_receptionist && user.role !== 'admin' && (
+                                            <Link
+                                                href="/facility/dashboard"
+                                                onClick={() => setUserDropdownOpen(false)}
+                                                className="flex items-center gap-2.5 px-4 py-2.5 text-gray-700 hover:bg-teal-50 hover:text-teal-700 font-bold whitespace-nowrap transition-colors"
+                                            >
+                                                <Building2 className="w-4 h-4 text-teal-600" />
+                                                <span>لوحة تحكم الاستقبال</span>
+                                            </Link>
+                                        )}
+
+                                        {user.is_facility_admin && user.role !== 'admin' && (
+                                            <Link
+                                                href="/facility/dashboard"
+                                                onClick={() => setUserDropdownOpen(false)}
+                                                className="flex items-center gap-2.5 px-4 py-2.5 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 font-bold whitespace-nowrap transition-colors"
+                                            >
+                                                <Building2 className="w-4 h-4 text-emerald-600" />
+                                                <span>لوحة تحكم المنشأة الطبية</span>
                                             </Link>
                                         )}
 
@@ -203,10 +228,10 @@ export default function TebibyHeader() {
                                             <Link
                                                 href="/doctor/dashboard"
                                                 onClick={() => setUserDropdownOpen(false)}
-                                                className="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 font-bold"
+                                                className="flex items-center gap-2.5 px-4 py-2.5 text-gray-700 hover:bg-purple-50 hover:text-purple-700 font-bold whitespace-nowrap transition-colors"
                                             >
                                                 <Stethoscope className="w-4 h-4 text-purple-600" />
-                                                <span>لوحة تحكم الطبيب والعيادة</span>
+                                                <span>لوحة تحكم الطبيب</span>
                                             </Link>
                                         )}
 
@@ -214,10 +239,10 @@ export default function TebibyHeader() {
                                             <Link
                                                 href="/admin/analytics"
                                                 onClick={() => setUserDropdownOpen(false)}
-                                                className="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 font-bold"
+                                                className="flex items-center gap-2.5 px-4 py-2.5 text-gray-700 hover:bg-amber-50 hover:text-amber-800 font-bold whitespace-nowrap transition-colors"
                                             >
                                                 <BarChart3 className="w-4 h-4 text-amber-600" />
-                                                <span>لوحة القيادة المركزية وإدارة المنظومة</span>
+                                                <span>لوحة تحكم المنصة العليا</span>
                                             </Link>
                                         )}
 
@@ -225,21 +250,10 @@ export default function TebibyHeader() {
                                             <Link
                                                 href="/group/dashboard"
                                                 onClick={() => setUserDropdownOpen(false)}
-                                                className="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 font-bold"
+                                                className="flex items-center gap-2.5 px-4 py-2.5 text-gray-700 hover:bg-blue-50 hover:text-[#005ab5] font-bold whitespace-nowrap transition-colors"
                                             >
                                                 <Building2 className="w-4 h-4 text-blue-600" />
                                                 <span>لوحة تحكم المجمع الطبي</span>
-                                            </Link>
-                                        )}
-
-                                        {(user.is_facility_admin || user.is_receptionist) && user.role !== 'admin' && (
-                                            <Link
-                                                href="/facility/dashboard"
-                                                onClick={() => setUserDropdownOpen(false)}
-                                                className="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 font-bold"
-                                            >
-                                                <Building2 className="w-4 h-4 text-emerald-600" />
-                                                <span>إدارة المنشأة والطابور</span>
                                             </Link>
                                         )}
 
@@ -247,7 +261,7 @@ export default function TebibyHeader() {
                                             <Link
                                                 href={`/queue/${activeTicket.booking_reference}`}
                                                 onClick={() => setUserDropdownOpen(false)}
-                                                className="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 font-bold"
+                                                className="flex items-center gap-2.5 px-4 py-2.5 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 font-bold whitespace-nowrap transition-colors"
                                             >
                                                 <Clock className="w-4 h-4 text-emerald-600" />
                                                 <span>تتبع الدور الحي (رقم {activeTicket.ticket_number})</span>
@@ -258,7 +272,7 @@ export default function TebibyHeader() {
 
                                         <button
                                             onClick={handleLogout}
-                                            className="w-full text-right flex items-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 font-bold"
+                                            className="w-full text-right flex items-center gap-2.5 px-4 py-2.5 text-rose-600 hover:bg-rose-50 font-bold whitespace-nowrap transition-colors cursor-pointer"
                                         >
                                             <LogOut className="w-4 h-4" />
                                             <span>تسجيل الخروج</span>
@@ -289,7 +303,7 @@ export default function TebibyHeader() {
 
                 {/* Mobile Sub-Navigation Bar */}
                 {navLinks.length > 1 && (
-                    <div className="flex xl:hidden overflow-x-auto py-2.5 gap-2 border-t border-gray-100 no-scrollbar">
+                    <div className="flex lg:hidden overflow-x-auto py-2.5 gap-2 border-t border-gray-100 no-scrollbar">
                         {navLinks.map((item) => {
                             const Icon = item.icon;
                             return (

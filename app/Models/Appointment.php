@@ -106,4 +106,13 @@ class Appointment extends Model
     {
         return $this->hasOne(Prescription::class);
     }
+
+    public function toArray(): array
+    {
+        $array = parent::toArray();
+        if ($this->relationLoaded('queueTicket')) {
+            $array['queueTicket'] = $array['queue_ticket'] ?? null;
+        }
+        return $array;
+    }
 }

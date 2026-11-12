@@ -13,7 +13,7 @@ use Inertia\Response;
 
 class DoctorDashboardController extends Controller
 {
-    public function index(Request $request): Response
+    private function getDoctorData(Request $request): array
     {
         $user = $request->user();
         $doctor = $user ? $user->doctorProfile : null;
@@ -22,14 +22,23 @@ class DoctorDashboardController extends Controller
             abort(403, 'لا يوجد ملف طبيب مرتبط بهذا الحساب.');
         }
 
-        $doctor->loadMissing(['user', 'specialty', 'clinic']);
+        $doctor->loadMissing(['user', 'specialty', 'clinic', 'doctorFacilities.facility']);
 
         $today = Carbon::today();
 
-        $todayAppointments = Appointment::with(['patient', 'queueTicket', 'prescription'])
+        $todayAppointments = Appointment::with(['patient', 'queueTicket', 'prescription', 'facility'])
             ->where('doctor_id', $doctor->id)
             ->whereDate('appointment_date', $today)
             ->orderBy('appointment_time')
+            ->get();
+
+        // Past completed consultations (last 100)
+        $historyAppointments = Appointment::with(['patient', 'queueTicket', 'prescription', 'facility'])
+            ->where('doctor_id', $doctor->id)
+            ->where('status', 'completed')
+            ->orderByDesc('appointment_date')
+            ->orderByDesc('appointment_time')
+            ->take(100)
             ->get();
 
         // Current patient in examination
@@ -38,20 +47,45 @@ class DoctorDashboardController extends Controller
 
         // Stats for doctor
         $totalToday = $todayAppointments->count();
+        $waitingInLobby = $todayAppointments->where('status', 'waiting')->count();
+        $inConsultationCount = $todayAppointments->where('status', 'in_consultation')->count();
         $completedToday = $todayAppointments->where('status', 'completed')->count();
-        $waitingToday = $todayAppointments->where('status', 'waiting')->count();
+        $notArrivedToday = $todayAppointments->whereIn('status', ['confirmed', 'booked'])->count();
+        $insuranceCount = $todayAppointments->where('payment_method', 'insurance')->count();
 
-        return Inertia::render('doctor/dashboard', [
+        return [
             'doctor' => $doctor,
             'todayAppointments' => $todayAppointments,
+            'historyAppointments' => $historyAppointments,
             'currentSession' => $currentSession,
             'stats' => [
                 'totalPatients' => $totalToday,
+                'waitingCount' => $waitingInLobby,
+                'inConsultationCount' => $inConsultationCount,
                 'completedCount' => $completedToday,
-                'waitingCount' => $waitingToday,
+                'notArrivedCount' => $notArrivedToday,
+                'insuranceCount' => $insuranceCount,
                 'currentTicketNum' => $currentSession ? ($currentSession->queueTicket?->ticket_number ?? null) : null,
             ]
-        ]);
+        ];
+    }
+
+    public function index(Request $request): Response
+    {
+        $data = $this->getDoctorData($request);
+        return Inertia::render('doctor/dashboard', $data);
+    }
+
+    public function history(Request $request): Response
+    {
+        $data = $this->getDoctorData($request);
+        return Inertia::render('doctor/history', $data);
+    }
+
+    public function schedule(Request $request): Response
+    {
+        $data = $this->getDoctorData($request);
+        return Inertia::render('doctor/schedule', $data);
     }
 
     public function callNext(Request $request)
@@ -80,7 +114,7 @@ class DoctorDashboardController extends Controller
             $currentExamining->appointment->update(['status' => 'completed']);
         }
 
-        // Find next waiting ticket
+        // Find next waiting ticket (patient who checked in at reception)
         $nextTicket = QueueTicket::whereHas('appointment', function ($q) use ($doctorId, $today) {
             $q->where('doctor_id', $doctorId)
               ->whereDate('appointment_date', $today);
@@ -92,9 +126,94 @@ class DoctorDashboardController extends Controller
                 'started_at' => Carbon::now(),
             ]);
             $nextTicket->appointment->update(['status' => 'in_consultation']);
+            return back()->with('success', 'تم استدعاء المريض التالي (' . $nextTicket->ticket_number . ') إلى العيادة.');
         }
 
-        return back()->with('success', 'تم استدعاء الحالة التالية وتحديث شاشة الانتظار.');
+        // Fallback: Check if there is an appointment with status 'waiting' without ticket
+        $nextAppt = Appointment::where('doctor_id', $doctorId)
+            ->whereDate('appointment_date', $today)
+            ->where('status', 'waiting')
+            ->orderBy('appointment_time')
+            ->first();
+
+        if ($nextAppt) {
+            $nextAppt->update(['status' => 'in_consultation']);
+            return back()->with('success', 'تم بدء الكشف للمريض بالعيادة.');
+        }
+
+        return back()->with('info', 'لا يوجد مرضى في صالة الانتظار حالياً.');
+    }
+
+    public function startConsultation(Request $request, Appointment $appointment)
+    {
+        $user = $request->user();
+        $doctor = $user ? $user->doctorProfile : null;
+
+        if (! $user || ($user->role !== 'admin' && (! $doctor || $appointment->doctor_id !== $doctor->id))) {
+            abort(403, 'غير مصرح لك ببدء كشف لطبيب آخر.');
+        }
+
+        $appointment->update(['status' => 'in_consultation']);
+
+        if ($appointment->queueTicket) {
+            $appointment->queueTicket->update([
+                'status' => 'examining',
+                'started_at' => Carbon::now(),
+            ]);
+        }
+
+        return back()->with('success', 'تم بدء الكشف الطبي للمريض.');
+    }
+
+    public function completeConsultation(Request $request, Appointment $appointment)
+    {
+        $user = $request->user();
+        $doctor = $user ? $user->doctorProfile : null;
+
+        if (! $user || ($user->role !== 'admin' && (! $doctor || $appointment->doctor_id !== $doctor->id))) {
+            abort(403, 'غير مصرح لك بإنهاء كشف لطبيب آخر.');
+        }
+
+        $appointment->update(['status' => 'completed']);
+
+        if ($appointment->queueTicket) {
+            $appointment->queueTicket->update([
+                'status' => 'completed',
+                'completed_at' => Carbon::now(),
+            ]);
+        }
+
+        if ($request->filled('diagnosis')) {
+            Prescription::create([
+                'appointment_id' => $appointment->id,
+                'patient_id' => $appointment->patient_id,
+                'doctor_id' => $appointment->doctor_id,
+                'prescription_code' => 'RX-' . rand(100000, 999999),
+                'diagnosis' => $request->input('diagnosis'),
+                'doctor_notes' => $request->input('notes'),
+                'medications' => $request->input('medications', []),
+                'is_dispensed' => false,
+            ]);
+        }
+
+        return back()->with('success', 'تم إنهاء الكشف الطبي وحفظ السجل بنجاح.');
+    }
+
+    public function toggleAvailability(Request $request)
+    {
+        $user = $request->user();
+        $doctor = $user ? $user->doctorProfile : null;
+
+        if (! $doctor) {
+            abort(403, 'لا يوجد ملف طبيب مرتبط بهذا الحساب.');
+        }
+
+        $doctor->update([
+            'is_available_today' => ! $doctor->is_available_today,
+        ]);
+
+        $statusText = $doctor->is_available_today ? 'متاح لاستقبال المرضى' : 'غير متاح حالياً';
+        return back()->with('success', 'تم تحديث حالة تواجد الطبيب إلى: ' . $statusText);
     }
 
     public function saveConsultation(Request $request, $appointmentId)
@@ -110,7 +229,6 @@ class DoctorDashboardController extends Controller
 
         $appointment = Appointment::findOrFail($appointmentId);
 
-        // Enforce strict ownership: only the assigned doctor or admin may complete the consultation
         if (! $user || ($user->role !== 'admin' && (! $doctor || $appointment->doctor_id !== $doctor->id))) {
             abort(403, 'غير مصرح لك بتعديل أو إنهاء كشف يخص طبيباً آخر.');
         }
@@ -140,4 +258,3 @@ class DoctorDashboardController extends Controller
         return back()->with('success', 'تم إنهاء الكشف وإصدار الوصفة الطبية بنجاح.');
     }
 }
-

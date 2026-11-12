@@ -1,63 +1,61 @@
-// Components
-import { Head, useForm } from '@inertiajs/react';
-import { LoaderCircle } from 'lucide-react';
-import { FormEventHandler } from 'react';
-
-import InputError from '@/components/input-error';
-import TextLink from '@/components/text-link';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import AuthLayout from '@/layouts/auth-layout';
+import React from 'react';
+import { useForm } from '@inertiajs/react';
+import { Mail, Send } from 'lucide-react';
+import { AuthLayout } from '@/components/common/auth-layout';
+import { FormInput } from '@/components/common/form-input';
+import { LoadingButton } from '@/components/common/loading-button';
+import { toast } from '@/components/common/toast';
 
 export default function ForgotPassword({ status }: { status?: string }) {
     const { data, setData, post, processing, errors } = useForm({
         email: '',
     });
 
-    const submit: FormEventHandler = (e) => {
+    const submit = (e: React.FormEvent) => {
         e.preventDefault();
-
-        post(route('password.email'));
+        post(route('password.email'), {
+            onError: (errs) => {
+                toast.error(errs.email || 'تعذر الإرسال، يرجى التأكد من البريد الإلكتروني المدخل');
+            },
+        });
     };
 
     return (
-        <AuthLayout title="Forgot password" description="Enter your email to receive a password reset link">
-            <Head title="Forgot password" />
+        <AuthLayout
+            title="استعادة كلمة المرور"
+            subtitle="أدخل بريدك الإلكتروني وسنرسل لك رابطاً لإعادة تعيين كلمة المرور فوراً"
+            status={status}
+            maxWidth="md"
+            footerText="تذكرت كلمة المرور؟"
+            footerLinkText="العودة لتسجيل الدخول"
+            footerLinkHref={route('login')}
+        >
+            <form onSubmit={submit} className="space-y-5">
+                <FormInput
+                    label="البريد الإلكتروني"
+                    type="email"
+                    required
+                    autoFocus
+                    placeholder="name@example.com"
+                    value={data.email}
+                    onChange={(e) => setData('email', e.target.value)}
+                    error={errors.email}
+                    icon={<Mail className="w-4 h-4 text-gray-400" />}
+                    dir="ltr"
+                />
 
-            {status && <div className="mb-4 text-center text-sm font-medium text-green-600">{status}</div>}
-
-            <div className="space-y-6">
-                <form onSubmit={submit}>
-                    <div className="grid gap-2">
-                        <Label htmlFor="email">Email address</Label>
-                        <Input
-                            id="email"
-                            type="email"
-                            name="email"
-                            autoComplete="off"
-                            value={data.email}
-                            autoFocus
-                            onChange={(e) => setData('email', e.target.value)}
-                            placeholder="email@example.com"
-                        />
-
-                        <InputError message={errors.email} />
-                    </div>
-
-                    <div className="my-6 flex items-center justify-start">
-                        <Button className="w-full" disabled={processing}>
-                            {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                            Email password reset link
-                        </Button>
-                    </div>
-                </form>
-
-                <div className="text-muted-foreground space-x-1 text-center text-sm">
-                    <span>Or, return to</span>
-                    <TextLink href={route('login')}>log in</TextLink>
-                </div>
-            </div>
+                <LoadingButton
+                    type="submit"
+                    loading={processing}
+                    loadingText="جارٍ إرسال الرابط..."
+                    variant="primary"
+                    size="lg"
+                    icon={<Send className="w-4 h-4" />}
+                    className="w-full h-11 rounded-xl text-sm font-bold"
+                >
+                    إرسال رابط استعادة كلمة المرور
+                </LoadingButton>
+            </form>
         </AuthLayout>
     );
 }

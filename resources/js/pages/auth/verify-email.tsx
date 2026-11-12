@@ -1,40 +1,41 @@
-// Components
-import { Head, useForm } from '@inertiajs/react';
-import { LoaderCircle } from 'lucide-react';
-import { FormEventHandler } from 'react';
-
-import TextLink from '@/components/text-link';
-import { Button } from '@/components/ui/button';
-import AuthLayout from '@/layouts/auth-layout';
+import React from 'react';
+import { useForm } from '@inertiajs/react';
+import { Mail } from 'lucide-react';
+import { AuthLayout } from '@/components/common/auth-layout';
+import { LoadingButton } from '@/components/common/loading-button';
 
 export default function VerifyEmail({ status }: { status?: string }) {
     const { post, processing } = useForm({});
 
-    const submit: FormEventHandler = (e) => {
+    const submit = (e: React.FormEvent) => {
         e.preventDefault();
-
         post(route('verification.send'));
     };
 
+    const verificationLinkSent = status === 'verification-link-sent';
+
     return (
-        <AuthLayout title="Verify email" description="Please verify your email address by clicking on the link we just emailed to you.">
-            <Head title="Email verification" />
-
-            {status === 'verification-link-sent' && (
-                <div className="mb-4 text-center text-sm font-medium text-green-600">
-                    A new verification link has been sent to the email address you provided during registration.
-                </div>
-            )}
-
-            <form onSubmit={submit} className="space-y-6 text-center">
-                <Button disabled={processing} variant="secondary">
-                    {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                    Resend verification email
-                </Button>
-
-                <TextLink href={route('logout')} method="post" className="mx-auto block text-sm">
-                    Log out
-                </TextLink>
+        <AuthLayout
+            title="تأكيد البريد الإلكتروني"
+            subtitle="شكراً لتسجيلك! قبل البدء، يرجى تأكيد بريدك الإلكتروني بالضغط على الرابط الذي أرسلناه لك."
+            status={verificationLinkSent ? 'تم إرسال رابط تأكيد جديد إلى عنوان بريدك الإلكتروني المسجل.' : undefined}
+            maxWidth="md"
+            footerText="أو إذا أردت استخدام حساب آخر:"
+            footerLinkText="تسجيل الخروج"
+            footerLinkHref={route('logout')}
+        >
+            <form onSubmit={submit} className="space-y-4">
+                <LoadingButton
+                    type="submit"
+                    loading={processing}
+                    loadingText="جارٍ الإرسال..."
+                    variant="primary"
+                    size="lg"
+                    icon={<Mail className="w-4 h-4" />}
+                    className="w-full h-11 rounded-xl text-sm font-bold"
+                >
+                    إعادة إرسال رابط التأكيد
+                </LoadingButton>
             </form>
         </AuthLayout>
     );

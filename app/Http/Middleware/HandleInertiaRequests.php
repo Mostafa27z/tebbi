@@ -58,6 +58,32 @@ class HandleInertiaRequests extends Middleware
             }
         }
 
+        $adminCounts = null;
+        if ($user && $user->role === 'admin') {
+            $adminCounts = [
+                'groups' => \App\Models\Group::count(),
+                'clinics' => \App\Models\Facility::count(),
+                'admins' => \App\Models\RoleAssignment::count(),
+                'doctors' => \App\Models\DoctorProfile::count(),
+                'specialties' => \App\Models\Specialty::count(),
+                'appointments' => \App\Models\Appointment::count(),
+            ];
+        }
+
+        $facilityCounts = null;
+        if ($user && ($user->isFacilityAdmin() || $user->isReceptionist())) {
+            $resolver = new \App\Services\ScopeResolver();
+            $facIds = $resolver->accessibleFacilityIds($user);
+            $primaryFacId = $facIds[0] ?? 1;
+            $today = \Carbon\Carbon::today();
+            $facilityCounts = [
+                'waiting' => \App\Models\Appointment::where('facility_id', $primaryFacId)->whereDate('appointment_date', $today)->where('status', 'waiting')->count(),
+                'doctors' => \App\Models\DoctorProfile::where('clinic_id', $primaryFacId)->orWhereHas('doctorFacilities', fn($q) => $q->where('facility_id', $primaryFacId)->where('is_active', true))->count(),
+                'specialties' => \App\Models\Specialty::count(),
+                'appointments' => \App\Models\Appointment::where('facility_id', $primaryFacId)->whereDate('appointment_date', $today)->count(),
+            ];
+        }
+
         return array_merge(parent::share($request), [
             'name' => config('app.name', 'طبيبي'),
             'auth' => [
@@ -68,9 +94,13 @@ class HandleInertiaRequests extends Middleware
                 ]) : null,
                 'activeTicket' => $activeTicket,
             ],
+            'adminCounts' => $adminCounts,
+            'facilityCounts' => $facilityCounts,
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),
+                'info' => $request->session()->get('info'),
+                'warning' => $request->session()->get('warning'),
             ],
         ]);
     }

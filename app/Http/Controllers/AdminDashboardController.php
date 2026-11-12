@@ -23,9 +23,17 @@ class AdminDashboardController extends Controller
 {
     public function index(Request $request): Response
     {
-        // 1. Core Dynamic Metrics from Database
+        return $this->analytics($request);
+    }
+
+    /**
+     * 1. تحليلات النمو والأداء (الرئيسية)
+     * URL: /admin/analytics
+     */
+    public function analytics(Request $request): Response
+    {
         $totalBookings = Appointment::count();
-        $totalRevenue = (float) Appointment::where('payment_status', 'paid')->sum('total_amount');
+        $completedBookings = Appointment::whereIn('status', ['completed', 'in_consultation', 'confirmed'])->count();
         $activeHospitalsCount = Clinic::where('is_active', true)->count();
         $activeDoctorsCount = DoctorProfile::where('is_available_today', true)->count();
 
@@ -36,14 +44,14 @@ class AdminDashboardController extends Controller
 
         $complianceRate = ($totalHospitals > 0 && $totalDoctors > 0)
             ? round(((($verifiedHospitals / $totalHospitals) * 0.5) + (($verifiedDoctors / $totalDoctors) * 0.5)) * 100, 1) . '%'
-            : 'لا توجد سجلات حتى الآن';
+            : 'لا توجد سجلات';
 
         $avgMinutesRaw = DoctorProfile::where('waiting_time_minutes', '>', 0)->avg('waiting_time_minutes');
         $avgWaitingTime = ($totalDoctors > 0 && $avgMinutesRaw !== null)
             ? (int) round($avgMinutesRaw) . ' دقيقة'
-            : 'لا توجد سجلات حتى الآن';
+            : 'لا توجد سجلات';
 
-        // 2. Specialty Distribution (100% Dynamic)
+        // Specialty Distribution (100% Dynamic)
         $totalDoctorsAll = DoctorProfile::count();
         $specialtyDistribution = Specialty::withCount('doctorProfiles')->get()->map(function ($s) use ($totalDoctorsAll) {
             return [
@@ -54,7 +62,7 @@ class AdminDashboardController extends Controller
             ];
         });
 
-        // 3. Last 7 Days Daily Bookings and Revenue (100% Dynamic)
+        // Last 7 Days Daily Bookings (100% Dynamic - Platform Operational Volume)
         $chartData = [];
         $maxDailyVal = 1;
         for ($i = 6; $i >= 0; $i--) {
@@ -70,9 +78,9 @@ class AdminDashboardController extends Controller
             };
 
             $dayBookings = Appointment::whereDate('appointment_date', $date)->count();
-            $dayRevenue = (float) Appointment::whereDate('appointment_date', $date)
-                ->where('payment_status', 'paid')
-                ->sum('total_amount');
+            $dayConfirmed = Appointment::whereDate('appointment_date', $date)
+                ->whereIn('status', ['completed', 'in_consultation', 'confirmed'])
+                ->count();
 
             if ($dayBookings > $maxDailyVal) {
                 $maxDailyVal = $dayBookings;
@@ -82,18 +90,37 @@ class AdminDashboardController extends Controller
                 'day' => $dayName,
                 'date' => $date->format('Y-m-d'),
                 'bookings' => $dayBookings,
-                'revenue' => $dayRevenue,
+                'confirmed' => $dayConfirmed,
             ];
         }
 
         // Normalize bar heights for chart
         $chartData = array_map(function ($bar) use ($maxDailyVal) {
             $bar['val1'] = $maxDailyVal > 0 ? max(10, round(($bar['bookings'] / $maxDailyVal) * 100)) : 10;
-            $bar['val2'] = max(5, round($bar['val1'] * 0.75));
+            $bar['val2'] = $maxDailyVal > 0 ? max(8, round(($bar['confirmed'] / $maxDailyVal) * 100)) : 8;
             return $bar;
         }, $chartData);
 
-        // 4. Dynamic Data Collections for Management Tabs
+        return Inertia::render('admin/analytics', [
+            'metrics' => [
+                'totalBookings' => $totalBookings,
+                'completedBookings' => $completedBookings,
+                'activeDoctors' => $activeDoctorsCount,
+                'activeHospitals' => $activeHospitalsCount,
+                'complianceRate' => $complianceRate,
+                'avgWaitingTime' => $avgWaitingTime,
+            ],
+            'chartData' => $chartData,
+            'specialtyDistribution' => $specialtyDistribution,
+        ]);
+    }
+
+    /**
+     * 2. إدارة المجمعات الطبية
+     * URL: /admin/groups
+     */
+    public function groups(Request $request): Response
+    {
         $groups = Group::withCount('facilities')
             ->with(['admins', 'facilities' => function ($q) {
                 $q->withCount('doctorProfiles');
@@ -101,29 +128,58 @@ class AdminDashboardController extends Controller
             ->orderBy('name_ar')
             ->get();
 
+        $totalGroupFacilities = Facility::whereNotNull('group_id')->count();
+        $totalGroupsCount = Group::count();
+        $verifiedGroupsCr = Group::whereNotNull('cr_number')->where('cr_number', '!=', '')->count();
+        $avgFacilitiesPerGroup = $totalGroupsCount > 0 ? round($totalGroupFacilities / $totalGroupsCount, 1) : 0;
+
+        return Inertia::render('admin/groups', [
+            'groups' => $groups,
+            'metrics' => [
+                'totalGroups' => $totalGroupsCount,
+                'totalFacilities' => $totalGroupFacilities,
+                'verifiedCr' => $verifiedGroupsCr,
+                'avgPerGroup' => $avgFacilitiesPerGroup,
+            ],
+        ]);
+    }
+
+    /**
+     * 3. إدارة المستشفيات والعيادات
+     * URL: /admin/clinics
+     */
+    public function clinics(Request $request): Response
+    {
         $clinics = Clinic::with(['group', 'admins'])
             ->withCount('doctorProfiles')
             ->orderByDesc('id')
             ->get();
 
-        $doctors = DoctorProfile::with([
-            'user',
-            'specialty',
-            'clinic',
-            'doctorFacilities.facility',
-        ])->orderByDesc('id')->get();
+        $groups = Group::select('id', 'name_ar', 'cr_number')->orderBy('name_ar')->get();
 
-        $specialties = Specialty::withCount('doctorProfiles')->get();
+        $totalHospitals = Clinic::count();
+        $hospitalsCount = Facility::where('type', 'hospital')->count();
+        $clinicsCount = Facility::where('type', 'clinic')->count();
+        $verifiedFacilitiesCount = Facility::where('is_verified', true)->count();
 
-        $appointments = Appointment::with([
-            'patient',
-            'doctor.user',
-            'doctor.clinic',
-            'doctor.specialty',
-            'facility',
-            'queueTicket',
-        ])->orderByDesc('appointment_date')->orderByDesc('appointment_time')->take(50)->get();
+        return Inertia::render('admin/clinics', [
+            'clinics' => $clinics,
+            'groups' => $groups,
+            'metrics' => [
+                'total' => $totalHospitals,
+                'hospitals' => $hospitalsCount,
+                'clinics' => $clinicsCount,
+                'verified' => $verifiedFacilitiesCount,
+            ],
+        ]);
+    }
 
+    /**
+     * 4. إدارة المشرفين وصلاحيات الاستقبال
+     * URL: /admin/admins
+     */
+    public function admins(Request $request): Response
+    {
         $roleAssignments = RoleAssignment::with('user')->orderByDesc('id')->get()->map(function ($assignment) {
             $scopeName = 'غير محدد';
             if ($assignment->scope_type === 'group') {
@@ -147,26 +203,112 @@ class AdminDashboardController extends Controller
             ];
         });
 
+        $groups = Group::select('id', 'name_ar', 'cr_number')->orderBy('name_ar')->get();
+        $clinics = Clinic::select('id', 'name', 'city', 'district')->orderBy('name')->get();
         $allUsers = User::select('id', 'name', 'email', 'phone', 'role')->orderBy('name')->get();
 
-        return Inertia::render('admin/analytics', [
-            'metrics' => [
-                'totalBookings' => $totalBookings,
-                'totalRevenue' => number_format($totalRevenue, 0) . ' ر.س',
-                'activeDoctors' => $activeDoctorsCount,
-                'activeHospitals' => $activeHospitalsCount,
-                'complianceRate' => $complianceRate,
-                'avgWaitingTime' => $avgWaitingTime,
-            ],
-            'chartData' => $chartData,
-            'specialtyDistribution' => $specialtyDistribution,
+        $groupAdminsCount = RoleAssignment::where('role', 'group_admin')->count();
+        $facilityAdminsCount = RoleAssignment::where('role', 'facility_admin')->count();
+        $receptionistsCount = RoleAssignment::where('role', 'receptionist')->count();
+
+        return Inertia::render('admin/admins', [
+            'roleAssignments' => $roleAssignments,
             'groups' => $groups,
             'clinics' => $clinics,
+            'allUsers' => $allUsers,
+            'metrics' => [
+                'total' => RoleAssignment::count(),
+                'groupAdmins' => $groupAdminsCount,
+                'facilityAdmins' => $facilityAdminsCount,
+                'receptionists' => $receptionistsCount,
+            ],
+        ]);
+    }
+
+    /**
+     * 5. إدارة الأطباء والاستشاريين
+     * URL: /admin/doctors
+     */
+    public function doctors(Request $request): Response
+    {
+        $doctors = DoctorProfile::with([
+            'user',
+            'specialty',
+            'clinic',
+            'doctorFacilities.facility',
+        ])->orderByDesc('id')->get();
+
+        $specialties = Specialty::select('id', 'name_ar')->orderBy('name_ar')->get();
+        $clinics = Clinic::select('id', 'name', 'city')->orderBy('name')->get();
+
+        $totalDoctors = DoctorProfile::count();
+        $activeDoctorsToday = DoctorProfile::where('is_available_today', true)->count();
+        $insuranceDoctors = DoctorProfile::where('accepts_insurance', true)->count();
+        $avgFee = (int) round(DoctorProfile::avg('consultation_fee') ?? 0);
+
+        return Inertia::render('admin/doctors', [
             'doctors' => $doctors,
             'specialties' => $specialties,
+            'clinics' => $clinics,
+            'metrics' => [
+                'total' => $totalDoctors,
+                'activeToday' => $activeDoctorsToday,
+                'acceptsInsurance' => $insuranceDoctors,
+                'avgFee' => $avgFee,
+            ],
+        ]);
+    }
+
+    /**
+     * 6. إدارة الأقسام والتخصصات الطبية
+     * URL: /admin/specialties
+     */
+    public function specialties(Request $request): Response
+    {
+        $specialties = Specialty::withCount('doctorProfiles')->orderBy('name_ar')->get();
+        $totalDoctors = DoctorProfile::count();
+        $badgedSpecialties = Specialty::whereNotNull('badge_text')->where('badge_text', '!=', '')->count();
+        $specialtiesWithDoctors = Specialty::has('doctorProfiles')->count();
+
+        return Inertia::render('admin/specialties', [
+            'specialties' => $specialties,
+            'metrics' => [
+                'total' => Specialty::count(),
+                'badged' => $badgedSpecialties,
+                'active' => $specialtiesWithDoctors,
+                'totalDoctors' => $totalDoctors,
+            ],
+        ]);
+    }
+
+    /**
+     * 7. سجل الحجوزات والتذاكر
+     * URL: /admin/appointments
+     */
+    public function appointments(Request $request): Response
+    {
+        $appointments = Appointment::with([
+            'patient',
+            'doctor.user',
+            'doctor.clinic',
+            'doctor.specialty',
+            'facility',
+            'queueTicket',
+        ])->orderByDesc('appointment_date')->orderByDesc('appointment_time')->take(100)->get();
+
+        $totalBookings = Appointment::count();
+        $waitingAppointments = Appointment::where('status', 'waiting')->count();
+        $completedAppointments = Appointment::where('status', 'completed')->count();
+        $inConsultationAppointments = Appointment::where('status', 'in_consultation')->count();
+
+        return Inertia::render('admin/appointments', [
             'appointments' => $appointments,
-            'roleAssignments' => $roleAssignments,
-            'allUsers' => $allUsers,
+            'metrics' => [
+                'total' => $totalBookings,
+                'waiting' => $waitingAppointments,
+                'completed' => $completedAppointments,
+                'inConsultation' => $inConsultationAppointments,
+            ],
         ]);
     }
 
