@@ -174,14 +174,8 @@ class DoctorDashboardController extends Controller
             abort(403, 'غير مصرح لك بإنهاء كشف لطبيب آخر.');
         }
 
-        $appointment->update(['status' => 'completed']);
-
-        if ($appointment->queueTicket) {
-            $appointment->queueTicket->update([
-                'status' => 'completed',
-                'completed_at' => Carbon::now(),
-            ]);
-        }
+        // Stage 3: Confirm Finish Consultation / Kashf
+        $appointment->confirmFinishConsultation($user->id);
 
         if ($request->filled('diagnosis')) {
             Prescription::create([
@@ -196,7 +190,7 @@ class DoctorDashboardController extends Controller
             ]);
         }
 
-        return back()->with('success', 'تم إنهاء الكشف الطبي وحفظ السجل بنجاح.');
+        return back()->with('success', 'تم إنهاء الكشف الطبي واعتماده بنجاح (المرحلة 3: تأكيد إنهاء الكشف من الطبيب).');
     }
 
     public function toggleAvailability(Request $request)
@@ -233,16 +227,8 @@ class DoctorDashboardController extends Controller
             abort(403, 'غير مصرح لك بتعديل أو إنهاء كشف يخص طبيباً آخر.');
         }
         
-        $appointment->update([
-            'status' => 'completed',
-        ]);
-
-        if ($appointment->queueTicket) {
-            $appointment->queueTicket->update([
-                'status' => 'completed',
-                'completed_at' => Carbon::now(),
-            ]);
-        }
+        // Stage 3: Confirm Finish Consultation / Kashf
+        $appointment->confirmFinishConsultation($user->id);
 
         Prescription::create([
             'appointment_id' => $appointment->id,

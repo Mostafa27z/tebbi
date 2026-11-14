@@ -24,14 +24,52 @@ export interface PresetDay {
     iso: string;
 }
 
-export const PRESET_DAYS: PresetDay[] = [
-    { label: 'اليوم', dayName: 'الجمعة', dateStr: '6 نوفمبر', fullFormatted: 'اليوم - الجمعة 6 نوفمبر', iso: '2026-11-06' },
-    { label: 'غداً', dayName: 'السبت', dateStr: '7 نوفمبر', fullFormatted: 'السبت 7 نوفمبر', iso: '2026-11-07' },
-    { label: 'الأحد', dayName: 'الأحد', dateStr: '8 نوفمبر', fullFormatted: 'الأحد 8 نوفمبر', iso: '2026-11-08' },
-    { label: 'الإثنين', dayName: 'الإثنين', dateStr: '9 نوفمبر', fullFormatted: 'الإثنين 9 نوفمبر', iso: '2026-11-09' },
-    { label: 'الثلاثاء', dayName: 'الثلاثاء', dateStr: '10 نوفمبر', fullFormatted: 'الثلاثاء 10 نوفمبر', iso: '2026-11-10' },
-    { label: 'الأربعاء', dayName: 'الأربعاء', dateStr: '11 نوفمبر', fullFormatted: 'الأربعاء 11 نوفمبر', iso: '2026-11-11' },
-];
+export function generatePresetDays(): PresetDay[] {
+    const days: PresetDay[] = [];
+    const arabicDays = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    const arabicMonths = [
+        'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+        'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+    ];
+
+    const now = new Date();
+
+    for (let i = 0; i < 6; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const iso = `${year}-${month}-${day}`;
+
+        const dayName = arabicDays[d.getDay()];
+        const monthName = arabicMonths[d.getMonth()];
+        const dateStr = `${d.getDate()} ${monthName}`;
+
+        let label = dayName;
+        let fullFormatted = `${dayName} ${dateStr}`;
+
+        if (i === 0) {
+            label = 'اليوم';
+            fullFormatted = `اليوم - ${dayName} ${dateStr}`;
+        } else if (i === 1) {
+            label = 'غداً';
+            fullFormatted = `غداً - ${dayName} ${dateStr}`;
+        }
+
+        days.push({
+            label,
+            dayName,
+            dateStr,
+            fullFormatted,
+            iso,
+        });
+    }
+
+    return days;
+}
+
+export const PRESET_DAYS: PresetDay[] = generatePresetDays();
 
 export const MORNING_SLOTS: string[] = [
     '09:30 ص',

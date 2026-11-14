@@ -319,5 +319,92 @@ class MultiTenantHierarchyTest extends TestCase
         $this->assertNotNull($newDoctorUser->doctorProfile);
         $this->assertEquals(280.00, (float) $newDoctorUser->doctorProfile->consultation_fee);
     }
+
+    public function test_facility_admin_can_crud_doctors_at_facility(): void
+    {
+        $facility = Facility::first();
+        $specialty = \App\Models\Specialty::first();
+
+        // Find or create facility admin
+        $facilityAdmin = User::factory()->create([
+            'role' => 'facility_admin',
+        ]);
+        \App\Models\RoleAssignment::create([
+            'user_id' => $facilityAdmin->id,
+            'role' => 'facility_admin',
+            'scope_type' => 'facility',
+            'scope_id' => $facility->id,
+        ]);
+
+        // 1. View Doctors Page
+        $viewRes = $this->actingAs($facilityAdmin)->get('/facility/doctors?facility_id=' . $facility->id);
+        $viewRes->assertStatus(200);
+
+        // 2. Add New Doctor via Facility Dashboard
+        $createRes = $this->actingAs($facilityAdmin)->post('/facility/doctors', [
+            'mode' => 'new',
+            'facility_id' => $facility->id,
+            'name' => 'د. فهد الدوسري',
+            'email' => 'dr.fahad.test@tebiby.com',
+            'phone' => '0567891234',
+            'password' => 'secret1234',
+            'specialty_id' => $specialty->id,
+            'title_ar' => 'استشاري جراحة العظام والمفاصل',
+            'subspecialty' => 'مناظير الركبة والكتف',
+            'consultation_fee' => 320.00,
+            'waiting_time_minutes' => 20,
+            'experience_years' => 12,
+            'license_no' => 'SCFHS-998877',
+            'accepts_insurance' => true,
+        ]);
+
+        $createRes->assertStatus(302);
+        $this->assertDatabaseHas('users', ['email' => 'dr.fahad.test@tebiby.com']);
+        $newDoctorUser = User::where('email', 'dr.fahad.test@tebiby.com')->first();
+        $this->assertNotNull($newDoctorUser->doctorProfile);
+        $doctorProfile = $newDoctorUser->doctorProfile;
+        $this->assertEquals(320.00, (float) $doctorProfile->consultation_fee);
+
+        $this->assertDatabaseHas('doctor_facility', [
+            'doctor_profile_id' => $doctorProfile->id,
+            'facility_id' => $facility->id,
+            'consultation_fee' => 320.00,
+        ]);
+
+        // 3. Update Doctor details & facility fee
+        $updateRes = $this->actingAs($facilityAdmin)->put("/facility/doctors/{$doctorProfile->id}", [
+            'facility_id' => $facility->id,
+            'name' => 'د. فهد الدوسري (محدّث)',
+            'email' => 'dr.fahad.test@tebiby.com',
+            'phone' => '0567899999',
+            'specialty_id' => $specialty->id,
+            'title_ar' => 'استشاري أول جراحة العظام',
+            'subspecialty' => 'مناظير وإصابات الملاعب',
+            'consultation_fee' => 380.00,
+            'waiting_time_minutes' => 25,
+            'experience_years' => 14,
+            'license_no' => 'SCFHS-998877',
+            'accepts_insurance' => true,
+        ]);
+
+        $updateRes->assertStatus(302);
+        $this->assertDatabaseHas('users', ['name' => 'د. فهد الدوسري (محدّث)']);
+        $this->assertDatabaseHas('doctor_facility', [
+            'doctor_profile_id' => $doctorProfile->id,
+            'facility_id' => $facility->id,
+            'consultation_fee' => 380.00,
+            'default_slot_minutes' => 25,
+        ]);
+
+        // 4. Detach / Delete Doctor from facility
+        $deleteRes = $this->actingAs($facilityAdmin)->delete("/facility/doctors/{$doctorProfile->id}", [
+            'facility_id' => $facility->id,
+        ]);
+        $deleteRes->assertStatus(302);
+        $this->assertDatabaseMissing('doctor_facility', [
+            'doctor_profile_id' => $doctorProfile->id,
+            'facility_id' => $facility->id,
+        ]);
+    }
 }
 

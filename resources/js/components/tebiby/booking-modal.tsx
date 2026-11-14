@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { router } from '@inertiajs/react';
 import toast from 'react-hot-toast';
 import { showAlert } from '@/components/common/toast';
+import { parseTimeTo24Hour } from '@/lib/utils';
 import { 
     Doctor,
     PRESET_DAYS,
@@ -110,7 +111,7 @@ export default function BookingModal({ doctor, selectedSlot, isOpen, onClose }: 
                 patient_phone: patientPhone,
                 patient_national_id: patientNationalId,
                 appointment_date: selectedDayIso,
-                appointment_time: selectedTimeSlot,
+                appointment_time: parseTimeTo24Hour(selectedTimeSlot),
                 payment_method: paymentMethod === 'at-clinic' ? 'at_clinic' : paymentMethod,
                 insurance_provider: isInsurance ? insuranceProvider : null,
                 insurance_policy_number: isInsurance ? insurancePolicyNumber : null,

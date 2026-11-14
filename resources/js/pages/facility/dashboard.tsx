@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { FacilityDashboardLayout } from '@/layouts/facility-dashboard-layout';
 import { CustomSelect } from '@/components/common/custom-select';
 import { MetricCard } from '@/components/common/metric-card';
 import { StatusSelect } from '@/components/common/status-select';
+import { ConfirmationStagesBadge, ConfirmationStages } from '@/components/common/confirmation-stages-badge';
 import {
     Clock,
     Search,
@@ -18,7 +19,10 @@ import {
     CreditCard,
     DollarSign,
     Check,
-    Receipt
+    Receipt,
+    Calendar,
+    CalendarCheck2,
+    ShieldCheck
 } from 'lucide-react';
 import { cn, format12HourTime } from '@/lib/utils';
 
@@ -56,6 +60,7 @@ interface Appointment {
         status: string;
         estimated_wait_minutes: number;
     };
+    confirmation_stages?: ConfirmationStages;
 }
 
 interface SpecialtyItem {
@@ -89,10 +94,14 @@ interface Props {
         completedCount: number;
         notArrivedCount?: number;
         insuranceCount?: number;
+        receptionistsCount?: number;
     };
     doctors: Doctor[];
     specialties: SpecialtyItem[];
     todayAppointments: Appointment[];
+    allAppointments?: Appointment[];
+    selectedDateFilter?: string;
+    todayDate?: string;
 }
 
 export default function FacilityDashboard({
@@ -101,7 +110,14 @@ export default function FacilityDashboard({
     doctors = [],
     specialties = [],
     todayAppointments = [],
+    allAppointments = [],
+    selectedDateFilter = 'today',
+    todayDate = '',
 }: Props) {
+    const { props } = usePage();
+    const authUser = (props as any).auth?.user;
+    const canManageStaff = authUser?.role === 'admin' || authUser?.is_group_admin || authUser?.is_facility_admin;
+
     const [ticketModalOpen, setTicketModalOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -147,6 +163,18 @@ export default function FacilityDashboard({
         setActionLoadingId(appointmentId);
         router.post(
             `/facility/appointments/${appointmentId}/check-in`,
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => setActionLoadingId(null),
+            }
+        );
+    };
+
+    const handleConfirmBooking = (appointmentId: number) => {
+        setActionLoadingId(appointmentId);
+        router.post(
+            `/facility/appointments/${appointmentId}/confirm-booking`,
             {},
             {
                 preserveScroll: true,
@@ -261,6 +289,7 @@ export default function FacilityDashboard({
                 doctors: metrics.doctorsCount,
                 specialties: specialties?.length || metrics.specialtiesCount,
                 appointments: metrics.totalToday,
+                receptionists: metrics.receptionistsCount,
             }}
             onOpenWalkInModal={() => setTicketModalOpen(true)}
         >
@@ -320,16 +349,75 @@ export default function FacilityDashboard({
                                     يمكنك تعديل حالة الحضور فوراً، أو تحصيل رسوم الكشف ونوع السداد مباشرة من الجدول
                                 </p>
                             </div>
-                            <div className="text-xs font-bold text-gray-600 bg-gray-50 px-3.5 py-2 rounded-xl border border-gray-200/80 flex items-center gap-2">
-                                <span>المعروض بالجدول:</span>
-                                <span className="font-mono font-black text-[#005ab5] text-sm">
-                                    {filteredTodayAppointments.length}
-                                </span>
-                                <span className="text-gray-400">/</span>
-                                <span className="font-mono text-gray-600">
-                                    {todayAppointments.length}
-                                </span>
-                                <span>موعد</span>
+                            <div className="flex items-center gap-2">
+                                {canManageStaff && (
+                                    <Link
+                                        href="/facility/receptionists"
+                                        className="text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3.5 py-2 rounded-xl border border-emerald-200 flex items-center gap-1.5 transition-colors"
+                                    >
+                                        <UserCheck className="w-4 h-4 text-emerald-600" />
+                                        <span>موظفو الاستقبال ({metrics.receptionistsCount ?? 0})</span>
+                                    </Link>
+                                )}
+                                <div className="text-xs font-bold text-gray-600 bg-gray-50 px-3.5 py-2 rounded-xl border border-gray-200/80 flex items-center gap-2">
+                                    <span>المعروض بالجدول:</span>
+                                    <span className="font-mono font-black text-[#005ab5] text-sm">
+                                        {filteredTodayAppointments.length}
+                                    </span>
+                                    <span className="text-gray-400">/</span>
+                                    <span className="font-mono text-gray-600">
+                                        {todayAppointments.length}
+                                    </span>
+                                    <span>موعد</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Date Filter & Scope Selector */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-blue-50/50 rounded-2xl border border-blue-100">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => router.get('/facility/dashboard', { date: todayDate }, { preserveState: true, preserveScroll: true })}
+                                    className={cn(
+                                        'px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 select-none',
+                                        selectedDateFilter !== 'all' && (selectedDateFilter === todayDate || !selectedDateFilter)
+                                            ? 'bg-[#005ab5] text-white shadow-xs'
+                                            : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                                    )}
+                                >
+                                    <Clock className="w-3.5 h-3.5" />
+                                    <span>حالات اليوم المباشرة</span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => router.get('/facility/dashboard', { date: 'all' }, { preserveState: true, preserveScroll: true })}
+                                    className={cn(
+                                        'px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 select-none',
+                                        selectedDateFilter === 'all'
+                                            ? 'bg-[#005ab5] text-white shadow-xs'
+                                            : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                                    )}
+                                >
+                                    <CalendarCheck2 className="w-3.5 h-3.5" />
+                                    <span>كافة المواعيد والتواريخ ({allAppointments.length})</span>
+                                </button>
+                            </div>
+
+                            <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-gray-200 shadow-2xs">
+                                <Calendar className="w-3.5 h-3.5 text-[#005ab5]" />
+                                <span className="text-[11px] font-bold text-gray-600">تاريخ مخصص:</span>
+                                <input
+                                    type="date"
+                                    value={selectedDateFilter !== 'all' ? selectedDateFilter : ''}
+                                    onChange={(e) => {
+                                        if (e.target.value) {
+                                            router.get('/facility/dashboard', { date: e.target.value }, { preserveState: true, preserveScroll: true });
+                                        }
+                                    }}
+                                    className="text-xs font-bold bg-transparent border-0 focus:ring-0 p-0 text-gray-800 cursor-pointer"
+                                />
                             </div>
                         </div>
 
@@ -391,9 +479,10 @@ export default function FacilityDashboard({
                                     <th className="py-3 px-4">بيانات المريض</th>
                                     <th className="py-3 px-4">الطبيب المعالج</th>
                                     <th className="py-3 px-4">وقت الموعد</th>
+                                    <th className="py-3 px-4 text-center">مراحل التأكيد (إدارة / استقبال / طبيب)</th>
                                     <th className="py-3 px-4">حالة الحضور بالاستقبال (تغيير مباشر)</th>
                                     <th className="py-3 px-4">السداد والتحصيل المالي (جباية الرسوم)</th>
-                                    <th className="py-3 px-4 text-center">إجراء الاستقبال</th>
+                                    <th className="py-3 px-4 text-center">إجراءات الموعد</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
@@ -418,7 +507,7 @@ export default function FacilityDashboard({
                                                 <td className="py-3.5 px-4 font-mono">
                                                     {appt.queueTicket ? (
                                                         <span className="font-extrabold text-[#005ab5] text-sm bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">
-                                                            #{appt.queueTicket.ticket_number}
+                                                             #{appt.queueTicket.ticket_number}
                                                         </span>
                                                     ) : (
                                                         <span className="text-gray-400 font-medium text-[11px]">
@@ -452,6 +541,15 @@ export default function FacilityDashboard({
                                                     <span className="px-2.5 py-1 rounded-lg bg-gray-100/70 text-gray-700 text-xs inline-block">
                                                         {format12HourTime(appt.appointment_time)}
                                                     </span>
+                                                </td>
+
+                                                {/* Confirmation Stages 3-step indicator */}
+                                                <td className="py-3.5 px-4 text-center">
+                                                    <ConfirmationStagesBadge
+                                                        stages={appt.confirmation_stages}
+                                                        status={appt.status}
+                                                        compact={true}
+                                                    />
                                                 </td>
 
                                                 {/* Live Status Selector */}
@@ -516,20 +614,57 @@ export default function FacilityDashboard({
                                                     )}
                                                 </td>
 
-                                                {/* Quick Actions */}
+                                                {/* Quick Actions (Role-aware for 3 stages) */}
                                                 <td className="py-3.5 px-4 text-center">
                                                     <div className="flex items-center justify-center gap-2">
-                                                        {isConfirmed && (
+                                                        {appt.status === 'booked' && (
+                                                            canManageStaff ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleConfirmBooking(appt.id)}
+                                                                    disabled={isLoading}
+                                                                    className="px-2.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                                                                    title="المرحلة 1: تأكيد الحجز من الإدارة"
+                                                                >
+                                                                    <ShieldCheck className="w-3.5 h-3.5" />
+                                                                    <span>تأكيد الحجز (Admin)</span>
+                                                                </button>
+                                                            ) : (
+                                                                <span className="text-[11px] font-bold text-purple-700 bg-purple-50 px-2 py-1 rounded-xl border border-purple-200 flex items-center gap-1">
+                                                                    <Clock className="w-3 h-3 text-purple-500" />
+                                                                    <span>بانتظار الإدارة</span>
+                                                                </span>
+                                                            )
+                                                        )}
+                                                        {appt.status === 'confirmed' && (
                                                             <button
                                                                 type="button"
                                                                 onClick={() => handleCheckIn(appt.id)}
                                                                 disabled={isLoading}
-                                                                className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition-all cursor-pointer disabled:opacity-50"
-                                                                title="تسجيل وصول فوري بالاستقبال"
+                                                                className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                                                                title="المرحلة 2: تأكيد وصول المريض بالاستقبال"
                                                             >
                                                                 <UserCheck className="w-3.5 h-3.5" />
-                                                                <span>تسجيل وصول</span>
+                                                                <span>تأكيد الحضور (الاستقبال)</span>
                                                             </button>
+                                                        )}
+                                                        {appt.status === 'waiting' && (
+                                                            <span className="text-[11px] font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200 flex items-center gap-1">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                                                <span>في الانتظار</span>
+                                                            </span>
+                                                        )}
+                                                        {appt.status === 'in_consultation' && (
+                                                            <span className="text-[11px] font-bold text-blue-800 bg-blue-50 px-2.5 py-1 rounded-xl border border-blue-200 flex items-center gap-1">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping"></span>
+                                                                <span>داخل العيادة</span>
+                                                            </span>
+                                                        )}
+                                                        {appt.status === 'completed' && (
+                                                            <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200 flex items-center gap-1">
+                                                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                                                <span>اكتمل الكشف</span>
+                                                            </span>
                                                         )}
                                                         <a
                                                             href={`/queue/${appt.booking_reference}`}
@@ -547,7 +682,7 @@ export default function FacilityDashboard({
                                     })
                                 ) : (
                                     <tr>
-                                        <td colSpan={7} className="py-12 text-center text-gray-400 text-xs">
+                                        <td colSpan={8} className="py-12 text-center text-gray-400 text-xs">
                                             لا توجد مواعيد مطابقة لخيارات البحث أو الفلتر المحددة.
                                         </td>
                                     </tr>

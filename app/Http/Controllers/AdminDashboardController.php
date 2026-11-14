@@ -44,12 +44,12 @@ class AdminDashboardController extends Controller
 
         $complianceRate = ($totalHospitals > 0 && $totalDoctors > 0)
             ? round(((($verifiedHospitals / $totalHospitals) * 0.5) + (($verifiedDoctors / $totalDoctors) * 0.5)) * 100, 1) . '%'
-            : 'لا توجد سجلات';
+            : 'لا توجد سجلات حتى الآن';
 
         $avgMinutesRaw = DoctorProfile::where('waiting_time_minutes', '>', 0)->avg('waiting_time_minutes');
         $avgWaitingTime = ($totalDoctors > 0 && $avgMinutesRaw !== null)
             ? (int) round($avgMinutesRaw) . ' دقيقة'
-            : 'لا توجد سجلات';
+            : 'لا توجد سجلات حتى الآن';
 
         // Specialty Distribution (100% Dynamic)
         $totalDoctorsAll = DoctorProfile::count();
@@ -678,27 +678,51 @@ class AdminDashboardController extends Controller
     }
 
     // ==========================================
-    // APPOINTMENT STATUS ACTIONS
+    // APPOINTMENT STATUS & CONFIRMATION ACTIONS
     // ==========================================
+
+    public function confirmBooking(Request $request, Appointment $appointment): RedirectResponse
+    {
+        $user = $request->user();
+        if (!$user || $user->role !== 'admin') {
+            abort(403, 'غير مصرح لك بتأكيد الحجز.');
+        }
+
+        $appointment->confirmBooking($user->id);
+
+        return back()->with('success', "تم تأكيد الحجز للمريض ({$appointment->patient?->name}) بنجاح (المرحلة 1: تأكيد الإدارة).");
+    }
 
     public function updateAppointmentStatus(Request $request, Appointment $appointment): RedirectResponse
     {
+        $user = $request->user();
         $validated = $request->validate([
-            'status' => 'required|in:waiting,in_consultation,completed,cancelled',
+            'status' => 'required|in:booked,confirmed,waiting,in_consultation,completed,cancelled',
             'payment_status' => 'required|in:pending,paid,refunded,pending_verification',
         ]);
 
-        $appointment->update($validated);
+        $status = $validated['status'];
+        $appointment->update([
+            'payment_status' => $validated['payment_status'],
+        ]);
 
-        if ($appointment->queueTicket) {
-            $appointment->queueTicket->update([
-                'status' => match ($validated['status']) {
-                    'in_consultation' => 'examining',
-                    'completed' => 'completed',
-                    'cancelled' => 'cancelled',
-                    default => 'waiting',
-                },
-            ]);
+        if ($status === 'confirmed') {
+            $appointment->confirmBooking($user?->id);
+        } elseif ($status === 'waiting') {
+            $appointment->confirmArrival($user?->id);
+        } elseif ($status === 'completed') {
+            $appointment->confirmFinishConsultation($user?->id);
+        } else {
+            $appointment->update(['status' => $status]);
+            if ($appointment->queueTicket) {
+                $appointment->queueTicket->update([
+                    'status' => match ($status) {
+                        'in_consultation' => 'examining',
+                        'cancelled' => 'cancelled',
+                        default => 'waiting',
+                    },
+                ]);
+            }
         }
 
         return back()->with('success', 'تم تحديث حالة الحجز والدفع بنجاح.');

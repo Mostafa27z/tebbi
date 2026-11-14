@@ -28,7 +28,7 @@ class PatientPortalController extends Controller
             'queueTicket',
         ])
         ->where('patient_id', $user->id)
-        ->whereIn('status', ['waiting', 'confirmed', 'in_consultation'])
+        ->whereIn('status', ['booked', 'waiting', 'confirmed', 'in_consultation'])
         ->orderBy('appointment_date')
         ->orderBy('appointment_time')
         ->get();

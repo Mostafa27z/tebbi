@@ -51,7 +51,7 @@ export const BookingDateSelector: React.FC<BookingDateSelectorProps> = ({
                     </label>
                     <input
                         type="date"
-                        min="2026-11-06"
+                        min={PRESET_DAYS[0]?.iso}
                         value={selectedDayIso}
                         onChange={onCustomDateChange}
                         className="w-full h-12 px-4 rounded-2xl border border-gray-200 text-sm font-bold bg-gray-50/50 focus:bg-white focus:ring-2 focus:ring-[#005ab5] focus:outline-hidden"

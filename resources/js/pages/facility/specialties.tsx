@@ -51,6 +51,7 @@ interface Props {
         waitingCount: number;
         inConsultationCount: number;
         completedCount: number;
+        receptionistsCount?: number;
     };
     doctors: Doctor[];
     specialties: SpecialtyItem[];
@@ -81,6 +82,7 @@ export default function FacilitySpecialtiesPage({
                 doctors: metrics.doctorsCount,
                 specialties: specialties?.length || metrics.specialtiesCount,
                 appointments: metrics.totalToday,
+                receptionists: metrics.receptionistsCount,
             }}
         >
             <Head title={`الأقسام والتخصصات - ${facility.name}`} />

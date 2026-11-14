@@ -39,3 +39,22 @@ export function format12HourTime(timeStr?: string | null): string {
         return timeStr || '—';
     }
 }
+
+// Converts 12-hour Arabic or English time "05:40 م" or "09:30 ص" to standard 24-hour format "17:40:00"
+export function parseTimeTo24Hour(timeStr?: string | null): string {
+    if (!timeStr) return '09:00:00';
+    const trimmed = timeStr.trim();
+    if (/^\d{2}:\d{2}(:\d{2})?$/.test(trimmed)) {
+        return trimmed.length === 5 ? `${trimmed}:00` : trimmed;
+    }
+    const westernNumerals = trimmed.replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d).toString());
+    const isPm = westernNumerals.includes('م') || /pm/i.test(westernNumerals);
+    const isAm = westernNumerals.includes('ص') || /am/i.test(westernNumerals);
+    const digitsOnly = westernNumerals.replace(/[^\d:]/g, '').trim();
+    const parts = digitsOnly.split(':');
+    let hours = parseInt(parts[0] || '0', 10);
+    const minutes = parseInt(parts[1] || '0', 10);
+    if (isPm && hours < 12) hours += 12;
+    if (isAm && hours === 12) hours = 0;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+}

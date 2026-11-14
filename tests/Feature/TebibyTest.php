@@ -103,6 +103,27 @@ class TebibyTest extends TestCase
         $response->assertRedirect('/queue/' . $appt->booking_reference);
     }
 
+    public function test_booking_with_arabic_12hour_time_format_converts_to_valid_time(): void
+    {
+        $doctor = DoctorProfile::first();
+
+        $response = $this->post('/appointments/book', [
+            'doctor_id' => $doctor->id,
+            'patient_name' => 'فيصل سعد الدوسري',
+            'patient_phone' => '0512349988',
+            'patient_national_id' => '1098765432',
+            'appointment_date' => '2026-11-06',
+            'appointment_time' => '05:40 م',
+            'payment_method' => 'at_clinic',
+            'notify_whatsapp' => true,
+        ]);
+
+        $response->assertStatus(302);
+        $appt = Appointment::latest('id')->first();
+        $this->assertNotNull($appt);
+        $this->assertEquals('17:40:00', $appt->appointment_time);
+    }
+
     public function test_admin_can_create_and_toggle_clinic(): void
     {
         $admin = User::where('role', 'admin')->first();

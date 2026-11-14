@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { cn, formatArabicDate, format12HourTime } from '@/lib/utils';
 import { CustomSelect } from '@/components/common/custom-select';
+import { ConfirmationStagesBadge } from '@/components/common/confirmation-stages-badge';
 
 interface Appointment {
     id: number;
@@ -70,6 +71,7 @@ interface Props {
         waitingCount: number;
         inConsultationCount: number;
         completedCount: number;
+        receptionistsCount?: number;
     };
     doctors: Doctor[];
     specialties: Array<{ id: number; name_ar: string }>;
@@ -92,10 +94,11 @@ export default function FacilityAppointmentsPage({
 
     const statusOptions = [
         { value: 'all', label: `كافة الحالات (${allAppointments.length})` },
-        { value: 'completed', label: `كشوفات مكتملة (${allAppointments.filter((a) => a.status === 'completed').length})` },
-        { value: 'in_consultation', label: `قيد الكشف (${allAppointments.filter((a) => a.status === 'in_consultation').length})` },
+        { value: 'booked', label: `بانتظار تأكيد الإدارة (${allAppointments.filter((a) => a.status === 'booked').length})` },
+        { value: 'confirmed', label: `مؤكد من الإدارة (${allAppointments.filter((a) => a.status === 'confirmed').length})` },
         { value: 'waiting', label: `في صالة الانتظار (${allAppointments.filter((a) => a.status === 'waiting').length})` },
-        { value: 'confirmed', label: `مؤكد / لم يحضر بعد (${allAppointments.filter((a) => a.status === 'confirmed' || a.status === 'booked').length})` },
+        { value: 'in_consultation', label: `قيد الكشف (${allAppointments.filter((a) => a.status === 'in_consultation').length})` },
+        { value: 'completed', label: `كشوفات مكتملة (${allAppointments.filter((a) => a.status === 'completed').length})` },
         { value: 'cancelled', label: `حجوزات ملغية (${allAppointments.filter((a) => a.status === 'cancelled').length})` },
     ];
 
@@ -147,16 +150,17 @@ export default function FacilityAppointmentsPage({
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'completed':
-                return { label: 'مكتمل (أنهى الكشف)', bg: 'bg-gray-100 text-gray-800 border-gray-200' };
+                return { label: 'مكتمل (المرحلة 3: إنهاء الكشف)', bg: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
             case 'in_consultation':
-                return { label: 'قيد الكشف الآن', bg: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
+                return { label: 'قيد الكشف الآن', bg: 'bg-blue-50 text-[#005ab5] border-blue-200' };
             case 'waiting':
-                return { label: 'في صالة الانتظار', bg: 'bg-amber-50 text-amber-800 border-amber-200' };
+                return { label: 'في صالة الانتظار (المرحلة 2: تأكيد الحضور)', bg: 'bg-amber-50 text-amber-800 border-amber-200' };
             case 'confirmed':
+                return { label: 'مؤكد من الإدارة (المرحلة 1: تأكيد الحجز)', bg: 'bg-purple-50 text-purple-800 border-purple-200' };
             case 'booked':
-                return { label: 'مؤكد (بانتظار الحضور)', bg: 'bg-blue-50 text-blue-800 border-blue-200' };
+                return { label: 'حجز جديد (بانتظار تأكيد الإدارة)', bg: 'bg-rose-50 text-rose-800 border-rose-200 animate-pulse' };
             case 'cancelled':
-                return { label: 'ملغي', bg: 'bg-rose-50 text-rose-800 border-rose-200' };
+                return { label: 'ملغي', bg: 'bg-gray-100 text-gray-700 border-gray-200' };
             default:
                 return { label: status, bg: 'bg-gray-50 text-gray-700 border-gray-200' };
         }
@@ -172,6 +176,7 @@ export default function FacilityAppointmentsPage({
                 doctors: metrics.doctorsCount,
                 specialties: specialties?.length || metrics.specialtiesCount,
                 appointments: metrics.totalToday,
+                receptionists: metrics.receptionistsCount,
             }}
         >
             <Head title={`سجل المواعيد والتذاكر - ${facility.name}`} />
@@ -315,6 +320,7 @@ export default function FacilityAppointmentsPage({
                                     <th className="py-3 px-4">بيانات المريض</th>
                                     <th className="py-3 px-4">الطبيب والتخصص</th>
                                     <th className="py-3 px-4">التاريخ والوقت</th>
+                                    <th className="py-3 px-4 text-center">مراحل التأكيد (إدارة / استقبال / طبيب)</th>
                                     <th className="py-3 px-4">حالة الحضور والكشف</th>
                                     <th className="py-3 px-4">حالة السداد</th>
                                     <th className="py-3 px-4 text-center">التتبع المباشر</th>
@@ -349,6 +355,13 @@ export default function FacilityAppointmentsPage({
                                                     <div className="text-[11px] text-gray-500 font-semibold mt-0.5">
                                                         {format12HourTime(appt.appointment_time)}
                                                     </div>
+                                                </td>
+                                                <td className="py-3.5 px-4 text-center">
+                                                    <ConfirmationStagesBadge
+                                                        stages={(appt as any).confirmation_stages}
+                                                        status={appt.status}
+                                                        compact={true}
+                                                    />
                                                 </td>
                                                 <td className="py-3.5 px-4">
                                                     <span className={cn('px-2.5 py-1 rounded-full text-[10px] font-bold border inline-block', badge.bg)}>

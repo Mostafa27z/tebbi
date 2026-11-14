@@ -68,8 +68,8 @@ class BookingController extends Controller
                 'patient_id' => $patient->id,
                 'doctor_id' => $doctor->id,
                 'appointment_date' => $validated['appointment_date'],
-                'appointment_time' => $validated['appointment_time'],
-                'status' => 'waiting',
+                'appointment_time' => Appointment::normalizeTime($validated['appointment_time']),
+                'status' => 'booked',
                 'payment_method' => $validated['payment_method'],
                 'payment_status' => match ($validated['payment_method']) {
                     'online' => 'paid',

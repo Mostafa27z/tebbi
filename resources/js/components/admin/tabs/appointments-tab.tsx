@@ -2,6 +2,7 @@ import React from 'react';
 import { Appointment } from '../types';
 import { Pagination } from '@/components/common/pagination';
 import { TableToolbar } from '@/components/common/table-toolbar';
+import { ConfirmationStagesBadge } from '@/components/common/confirmation-stages-badge';
 import { Calendar, Clock, Stethoscope, Building2 } from 'lucide-react';
 
 interface AppointmentsTabProps {
@@ -83,6 +84,8 @@ export const AppointmentsTab: React.FC<AppointmentsTabProps> = ({
                         },
                         options: [
                             { value: 'all', label: 'كافة حالات الحجز' },
+                            { value: 'booked', label: 'بانتظار تأكيد الإدارة (Booked)' },
+                            { value: 'confirmed', label: 'مؤكد من الإدارة (Confirmed)' },
                             { value: 'waiting', label: 'في الانتظار (Waiting)' },
                             { value: 'in_consultation', label: 'قيد الكشف (In Consultation)' },
                             { value: 'completed', label: 'مكتمل (Completed)' },
@@ -102,6 +105,7 @@ export const AppointmentsTab: React.FC<AppointmentsTabProps> = ({
                                 <th className="py-3.5 px-4">الطبيب والتخصص</th>
                                 <th className="py-3.5 px-4">المنشأة الطبية</th>
                                 <th className="py-3.5 px-4">تاريخ ووقت الكشف</th>
+                                <th className="py-3.5 px-4 text-center">مراحل التأكيد (إدارة / استقبال / طبيب)</th>
                                 <th className="py-3.5 px-4 text-center">حالة الحجز</th>
                             </tr>
                         </thead>
@@ -154,6 +158,13 @@ export const AppointmentsTab: React.FC<AppointmentsTabProps> = ({
                                                 <Clock className="w-3 h-3 text-gray-400" />
                                                 <span>{formatTime(appt.appointment_time)}</span>
                                             </div>
+                                        </td>
+                                        <td className="py-3.5 px-4 text-center">
+                                            <ConfirmationStagesBadge
+                                                stages={(appt as any).confirmation_stages}
+                                                status={appt.status}
+                                                compact={true}
+                                            />
                                         </td>
                                         <td className="py-3.5 px-4 text-center">
                                             <span

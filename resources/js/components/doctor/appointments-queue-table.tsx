@@ -237,9 +237,10 @@ export const AppointmentsQueueTable: React.FC<AppointmentsQueueTableProps> = ({
                                                         }}
                                                         disabled={isLoading}
                                                         className="px-3 py-1.5 rounded-xl bg-[#005ab5] hover:bg-[#00458e] text-white font-bold text-xs flex items-center gap-1 shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                                                        title="المرحلة 3: تأكيد إنهاء الكشف الطبي"
                                                     >
                                                         <Stethoscope className="w-3.5 h-3.5" />
-                                                        <span>إنهاء وإصدار وصفة</span>
+                                                        <span>تأكيد إنهاء الكشف</span>
                                                     </button>
                                                 )}
                                                 {isCompleted && appt.prescription && (

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { ChevronDown, Check, Clock, CheckCircle2, AlertCircle, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type AppointmentStatusValue = 'confirmed' | 'waiting' | 'in_consultation' | 'completed' | 'cancelled';
+export type AppointmentStatusValue = 'booked' | 'confirmed' | 'waiting' | 'in_consultation' | 'completed' | 'cancelled';
 
 interface StatusOption {
     value: AppointmentStatusValue;
@@ -17,9 +17,18 @@ interface StatusOption {
 
 const statusOptions: StatusOption[] = [
     {
+        value: 'booked',
+        label: 'حجز جديد (بانتظار تأكيد الإدارة)',
+        sublabel: 'المرحلة 1: يتطلب تأكيد إدارة المنشأة',
+        dotColor: 'bg-purple-500 animate-pulse',
+        pillBg: 'bg-purple-50',
+        pillText: 'text-purple-800',
+        pillBorder: 'border-purple-200',
+    },
+    {
         value: 'confirmed',
-        label: 'لم يحضر بعد (مؤكد)',
-        sublabel: 'حجز معتمد بانتظار قدوم المريض',
+        label: 'تم تأكيد الحجز (لم يحضر بعد)',
+        sublabel: 'المرحلة 1 مكتملة: بانتظار وصول المريض للاستقبال',
         dotColor: 'bg-blue-500',
         pillBg: 'bg-blue-50',
         pillText: 'text-blue-700',
@@ -27,8 +36,8 @@ const statusOptions: StatusOption[] = [
     },
     {
         value: 'waiting',
-        label: 'حضر بالاستقبال (في الانتظار)',
-        sublabel: 'في صالة الانتظار بانتظار استدعاء الطبيب',
+        label: 'حضر بالاستقبال (في صالة الانتظار)',
+        sublabel: 'المرحلة 2 مكتملة: في قائمة الانتظار بانتظار استدعاء الطبيب',
         dotColor: 'bg-amber-500 animate-pulse',
         pillBg: 'bg-amber-50',
         pillText: 'text-amber-800',
@@ -37,7 +46,7 @@ const statusOptions: StatusOption[] = [
     {
         value: 'in_consultation',
         label: 'داخل العيادة مع الطبيب',
-        sublabel: 'جلسة المعاينة الطبية جارية الآن',
+        sublabel: 'جلسة المعاينة الطبية والفحص السريري جارية الآن',
         dotColor: 'bg-emerald-500 animate-ping',
         pillBg: 'bg-emerald-50',
         pillText: 'text-emerald-800',
@@ -46,7 +55,7 @@ const statusOptions: StatusOption[] = [
     {
         value: 'completed',
         label: 'مكتمل (أنهى الكشف وغادر)',
-        sublabel: 'تم إنهاء الكشف الطبي وإصدار الوصفة',
+        sublabel: 'المرحلة 3 مكتملة: تم إنهاء الكشف الطبي واعتماده من الطبيب',
         dotColor: 'bg-gray-400',
         pillBg: 'bg-gray-100',
         pillText: 'text-gray-800',

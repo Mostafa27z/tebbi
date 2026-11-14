@@ -17,6 +17,7 @@ export const PrescriptionModal: React.FC<PrescriptionModalProps> = ({
 }) => {
     const [diagnosis, setDiagnosis] = useState('');
     const [notes, setNotes] = useState('');
+    const [medicationsText, setMedicationsText] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
     if (!currentSession) return null;
@@ -25,27 +26,26 @@ export const PrescriptionModal: React.FC<PrescriptionModalProps> = ({
         e.preventDefault();
         setSubmitting(true);
 
+        const parsedMedications = medicationsText.trim()
+            ? medicationsText
+                  .split('\n')
+                  .map((m) => m.trim())
+                  .filter(Boolean)
+                  .map((name) => ({
+                      name,
+                      dose: '',
+                      frequency: '',
+                      duration: '',
+                      instructions: '',
+                  }))
+            : [];
+
         router.post(
             `/doctor/appointments/${currentSession.id}/consultation`,
             {
                 diagnosis: diagnosis || 'فحص سريري وعلاج تحفظي',
                 notes: notes || 'تم إنهاء المعالجة وتقديم إرشادات العناية الطبية للمريض.',
-                medications: [
-                    {
-                        name: 'Amoxicillin 500mg',
-                        dose: 'كبسولة كل 8 ساعات',
-                        frequency: 'بعد الوجبات',
-                        duration: 'لمدة 5 أيام',
-                        instructions: 'مضاد حيوي لمنع أي التهاب بكتيري',
-                    },
-                    {
-                        name: 'Ibuprofen 400mg',
-                        dose: 'قرص عند اللزوم',
-                        frequency: 'بعد الأكل لتسكين الألم',
-                        duration: 'عند الحاجة',
-                        instructions: 'مسكن ومضاد للالتهاب',
-                    },
-                ],
+                medications: parsedMedications,
             },
             {
                 onFinish: () => {
@@ -53,6 +53,7 @@ export const PrescriptionModal: React.FC<PrescriptionModalProps> = ({
                     onClose();
                     setDiagnosis('');
                     setNotes('');
+                    setMedicationsText('');
                 },
             }
         );
@@ -86,8 +87,15 @@ export const PrescriptionModal: React.FC<PrescriptionModalProps> = ({
                     />
                 </div>
 
-                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-800 text-xs">
-                    <strong>الأدوية المعتمدة:</strong> Amoxicillin 500mg + Ibuprofen 400mg (سيتم إدراجها بالروشتة الإلكترونية آلياً).
+                <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">الأدوية والوصفة الطبية (اختياري)</label>
+                    <textarea
+                        rows={2}
+                        placeholder="أدخل أسماء الأدوية الموصوفة والجرعات (اختياري)..."
+                        value={medicationsText}
+                        onChange={(e) => setMedicationsText(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-emerald-600 focus:outline-hidden"
+                    />
                 </div>
 
                 <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">

@@ -1461,7 +1461,7 @@ class TebibySeeder extends Seeder
                 $paymentStatus = $isCancelled ? 'refunded' : 'paid';
 
                 $appt = Appointment::create([
-                    'booking_reference' => sprintf('TB-%d%02d%02d', $daysAgo, $k + 1, rand(10, 99)),
+                    'booking_reference' => sprintf('TB-H%d%02d-%s', $daysAgo, $k + 1, \Illuminate\Support\Str::upper(\Illuminate\Support\Str::random(4))),
                     'patient_id' => $pat->id,
                     'doctor_id' => $doc->id,
                     'facility_id' => $doc->clinic_id,

@@ -3,6 +3,7 @@ import { Head, Link } from '@inertiajs/react';
 import TebibyHeader from '@/components/tebiby/header';
 import TebibyFooter from '@/components/tebiby/footer';
 import toast from 'react-hot-toast';
+import { format12HourTime } from '@/lib/utils';
 import { 
     Clock, 
     Users, 
@@ -213,33 +214,36 @@ export default function LiveQueue({ appointment, queueData: initialQueueData, cl
     }, [appointment.booking_reference]);
 
     const isYourTurn = queueData.patientsAhead === 0 || appointment.status === 'in_consultation';
+    const isStage1Done = appointment.status !== 'booked';
+    const isStage2Done = ['waiting', 'in_consultation', 'completed'].includes(appointment.status);
+    const isStage3Done = appointment.status === 'completed';
 
-    // Dynamic timeline stages based on live status
+    // Dynamic timeline stages aligned with the 3 Confirmation Stages (Admin -> Receptionist -> Doctor)
     const timelineSteps = [
         { 
-            title: 'تأكيد الحجز', 
-            status: 'done', 
-            desc: 'تم تثبيت الموعد إلكترونياً' 
+            title: 'تأكيد الحجز (الإدارة)', 
+            status: isStage1Done ? 'done' : 'active', 
+            desc: isStage1Done ? 'تم اعتماد وتأكيد الحجز من إدارة المنشأة' : 'بانتظار مراجعة وتأكيد إدارة المنشأة' 
         },
         { 
-            title: 'تسجيل الحضور', 
-            status: appointment.status === 'confirmed' ? 'active' : 'done', 
-            desc: appointment.status === 'confirmed' ? 'يرجى مراجعة موظف الاستقبال' : 'تم إثبات وصولك للعيادة' 
+            title: 'تأكيد الحضور (الاستقبال)', 
+            status: isStage2Done ? 'done' : (isStage1Done ? 'active' : 'upcoming'), 
+            desc: isStage2Done ? 'تم إثبات وتأكيد وصولك بالاستقبال' : (isStage1Done ? 'يرجى التوجه لموظف الاستقبال لإثبات الحضور' : 'بانتظار تأكيد الحجز أولاً') 
         },
         { 
-            title: 'انتظار المناداة', 
-            status: isYourTurn || appointment.status === 'completed' ? 'done' : (appointment.status === 'waiting' ? 'active' : 'upcoming'), 
-            desc: isYourTurn ? 'انتهت فترة الانتظار' : `باقي ${queueData.patientsAhead} قبل دورك` 
+            title: 'انتظار دور الكشف', 
+            status: appointment.status === 'in_consultation' || isStage3Done ? 'done' : (appointment.status === 'waiting' ? 'active' : 'upcoming'), 
+            desc: isYourTurn ? 'حان دورك للدخول للعيادة' : `باقي ${queueData.patientsAhead} مريض قبل دورك` 
         },
         { 
-            title: 'الكشف السريري', 
-            status: appointment.status === 'completed' ? 'done' : (isYourTurn ? 'active' : 'upcoming'), 
-            desc: isYourTurn ? 'تفضل بالدخول لغرفة الطبيب' : `فحص استشاري ${appointment.doctor.specialty.name_ar}` 
+            title: 'إنهاء الكشف (الطبيب)', 
+            status: isStage3Done ? 'done' : (appointment.status === 'in_consultation' ? 'active' : 'upcoming'), 
+            desc: isStage3Done ? 'تم إنهاء الكشف الطبي واعتماده' : (appointment.status === 'in_consultation' ? 'داخل العيادة مع الطبيب الآن' : `كشف د. ${appointment.doctor.user.name}`) 
         },
         { 
-            title: 'الوصفة والتقرير', 
-            status: appointment.status === 'completed' ? 'done' : 'upcoming', 
-            desc: appointment.status === 'completed' ? 'تم إصدار الروشتة' : 'إصدار الروشتة الرقمية' 
+            title: 'الوصفة والتقرير الطبي', 
+            status: isStage3Done ? 'done' : 'upcoming', 
+            desc: isStage3Done ? 'تم إصدار الروشتة الرقمية بنجاح' : 'يتم إصدارها فور إنهاء الطبيب للكشف' 
         },
     ];
 
@@ -427,7 +431,7 @@ export default function LiveQueue({ appointment, queueData: initialQueueData, cl
                                 <span>عيادة رقم (١٢) - الدور الأول</span>
                             </span>
                             <span className="font-mono text-gray-400">
-                                وقت الكشف: {appointment.appointment_time}
+                                وقت الكشف: {format12HourTime(appointment.appointment_time)}
                             </span>
                         </div>
                     </div>

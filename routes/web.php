@@ -82,6 +82,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::delete('/admin/specialties/{specialty}', [AdminDashboardController::class, 'deleteSpecialty'])->name('admin.specialties.delete');
 
     // Appointment Status & Payment Updates
+    Route::post('/admin/appointments/{appointment}/confirm-booking', [AdminDashboardController::class, 'confirmBooking'])->name('admin.appointments.confirm-booking');
     Route::match(['put', 'post'], '/admin/appointments/{appointment}/status', [AdminDashboardController::class, 'updateAppointmentStatus'])->name('admin.appointments.update-status');
 });
 
@@ -97,18 +98,28 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('/facility/dashboard', [FacilityDashboardController::class, 'index'])->name('facility.dashboard');
     Route::get('/facility/doctors', [FacilityDashboardController::class, 'doctors'])->name('facility.doctors');
+    Route::post('/facility/doctors', [FacilityDashboardController::class, 'storeDoctor'])->name('facility.doctors.store');
+    Route::put('/facility/doctors/{doctor}', [FacilityDashboardController::class, 'updateDoctor'])->name('facility.doctors.update');
+    Route::delete('/facility/doctors/{doctor}', [FacilityDashboardController::class, 'destroyDoctor'])->name('facility.doctors.destroy');
     Route::get('/facility/specialties', [FacilityDashboardController::class, 'specialties'])->name('facility.specialties');
     Route::get('/facility/appointments', [FacilityDashboardController::class, 'appointments'])->name('facility.appointments');
     Route::post('/facility/{facility}/walkin-ticket', [FacilityDashboardController::class, 'issueWalkInTicket'])->name('facility.walkin');
+    Route::post('/facility/appointments/{appointment}/confirm-booking', [FacilityDashboardController::class, 'confirmBooking'])->name('facility.appointments.confirm-booking');
     Route::post('/facility/appointments/{appointment}/check-in', [FacilityDashboardController::class, 'markArrived'])->name('facility.appointments.check-in');
     Route::post('/facility/appointments/{appointment}/status', [FacilityDashboardController::class, 'updateStatus'])->name('facility.appointments.status');
     Route::post('/facility/appointments/{appointment}/payment', [FacilityDashboardController::class, 'updatePayment'])->name('facility.appointments.payment');
     Route::post('/facility/appointments/{appointment}/no-show', [FacilityDashboardController::class, 'markNoShow'])->name('facility.appointments.no-show');
     Route::post('/facility/doctors/{doctor}/toggle-presence', [FacilityDashboardController::class, 'toggleDoctorPresence'])->name('facility.doctors.toggle-presence');
+
+    // Receptionist Management (إدارة موظفي الاستقبال)
+    Route::get('/facility/receptionists', [FacilityDashboardController::class, 'receptionists'])->name('facility.receptionists');
+    Route::post('/facility/receptionists', [FacilityDashboardController::class, 'storeReceptionist'])->name('facility.receptionists.store');
+    Route::put('/facility/receptionists/{roleAssignment}', [FacilityDashboardController::class, 'updateReceptionist'])->name('facility.receptionists.update');
+    Route::delete('/facility/receptionists/{roleAssignment}', [FacilityDashboardController::class, 'destroyReceptionist'])->name('facility.receptionists.destroy');
 });
 
 // Doctor Operational Dashboard & Live Consultation Routes (لوحة الطبيب وإدارة الكشوفات)
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'role:doctor'])->group(function () {
     Route::get('/doctor/dashboard', [DoctorDashboardController::class, 'index'])->name('doctor.dashboard');
     Route::get('/doctor/history', [DoctorDashboardController::class, 'history'])->name('doctor.history');
     Route::get('/doctor/schedule', [DoctorDashboardController::class, 'schedule'])->name('doctor.schedule');

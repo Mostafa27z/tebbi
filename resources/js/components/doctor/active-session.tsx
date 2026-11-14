@@ -47,9 +47,10 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({
                     <button
                         onClick={onOpenPrescriptionModal}
                         className="px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 flex items-center gap-2 transition-all hover:scale-[1.01]"
+                        title="المرحلة 3: تأكيد إنهاء الكشف الطبي واعتماده"
                     >
                         <Pill className="w-4 h-4" />
-                        <span>إنهاء الكشف وإصدار الوصفة</span>
+                        <span>تأكيد إنهاء الكشف وإصدار الوصفة</span>
                     </button>
 
                     <button

@@ -15,11 +15,12 @@ import {
     Hospital,
     Ticket,
     Activity,
-    ShieldCheck
+    ShieldCheck,
+    UserCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type FacilityTab = 'queue' | 'doctors' | 'specialties' | 'appointments';
+export type FacilityTab = 'queue' | 'doctors' | 'specialties' | 'appointments' | 'receptionists';
 
 interface FacilityDashboardLayoutProps {
     children: React.ReactNode;
@@ -32,6 +33,7 @@ interface FacilityDashboardLayoutProps {
         doctors?: number;
         specialties?: number;
         appointments?: number;
+        receptionists?: number;
     };
     onOpenWalkInModal?: () => void;
 }
@@ -51,11 +53,14 @@ export const FacilityDashboardLayout: React.FC<FacilityDashboardLayoutProps> = (
     const resolvedTab: FacilityTab = activeTab || (
         url.startsWith('/facility/doctors') ? 'doctors' :
         url.startsWith('/facility/specialties') ? 'specialties' :
-        url.startsWith('/facility/appointments') ? 'appointments' : 'queue'
+        url.startsWith('/facility/appointments') ? 'appointments' :
+        url.startsWith('/facility/receptionists') ? 'receptionists' : 'queue'
     );
 
     const [mobileOpen, setMobileOpen] = useState(false);
     const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+
+    const isFacilityAdmin = user.role === 'admin' || Boolean(user.is_group_admin) || Boolean(user.is_facility_admin);
 
     const navItems = [
         {
@@ -90,6 +95,7 @@ export const FacilityDashboardLayout: React.FC<FacilityDashboardLayoutProps> = (
             bg: 'bg-teal-50',
             count: counts?.specialties,
             countColor: 'bg-teal-100 text-teal-800',
+            adminOnly: true,
         },
         {
             id: 'appointments' as FacilityTab,
@@ -102,7 +108,21 @@ export const FacilityDashboardLayout: React.FC<FacilityDashboardLayoutProps> = (
             count: counts?.appointments,
             countColor: 'bg-blue-100 text-[#005ab5]',
         },
+        {
+            id: 'receptionists' as FacilityTab,
+            href: '/facility/receptionists',
+            label: 'موظفو الاستقبال',
+            description: 'إدارة كادر وصلاحيات الاستقبال',
+            icon: UserCheck,
+            color: 'text-emerald-600',
+            bg: 'bg-emerald-50',
+            count: counts?.receptionists,
+            countColor: 'bg-emerald-100 text-emerald-800',
+            adminOnly: true,
+        },
     ];
+
+    const visibleNavItems = navItems.filter((item) => !item.adminOnly || isFacilityAdmin);
 
     const currentNav = navItems.find((n) => n.id === resolvedTab) || navItems[0];
 
@@ -176,7 +196,7 @@ export const FacilityDashboardLayout: React.FC<FacilityDashboardLayoutProps> = (
                             إدارة الاستقبال اليومي
                         </div>
 
-                        {navItems.map((item) => {
+                        {visibleNavItems.map((item) => {
                             const Icon = item.icon;
                             const isActive = resolvedTab === item.id;
 

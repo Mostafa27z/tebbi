@@ -81,6 +81,7 @@ class HandleInertiaRequests extends Middleware
                 'doctors' => \App\Models\DoctorProfile::where('clinic_id', $primaryFacId)->orWhereHas('doctorFacilities', fn($q) => $q->where('facility_id', $primaryFacId)->where('is_active', true))->count(),
                 'specialties' => \App\Models\Specialty::count(),
                 'appointments' => \App\Models\Appointment::where('facility_id', $primaryFacId)->whereDate('appointment_date', $today)->count(),
+                'receptionists' => \App\Models\RoleAssignment::where('scope_type', 'facility')->where('scope_id', $primaryFacId)->where('role', 'receptionist')->count(),
             ];
         }
 
