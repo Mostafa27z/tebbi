@@ -58,8 +58,12 @@ class HandleInertiaRequests extends Middleware
             }
         }
 
+        $isGroupAdmin = $user ? $user->isGroupAdmin() : false;
+        $isFacilityAdmin = $user ? $user->isFacilityAdmin() : false;
+        $isReceptionist = $user ? $user->isReceptionist() : false;
+
         $adminCounts = null;
-        if ($user && $user->role === 'admin') {
+        if ($user && $user->role === 'admin' && $request->is('admin*')) {
             $adminCounts = [
                 'groups' => \App\Models\Group::count(),
                 'clinics' => \App\Models\Facility::count(),
@@ -71,14 +75,16 @@ class HandleInertiaRequests extends Middleware
         }
 
         $facilityCounts = null;
-        if ($user && ($user->isFacilityAdmin() || $user->isReceptionist())) {
-            $resolver = new \App\Services\ScopeResolver();
-            $facIds = $resolver->accessibleFacilityIds($user);
+        if ($user && ($isFacilityAdmin || $isReceptionist) && $request->is('facility*')) {
+            $facIds = $user->accessibleFacilityIds();
             $primaryFacId = $facIds[0] ?? 1;
             $today = \Carbon\Carbon::today();
             $facilityCounts = [
                 'waiting' => \App\Models\Appointment::where('facility_id', $primaryFacId)->whereDate('appointment_date', $today)->where('status', 'waiting')->count(),
-                'doctors' => \App\Models\DoctorProfile::where('clinic_id', $primaryFacId)->orWhereHas('doctorFacilities', fn($q) => $q->where('facility_id', $primaryFacId)->where('is_active', true))->count(),
+                'doctors' => \App\Models\DoctorProfile::where(function ($q) use ($primaryFacId) {
+                    $q->where('clinic_id', $primaryFacId)
+                      ->orWhereHas('doctorFacilities', fn($df) => $df->where('facility_id', $primaryFacId)->where('is_active', true));
+                })->count(),
                 'specialties' => \App\Models\Specialty::count(),
                 'appointments' => \App\Models\Appointment::where('facility_id', $primaryFacId)->whereDate('appointment_date', $today)->count(),
                 'receptionists' => \App\Models\RoleAssignment::where('scope_type', 'facility')->where('scope_id', $primaryFacId)->where('role', 'receptionist')->count(),
@@ -88,10 +94,11 @@ class HandleInertiaRequests extends Middleware
         return array_merge(parent::share($request), [
             'name' => config('app.name', 'طبيبي'),
             'auth' => [
-                'user' => $user ? array_merge($user->toArray(), [
-                    'is_group_admin' => $user->isGroupAdmin(),
-                    'is_facility_admin' => $user->isFacilityAdmin(),
-                    'is_receptionist' => $user->isReceptionist(),
+                'user' => $user ? array_merge($user->withoutRelations()->toArray(), [
+                    'doctor_profile' => $user->relationLoaded('doctorProfile') ? $user->doctorProfile : null,
+                    'is_group_admin' => $isGroupAdmin,
+                    'is_facility_admin' => $isFacilityAdmin,
+                    'is_receptionist' => $isReceptionist,
                 ]) : null,
                 'activeTicket' => $activeTicket,
             ],

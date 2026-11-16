@@ -113,6 +113,7 @@ export default function GroupsPage({
                     setGroupModalOpen(false);
                     setEditingGroup(null);
                 }}
+                editingGroup={editingGroup}
                 group={editingGroup}
             />
 

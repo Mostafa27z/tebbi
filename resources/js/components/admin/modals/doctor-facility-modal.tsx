@@ -1,26 +1,27 @@
 import React, { useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
-import { Modal } from '@/components/common/modal';
-import { FormInput } from '@/components/common/form-input';
-import { CustomSelect } from '@/components/common/custom-select';
-import { LoadingButton } from '@/components/common/loading-button';
+import { Modal, FormInput, CustomSelect, ModalFooter } from '@/components/common';
 import { Doctor, Clinic } from '../types';
 
 interface DoctorFacilityModalProps {
     isOpen: boolean;
     onClose: () => void;
-    selectedDoctor: Doctor | null;
+    selectedDoctor?: Doctor | null;
+    doctor?: Doctor | null;
     clinics: Clinic[];
 }
 
-export const DoctorFacilityModal: React.FC<DoctorFacilityModalProps> = ({
+export const DoctorFacilityModal: React.FC<DoctorFacilityModalProps> = React.memo(({
     isOpen,
     onClose,
     selectedDoctor,
+    doctor,
     clinics,
 }) => {
+    const currentDoctor = selectedDoctor || doctor || null;
+
     const { data, setData, post, processing, errors, reset } = useForm({
-        doctor_profile_id: (selectedDoctor?.id || 0) as number,
+        doctor_profile_id: (currentDoctor?.id || 0) as number,
         facility_id: (clinics[0]?.id || 0) as number,
         consultation_fee: 200,
         default_slot_minutes: 20,
@@ -29,15 +30,15 @@ export const DoctorFacilityModal: React.FC<DoctorFacilityModalProps> = ({
     });
 
     useEffect(() => {
-        if (selectedDoctor) {
+        if (currentDoctor) {
             setData((prev) => ({
                 ...prev,
-                doctor_profile_id: selectedDoctor.id,
-                consultation_fee: selectedDoctor.consultation_fee,
-                default_slot_minutes: selectedDoctor.waiting_time_minutes || 20,
+                doctor_profile_id: currentDoctor.id,
+                consultation_fee: currentDoctor.consultation_fee,
+                default_slot_minutes: currentDoctor.waiting_time_minutes || 20,
             }));
         }
-    }, [selectedDoctor, isOpen]);
+    }, [currentDoctor, isOpen]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -59,7 +60,7 @@ export const DoctorFacilityModal: React.FC<DoctorFacilityModalProps> = ({
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title={`تعيين الطبيب (${selectedDoctor?.user.name}) في منشأة إضافية`}
+            title={`تعيين الطبيب (${currentDoctor?.user.name || ''}) في منشأة إضافية`}
             description="إتاحة حجز مواعيد لهذا الطبيب في فرع أو مستشفى إضافي"
             maxWidth="md"
         >
@@ -92,24 +93,13 @@ export const DoctorFacilityModal: React.FC<DoctorFacilityModalProps> = ({
                     />
                 </div>
 
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        disabled={processing}
-                        className="px-4 py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                        إلغاء
-                    </button>
-                    <LoadingButton
-                        type="submit"
-                        loading={processing}
-                        className="font-['Cairo']"
-                    >
-                        تعيين المنشأة الإضافية
-                    </LoadingButton>
-                </div>
+                <ModalFooter
+                    onCancel={onClose}
+                    loading={processing}
+                    submitText="تعيين المنشأة الإضافية"
+                />
             </form>
         </Modal>
     );
-};
+});
+DoctorFacilityModal.displayName = 'DoctorFacilityModal';

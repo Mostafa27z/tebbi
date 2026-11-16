@@ -69,11 +69,26 @@ router.on('success', (event) => {
 
 // Automatically show validation errors as toast
 router.on('error', (event) => {
-    const errors = event.detail;
-    if (errors && typeof errors === 'object') {
-        const errorList = Object.values(errors);
+    const raw = (event.detail as any)?.errors || event.detail;
+    if (raw && typeof raw === 'object') {
+        const errorList = Object.values(raw);
         if (errorList.length > 0) {
-            showToast('error', String(errorList[0]));
+            const first = errorList[0];
+            let errorMsg = 'حدث خطأ في التحقق من البيانات المدخلة';
+            if (typeof first === 'string') {
+                errorMsg = first;
+            } else if (Array.isArray(first) && first.length > 0) {
+                errorMsg = String(first[0]);
+            } else if (typeof first === 'object' && first !== null) {
+                const nested = Object.values(first);
+                if (nested.length > 0) {
+                    const nestedFirst = nested[0];
+                    errorMsg = Array.isArray(nestedFirst) ? String(nestedFirst[0]) : String(nestedFirst);
+                }
+            }
+            if (errorMsg && errorMsg !== '[object Object]') {
+                showToast('error', errorMsg);
+            }
         }
     }
     activeVisitMethod = 'get';

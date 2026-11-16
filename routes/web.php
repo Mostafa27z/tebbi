@@ -5,6 +5,7 @@ use App\Http\Controllers\BookingController;
 use App\Http\Controllers\DoctorDashboardController;
 use App\Http\Controllers\FacilityDashboardController;
 use App\Http\Controllers\GroupDashboardController;
+use App\Http\Controllers\GroupLandingController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LiveQueueController;
 use App\Http\Controllers\PatientPortalController;
@@ -16,6 +17,7 @@ Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/doctors', [HomeController::class, 'doctors'])->name('doctors.index');
 Route::get('/specialties', [HomeController::class, 'specialties'])->name('specialties.index');
 Route::get('/about', [HomeController::class, 'about'])->name('about');
+
 Route::post('/appointments/book', [BookingController::class, 'store'])
     ->middleware('throttle:10,1')
     ->name('appointments.book');
@@ -89,19 +91,34 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 // Medical Group Admin Routes (مدير المجمع الطبي)
 Route::middleware(['auth'])->group(function () {
     Route::get('/group/dashboard', [GroupDashboardController::class, 'index'])->name('group.dashboard');
+    Route::get('/group/facilities', [GroupDashboardController::class, 'facilities'])->name('group.facilities');
+    Route::get('/group/doctors', [GroupDashboardController::class, 'doctors'])->name('group.doctors');
+    Route::get('/group/specialties', [GroupDashboardController::class, 'specialties'])->name('group.specialties');
+    Route::get('/group/staff', [GroupDashboardController::class, 'staff'])->name('group.staff');
     Route::post('/group/{group}/facilities', [GroupDashboardController::class, 'storeFacility'])->name('group.facilities.store');
+    Route::post('/group/{group}/facilities/{facility}/specialties', [GroupDashboardController::class, 'syncFacilitySpecialties'])->name('group.facilities.specialties');
     Route::post('/group/{group}/doctors', [GroupDashboardController::class, 'storeDoctor'])->name('group.doctors.store');
+    Route::post('/group/{group}/specialties', [GroupDashboardController::class, 'storeSpecialty'])->name('group.specialties.store');
+    Route::put('/group/{group}/specialties/{specialty}', [GroupDashboardController::class, 'updateSpecialty'])->name('group.specialties.update');
     Route::post('/group/{group}/staff', [GroupDashboardController::class, 'storeFacilityStaff'])->name('group.staff.store');
 });
+
+// Dedicated Medical Group Public Profile & Promotional Doctor Showcase (must be after /group/dashboard routes)
+Route::get('/group/{slug}', [GroupLandingController::class, 'show'])
+    ->where('slug', '^(?!dashboard$|facilities$|doctors$|specialties$|staff$).+')
+    ->name('group.landing');
+Route::get('/groups/{slug}', fn ($slug) => redirect()->route('group.landing', ['slug' => $slug]));
 
 // Facility Admin & Reception Routes (مدير المستشفى/العيادة والاستقبال)
 Route::middleware(['auth'])->group(function () {
     Route::get('/facility/dashboard', [FacilityDashboardController::class, 'index'])->name('facility.dashboard');
+    Route::get('/api/facility/live-sync', [FacilityDashboardController::class, 'liveSync'])->name('facility.live-sync');
     Route::get('/facility/doctors', [FacilityDashboardController::class, 'doctors'])->name('facility.doctors');
     Route::post('/facility/doctors', [FacilityDashboardController::class, 'storeDoctor'])->name('facility.doctors.store');
     Route::put('/facility/doctors/{doctor}', [FacilityDashboardController::class, 'updateDoctor'])->name('facility.doctors.update');
     Route::delete('/facility/doctors/{doctor}', [FacilityDashboardController::class, 'destroyDoctor'])->name('facility.doctors.destroy');
     Route::get('/facility/specialties', [FacilityDashboardController::class, 'specialties'])->name('facility.specialties');
+    Route::post('/facility/specialties', [FacilityDashboardController::class, 'storeSpecialtyAndSectors'])->name('facility.specialties.store');
     Route::get('/facility/appointments', [FacilityDashboardController::class, 'appointments'])->name('facility.appointments');
     Route::post('/facility/{facility}/walkin-ticket', [FacilityDashboardController::class, 'issueWalkInTicket'])->name('facility.walkin');
     Route::post('/facility/appointments/{appointment}/confirm-booking', [FacilityDashboardController::class, 'confirmBooking'])->name('facility.appointments.confirm-booking');
@@ -126,13 +143,15 @@ Route::middleware(['auth', 'role:doctor'])->group(function () {
     Route::post('/doctor/queue/call-next', [DoctorDashboardController::class, 'callNext'])->name('doctor.call-next');
     Route::post('/doctor/appointments/{appointment}/start', [DoctorDashboardController::class, 'startConsultation'])->name('doctor.appointments.start');
     Route::post('/doctor/appointments/{appointment}/complete', [DoctorDashboardController::class, 'completeConsultation'])->name('doctor.appointments.complete');
+    Route::post('/doctor/appointments/{appointment}/delay', [DoctorDashboardController::class, 'addDelay'])->name('doctor.appointments.delay');
     Route::post('/doctor/toggle-availability', [DoctorDashboardController::class, 'toggleAvailability'])->name('doctor.toggle-availability');
 });
 
-// Patient Portal Routes (بوابة المريض والتتبع الحي والخرائط)
+// Patient Portal Routes (بوابة المريض والتتبع الحي والخرائط وتأكيد الحضور الذكي)
 Route::middleware(['auth'])->group(function () {
     Route::get('/portal', fn() => redirect()->route('patient.portal'));
     Route::get('/patient/portal', [PatientPortalController::class, 'index'])->name('patient.portal');
+    Route::post('/patient/check-in', [PatientPortalController::class, 'checkIn'])->name('patient.check-in');
 });
 
 // Dashboard Route - Smart Role-based Redirect

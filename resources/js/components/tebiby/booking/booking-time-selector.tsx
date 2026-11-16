@@ -10,7 +10,7 @@ interface BookingTimeSelectorProps {
     setTimePeriod: (period: 'all' | 'morning' | 'evening') => void;
 }
 
-export const BookingTimeSelector: React.FC<BookingTimeSelectorProps> = ({
+export const BookingTimeSelector: React.FC<BookingTimeSelectorProps> = React.memo(({
     selectedTimeSlot,
     onSelectTime,
     timePeriod,
@@ -84,9 +84,9 @@ export const BookingTimeSelector: React.FC<BookingTimeSelectorProps> = ({
                                     type="button"
                                     onClick={() => onSelectTime(slot)}
                                     className={cn(
-                                        'py-2.5 px-3 rounded-2xl border text-xs font-bold transition-all cursor-pointer font-mono select-none flex items-center justify-center gap-1.5',
+                                        'py-2.5 px-3 rounded-2xl border text-xs font-bold transition-colors cursor-pointer font-mono select-none flex items-center justify-center gap-1.5',
                                         isSelected
-                                            ? 'bg-[#005ab5] border-[#005ab5] text-white shadow-sm ring-2 ring-[#005ab5]/20 scale-[1.02]'
+                                            ? 'bg-[#005ab5] border-[#005ab5] text-white shadow-xs'
                                             : 'bg-white hover:bg-blue-50/50 border-gray-200 text-gray-800 hover:border-blue-200'
                                     )}
                                 >
@@ -115,9 +115,9 @@ export const BookingTimeSelector: React.FC<BookingTimeSelectorProps> = ({
                                     type="button"
                                     onClick={() => onSelectTime(slot)}
                                     className={cn(
-                                        'py-2.5 px-3 rounded-2xl border text-xs font-bold transition-all cursor-pointer font-mono select-none flex items-center justify-center gap-1.5',
+                                        'py-2.5 px-3 rounded-2xl border text-xs font-bold transition-colors cursor-pointer font-mono select-none flex items-center justify-center gap-1.5',
                                         isSelected
-                                            ? 'bg-[#005ab5] border-[#005ab5] text-white shadow-sm ring-2 ring-[#005ab5]/20 scale-[1.02]'
+                                            ? 'bg-[#005ab5] border-[#005ab5] text-white shadow-xs'
                                             : 'bg-white hover:bg-blue-50/50 border-gray-200 text-gray-800 hover:border-blue-200'
                                     )}
                                 >
@@ -131,4 +131,5 @@ export const BookingTimeSelector: React.FC<BookingTimeSelectorProps> = ({
             )}
         </div>
     );
-};
+});
+BookingTimeSelector.displayName = 'BookingTimeSelector';

@@ -83,7 +83,7 @@ class ThreeStageConfirmationTest extends TestCase
         $this->assertFalse($stages['stage3_kashf']['is_confirmed']);
     }
 
-    public function test_receptionist_cannot_confirm_booking_stage1(): void
+    public function test_receptionist_can_confirm_booking_stage1(): void
     {
         $receptionist = User::where('email', 'reception.olaya@tebiby.com')->firstOrFail();
         $facility = Facility::where('name', 'like', '%العليا%')->firstOrFail();
@@ -103,23 +103,16 @@ class ThreeStageConfirmationTest extends TestCase
             'total_amount' => 200,
         ]);
 
-        // Receptionist cannot use confirm-booking endpoint
+        // Receptionist can confirm booking stage 1
         $response = $this->actingAs($receptionist)
             ->post("/facility/appointments/{$appointment->id}/confirm-booking");
 
-        $response->assertForbidden();
-
-        // Receptionist cannot change status to confirmed
-        $responseStatus = $this->actingAs($receptionist)
-            ->post("/facility/appointments/{$appointment->id}/status", [
-                'status' => 'confirmed',
-            ]);
-
-        $responseStatus->assertForbidden();
+        $response->assertRedirect();
 
         $appointment->refresh();
-        $this->assertEquals('booked', $appointment->status);
-        $this->assertNull($appointment->booking_confirmed_at);
+        $this->assertEquals('confirmed', $appointment->status);
+        $this->assertNotNull($appointment->booking_confirmed_at);
+        $this->assertEquals($receptionist->id, $appointment->booking_confirmed_by);
     }
 
     public function test_receptionist_can_confirm_arrival_stage2(): void

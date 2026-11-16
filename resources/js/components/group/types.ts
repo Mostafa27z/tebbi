@@ -11,6 +11,10 @@ export interface Facility {
     is_active: boolean;
     is_verified: boolean;
     doctor_profiles_count?: number;
+    settings?: {
+        specialty_ids?: number[];
+        sectors?: string[];
+    };
     admins?: Array<{ id: number; name: string; email: string }>;
     receptionists?: Array<{ id: number; name: string; email: string }>;
 }
@@ -56,6 +60,7 @@ export interface GroupInfo {
     id: number;
     name_ar: string;
     name_en?: string;
+    slug?: string;
     cr_number?: string;
     logo_url?: string;
 }
@@ -65,6 +70,7 @@ export interface GroupMetrics {
     hospitalsCount: number;
     clinicsCount: number;
     doctorsCount: number;
+    specialtiesCount?: number;
     todayAppointments: number;
     totalRevenue: string;
 }
@@ -72,5 +78,10 @@ export interface GroupMetrics {
 export interface SpecialtyOption {
     id: number;
     name_ar: string;
+    name_en?: string;
+    icon_slug?: string;
+    badge_text?: string;
+    description?: string;
+    group_doctors_count?: number;
+    facility_ids?: number[];
 }
-

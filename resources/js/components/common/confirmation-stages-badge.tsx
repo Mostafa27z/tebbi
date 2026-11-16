@@ -61,58 +61,90 @@ export const ConfirmationStagesBadge: React.FC<ConfirmationStagesBadgeProps> = (
 
     if (compact) {
         return (
-            <div className={cn('inline-flex items-center gap-1 font-["Cairo"] text-[10px] select-none', className)} dir="rtl">
+            <div 
+                className={cn(
+                    'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-white border border-gray-200/90 text-xs font-["Cairo"] select-none shadow-2xs whitespace-nowrap',
+                    className
+                )} 
+                dir="rtl"
+            >
                 {/* Stage 1: Admin */}
                 <div
                     title={formatStageTooltip(1, 'تأكيد الحجز', 'Admin / الإدارة', isStage1, s1?.confirmed_by_name, s1?.confirmed_at)}
-                    className={cn(
-                        'flex items-center gap-1 px-2 py-0.5 rounded-md border font-semibold transition-all cursor-help',
-                        isStage1
-                            ? 'bg-purple-50 text-purple-800 border-purple-200'
-                            : 'bg-gray-50 text-gray-400 border-gray-200 opacity-60'
-                    )}
+                    className="flex items-center gap-1.5 cursor-help"
                 >
-                    <ShieldCheck className={cn('w-3 h-3', isStage1 ? 'text-purple-600' : 'text-gray-400')} />
-                    <span>١. الإدارة</span>
-                    {isStage1 && <span className="text-[11px] font-bold text-purple-700">✓</span>}
+                    <span className={cn(
+                        'w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold font-mono transition-all shrink-0',
+                        isStage1
+                            ? 'bg-emerald-600 text-white shadow-2xs'
+                            : 'bg-purple-100 text-purple-700 animate-pulse'
+                    )}>
+                        {isStage1 ? '✓' : '١'}
+                    </span>
+                    <span className={cn(
+                        'text-[11px] font-bold transition-colors',
+                        isStage1 ? 'text-gray-800' : 'text-purple-700'
+                    )}>
+                        إدارة
+                    </span>
                 </div>
 
-                <span className="text-gray-300 font-bold text-[9px]">←</span>
+                {/* Connecting Line 1 */}
+                <span className={cn(
+                    'w-2.5 h-0.5 rounded-full transition-colors shrink-0',
+                    isStage2 ? 'bg-emerald-500' : isStage1 ? 'bg-emerald-200' : 'bg-gray-200'
+                )} />
 
                 {/* Stage 2: Receptionist */}
                 <div
                     title={formatStageTooltip(2, 'تأكيد الحضور', 'الاستقبال', isStage2, s2?.confirmed_by_name, s2?.confirmed_at)}
-                    className={cn(
-                        'flex items-center gap-1 px-2 py-0.5 rounded-md border font-semibold transition-all cursor-help',
-                        isStage2
-                            ? 'bg-amber-50 text-amber-800 border-amber-200'
-                            : isStage1
-                            ? 'bg-blue-50 text-[#005ab5] border-blue-200 animate-pulse'
-                            : 'bg-gray-50 text-gray-400 border-gray-200 opacity-60'
-                    )}
+                    className="flex items-center gap-1.5 cursor-help"
                 >
-                    <UserCheck className={cn('w-3 h-3', isStage2 ? 'text-amber-600' : 'text-gray-400')} />
-                    <span>٢. الاستقبال</span>
-                    {isStage2 && <span className="text-[11px] font-bold text-amber-700">✓</span>}
+                    <span className={cn(
+                        'w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold font-mono transition-all shrink-0',
+                        isStage2
+                            ? 'bg-emerald-600 text-white shadow-2xs'
+                            : isStage1
+                            ? 'bg-amber-500 text-white animate-pulse'
+                            : 'bg-gray-100 text-gray-400'
+                    )}>
+                        {isStage2 ? '✓' : '٢'}
+                    </span>
+                    <span className={cn(
+                        'text-[11px] font-bold transition-colors',
+                        isStage2 ? 'text-gray-800' : isStage1 ? 'text-amber-800' : 'text-gray-400'
+                    )}>
+                        استقبال
+                    </span>
                 </div>
 
-                <span className="text-gray-300 font-bold text-[9px]">←</span>
+                {/* Connecting Line 2 */}
+                <span className={cn(
+                    'w-2.5 h-0.5 rounded-full transition-colors shrink-0',
+                    isStage3 ? 'bg-emerald-500' : isStage2 ? 'bg-emerald-200' : 'bg-gray-200'
+                )} />
 
                 {/* Stage 3: Doctor */}
                 <div
                     title={formatStageTooltip(3, 'إنهاء الكشف', 'الطبيب', isStage3, s3?.confirmed_by_name, s3?.confirmed_at)}
-                    className={cn(
-                        'flex items-center gap-1 px-2 py-0.5 rounded-md border font-semibold transition-all cursor-help',
-                        isStage3
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                            : status === 'in_consultation'
-                            ? 'bg-emerald-50/50 text-emerald-700 border-emerald-200 animate-pulse'
-                            : 'bg-gray-50 text-gray-400 border-gray-200 opacity-60'
-                    )}
+                    className="flex items-center gap-1.5 cursor-help"
                 >
-                    <Stethoscope className={cn('w-3 h-3', isStage3 ? 'text-emerald-600' : 'text-gray-400')} />
-                    <span>٣. الطبيب</span>
-                    {isStage3 && <span className="text-[11px] font-bold text-emerald-700">✓</span>}
+                    <span className={cn(
+                        'w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold font-mono transition-all shrink-0',
+                        isStage3
+                            ? 'bg-emerald-600 text-white shadow-2xs'
+                            : status === 'in_consultation'
+                            ? 'bg-blue-600 text-white animate-pulse'
+                            : 'bg-gray-100 text-gray-400'
+                    )}>
+                        {isStage3 ? '✓' : '٣'}
+                    </span>
+                    <span className={cn(
+                        'text-[11px] font-bold transition-colors',
+                        isStage3 ? 'text-gray-800' : status === 'in_consultation' ? 'text-blue-800' : 'text-gray-400'
+                    )}>
+                        طبيب
+                    </span>
                 </div>
             </div>
         );

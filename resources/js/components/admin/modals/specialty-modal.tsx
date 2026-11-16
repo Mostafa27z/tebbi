@@ -1,21 +1,23 @@
 import React, { useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
-import { Modal } from '@/components/common/modal';
-import { FormInput } from '@/components/common/form-input';
-import { LoadingButton } from '@/components/common/loading-button';
+import { Modal, FormInput, FormTextarea, ModalFooter } from '@/components/common';
 import { Specialty } from '../types';
 
 interface SpecialtyModalProps {
     isOpen: boolean;
     onClose: () => void;
-    editingSpecialty: Specialty | null;
+    editingSpecialty?: Specialty | null;
+    specialty?: Specialty | null;
 }
 
-export const SpecialtyModal: React.FC<SpecialtyModalProps> = ({
+export const SpecialtyModal: React.FC<SpecialtyModalProps> = React.memo(({
     isOpen,
     onClose,
     editingSpecialty,
+    specialty,
 }) => {
+    const currentSpecialty = editingSpecialty || specialty || null;
+
     const { data, setData, post, put, processing, errors, reset } = useForm({
         name_ar: '',
         name_en: '',
@@ -25,23 +27,23 @@ export const SpecialtyModal: React.FC<SpecialtyModalProps> = ({
     });
 
     useEffect(() => {
-        if (editingSpecialty) {
+        if (currentSpecialty) {
             setData({
-                name_ar: editingSpecialty.name_ar,
-                name_en: editingSpecialty.name_en || '',
-                icon_slug: editingSpecialty.icon_slug,
-                badge_text: editingSpecialty.badge_text || '',
-                description: editingSpecialty.description || '',
+                name_ar: currentSpecialty.name_ar,
+                name_en: currentSpecialty.name_en || '',
+                icon_slug: currentSpecialty.icon_slug,
+                badge_text: currentSpecialty.badge_text || '',
+                description: currentSpecialty.description || '',
             });
         } else {
             reset();
         }
-    }, [editingSpecialty, isOpen]);
+    }, [currentSpecialty, isOpen]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (editingSpecialty) {
-            put(`/admin/specialties/${editingSpecialty.id}`, {
+        if (currentSpecialty) {
+            put(`/admin/specialties/${currentSpecialty.id}`, {
                 onSuccess: () => {
                     onClose();
                     reset();
@@ -61,7 +63,7 @@ export const SpecialtyModal: React.FC<SpecialtyModalProps> = ({
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title={editingSpecialty ? `تعديل التخصص (${editingSpecialty.name_ar})` : 'إضافة تخصص طبي جديد'}
+            title={currentSpecialty ? `تعديل التخصص (${currentSpecialty.name_ar})` : 'إضافة تخصص طبي جديد'}
             description="إدارة أقسام وتصنيفات العيادات في المنصة"
             maxWidth="md"
         >
@@ -92,36 +94,22 @@ export const SpecialtyModal: React.FC<SpecialtyModalProps> = ({
                     error={errors.badge_text}
                 />
 
-                <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">وصف مختصر للقسم</label>
-                    <textarea
-                        rows={3}
-                        placeholder="نبذة عن الحالات والإجراءات المشمولة..."
-                        value={data.description}
-                        onChange={(e) => setData('description', e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-[#005ab5] focus:outline-hidden"
-                    />
-                </div>
+                <FormTextarea
+                    label="وصف مختصر للقسم"
+                    rows={3}
+                    placeholder="نبذة عن الحالات والإجراءات المشمولة..."
+                    value={data.description}
+                    onChange={(e) => setData('description', e.target.value)}
+                    error={errors.description}
+                />
 
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        disabled={processing}
-                        className="px-4 py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                        إلغاء
-                    </button>
-                    <LoadingButton
-                        type="submit"
-                        loading={processing}
-                        className="font-['Cairo']"
-                    >
-                        {editingSpecialty ? 'تحديث التخصص' : 'حفظ واعتماد التخصص'}
-                    </LoadingButton>
-                </div>
+                <ModalFooter
+                    onCancel={onClose}
+                    loading={processing}
+                    submitText={editingSpecialty ? 'تحديث التخصص' : 'حفظ واعتماد التخصص'}
+                />
             </form>
         </Modal>
     );
-};
-
+});
+SpecialtyModal.displayName = 'SpecialtyModal';

@@ -8,6 +8,7 @@ export type AppointmentStatusValue = 'booked' | 'confirmed' | 'waiting' | 'in_co
 interface StatusOption {
     value: AppointmentStatusValue;
     label: string;
+    shortLabel: string;
     sublabel?: string;
     dotColor: string;
     pillBg: string;
@@ -19,6 +20,7 @@ const statusOptions: StatusOption[] = [
     {
         value: 'booked',
         label: 'حجز جديد (بانتظار تأكيد الإدارة)',
+        shortLabel: 'بانتظار التأكيد',
         sublabel: 'المرحلة 1: يتطلب تأكيد إدارة المنشأة',
         dotColor: 'bg-purple-500 animate-pulse',
         pillBg: 'bg-purple-50',
@@ -28,6 +30,7 @@ const statusOptions: StatusOption[] = [
     {
         value: 'confirmed',
         label: 'تم تأكيد الحجز (لم يحضر بعد)',
+        shortLabel: 'لم يحضر (مؤكد)',
         sublabel: 'المرحلة 1 مكتملة: بانتظار وصول المريض للاستقبال',
         dotColor: 'bg-blue-500',
         pillBg: 'bg-blue-50',
@@ -37,6 +40,7 @@ const statusOptions: StatusOption[] = [
     {
         value: 'waiting',
         label: 'حضر بالاستقبال (في صالة الانتظار)',
+        shortLabel: 'في صالة الانتظار',
         sublabel: 'المرحلة 2 مكتملة: في قائمة الانتظار بانتظار استدعاء الطبيب',
         dotColor: 'bg-amber-500 animate-pulse',
         pillBg: 'bg-amber-50',
@@ -46,6 +50,7 @@ const statusOptions: StatusOption[] = [
     {
         value: 'in_consultation',
         label: 'داخل العيادة مع الطبيب',
+        shortLabel: 'داخل العيادة',
         sublabel: 'جلسة المعاينة الطبية والفحص السريري جارية الآن',
         dotColor: 'bg-emerald-500 animate-ping',
         pillBg: 'bg-emerald-50',
@@ -55,6 +60,7 @@ const statusOptions: StatusOption[] = [
     {
         value: 'completed',
         label: 'مكتمل (أنهى الكشف وغادر)',
+        shortLabel: 'أنهى الكشف',
         sublabel: 'المرحلة 3 مكتملة: تم إنهاء الكشف الطبي واعتماده من الطبيب',
         dotColor: 'bg-gray-400',
         pillBg: 'bg-gray-100',
@@ -64,6 +70,7 @@ const statusOptions: StatusOption[] = [
     {
         value: 'cancelled',
         label: 'غائب / ملغي',
+        shortLabel: 'غائب / ملغي',
         sublabel: 'لم يحضر الموعد أو تم إلغاؤه',
         dotColor: 'bg-red-500',
         pillBg: 'bg-red-50',
@@ -180,21 +187,21 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
                 disabled={disabled}
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn(
-                    'h-9 px-3 rounded-xl text-xs font-bold border transition-all duration-150 flex items-center justify-between gap-2 cursor-pointer shadow-xs whitespace-nowrap',
+                    'h-8.5 px-3 rounded-xl text-xs font-bold border transition-all duration-150 flex items-center justify-between gap-2 cursor-pointer shadow-2xs whitespace-nowrap w-full',
                     currentOpt.pillBg,
                     currentOpt.pillText,
                     currentOpt.pillBorder,
-                    isOpen && 'ring-2 ring-blue-500/20 shadow-md scale-[1.02]',
+                    isOpen && 'ring-2 ring-blue-500/20 shadow-sm scale-[1.01]',
                     disabled && 'opacity-60 cursor-not-allowed'
                 )}
             >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 min-w-0 truncate">
                     <span className={cn('w-2 h-2 rounded-full shrink-0', currentOpt.dotColor)} />
-                    <span className="font-['Cairo'] tracking-tight">{currentOpt.label}</span>
+                    <span className="font-['Cairo'] tracking-tight truncate">{currentOpt.shortLabel || currentOpt.label}</span>
                 </div>
                 <ChevronDown
                     className={cn(
-                        'w-3.5 h-3.5 opacity-60 transition-transform duration-200 shrink-0',
+                        'w-3.5 h-3.5 opacity-60 transition-transform duration-200 shrink-0 mr-1',
                         isOpen && 'rotate-180 opacity-100'
                     )}
                 />

@@ -12,6 +12,12 @@ class Appointment extends Model
 {
     use HasFactory;
 
+    protected $with = [
+        'bookingConfirmedBy:id,name',
+        'arrivalConfirmedBy:id,name',
+        'consultationFinishedBy:id,name',
+    ];
+
     protected $fillable = [
         'booking_reference',
         'patient_id',
@@ -20,6 +26,8 @@ class Appointment extends Model
         'facility_id',
         'appointment_date',
         'appointment_time',
+        'delay_minutes',
+        'delay_reason',
         'status',
         'booking_confirmed_at',
         'booking_confirmed_by',
@@ -29,6 +37,7 @@ class Appointment extends Model
         'consultation_finished_by',
         'payment_method',
         'payment_status',
+        'payment_notes',
         'consultation_fee',
         'discount',
         'tax',
@@ -44,6 +53,7 @@ class Appointment extends Model
     {
         return [
             'appointment_date' => 'date',
+            'delay_minutes' => 'integer',
             'consultation_fee' => 'decimal:2',
             'discount' => 'decimal:2',
             'tax' => 'decimal:2',
@@ -238,6 +248,10 @@ class Appointment extends Model
     {
         $this->update([
             'status' => 'completed',
+            'booking_confirmed_at' => $this->booking_confirmed_at ?? Carbon::now(),
+            'booking_confirmed_by' => $this->booking_confirmed_by ?? ($userId ?? auth()->id()),
+            'arrival_confirmed_at' => $this->arrival_confirmed_at ?? Carbon::now(),
+            'arrival_confirmed_by' => $this->arrival_confirmed_by ?? ($userId ?? auth()->id()),
             'consultation_finished_at' => Carbon::now(),
             'consultation_finished_by' => $userId ?? auth()->id(),
         ]);
@@ -255,9 +269,9 @@ class Appointment extends Model
      */
     public function getConfirmationStagesAttribute(): array
     {
-        $isStage1 = !empty($this->booking_confirmed_at) || in_array($this->status, ['confirmed', 'waiting', 'in_consultation', 'completed']);
-        $isStage2 = !empty($this->arrival_confirmed_at) || in_array($this->status, ['waiting', 'in_consultation', 'completed']);
         $isStage3 = !empty($this->consultation_finished_at) || $this->status === 'completed';
+        $isStage2 = !empty($this->arrival_confirmed_at) || in_array($this->status, ['waiting', 'in_consultation', 'completed']) || $isStage3;
+        $isStage1 = !empty($this->booking_confirmed_at) || in_array($this->status, ['confirmed', 'waiting', 'in_consultation', 'completed']) || $isStage2;
 
         return [
             'stage1_booking' => [

@@ -12,7 +12,7 @@ interface BookingSummarySidebarProps {
     isInsurance: boolean;
 }
 
-export const BookingSummarySidebar: React.FC<BookingSummarySidebarProps> = ({
+export const BookingSummarySidebar: React.FC<BookingSummarySidebarProps> = React.memo(({
     doctor,
     selectedDayLabel,
     selectedTimeSlot,
@@ -149,4 +149,5 @@ export const BookingSummarySidebar: React.FC<BookingSummarySidebarProps> = ({
             </div>
         </div>
     );
-};
+});
+BookingSummarySidebar.displayName = 'BookingSummarySidebar';

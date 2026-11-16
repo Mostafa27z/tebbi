@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { router } from '@inertiajs/react';
-import { Search, Plus, Edit3, Trash2, Hospital, Building2 } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, Hospital, Building2, Globe, ExternalLink, Copy, Check } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { Group } from '../types';
 import { TableToolbar } from '@/components/common/table-toolbar';
 import { ConfirmDeleteModal } from '@/components/common/confirm-delete-modal';
@@ -104,6 +105,37 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({
                                             : 'لم يُعيّن مدير بعد'}
                                     </span>
                                 </div>
+                                <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
+                                    <span className="text-gray-500 flex items-center gap-1">
+                                        <Globe className="w-3.5 h-3.5 text-[#005ab5]" />
+                                        <span>صفحة المجمع:</span>
+                                    </span>
+                                    <div className="flex items-center gap-1.5">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const url = `${window.location.origin}/group/${group.slug}`;
+                                                navigator.clipboard.writeText(url);
+                                                toast.success('تم نسخ الرابط الترويجي للمجمع بنجاح');
+                                            }}
+                                            className="px-2 py-1 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-600 text-[11px] font-mono flex items-center gap-1 cursor-pointer transition-colors"
+                                            title="نسخ رابط الصفحة"
+                                        >
+                                            <Copy className="w-3 h-3" />
+                                            <span>نسخ</span>
+                                        </button>
+                                        <a
+                                            href={`/group/${group.slug}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="px-2 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-[#005ab5] text-[11px] font-bold flex items-center gap-1 transition-colors"
+                                            title="زيارة الصفحة الترويجية للمجمع"
+                                        >
+                                            <span>استعراض</span>
+                                            <ExternalLink className="w-3 h-3" />
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -123,7 +155,8 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({
                             </button>
                             <button
                                 onClick={() => onOpenEditModal(group)}
-                                className="p-2 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-600 transition-colors"
+                                className="p-2 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-600 transition-colors cursor-pointer"
+                                title="تعديل بيانات المجمع الطبي"
                             >
                                 <Edit3 className="w-4 h-4" />
                             </button>
@@ -163,11 +196,11 @@ export const GroupsTab: React.FC<GroupsTabProps> = ({
                 title="حذف المجمع الطبي"
                 message={
                     <span>
-                        هل أنت متأكد من حذف المجمع الطبي{' '}
+                        هل أنت متأكد من رغبتك في حذف المجمع الطبي{' '}
                         <strong className="text-gray-900 font-bold">"{deletingGroup?.name_ar}"</strong>؟
                         <br />
                         <span className="text-gray-500 mt-1 block">
-                            سيتم حذف المجمع وكافة العيادات والمراكز التابعة له وجميع بياناتها المرتبطة.
+                            تنبيه: يجب خلو المجمع الطبي من الفروع والمنشآت التابعة لإتمام عملية الحذف بأمان.
                         </span>
                     </span>
                 }

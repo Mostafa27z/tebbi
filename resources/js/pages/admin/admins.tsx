@@ -35,6 +35,16 @@ export default function AdminsPage({
             <Head title="المشرفون وصلاحيات الاستقبال - الإدارة العليا" />
 
             <div className="space-y-6">
+                {/* Notice Banner */}
+                <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-100 flex items-center justify-between gap-3 text-xs text-[#005ab5]">
+                    <div className="flex items-center gap-2">
+                        <Settings2 className="w-4 h-4 shrink-0" />
+                        <span>
+                            <strong>سجل الدعم الفني والرقابة:</strong> يتم تعيين مدراء المجمعات عند إنشاء المجمع، ومدراء المستشفيات عند إنشاء المنشأة، وموظفي الاستقبال عبر إدارة المنشأة نفسها.
+                        </span>
+                    </div>
+                </div>
+
                 {/* KPI Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
                     <MetricCard
@@ -70,22 +80,10 @@ export default function AdminsPage({
                 {/* Admins Table */}
                 <AdminsTab
                     roleAssignments={roleAssignments}
-                    groups={groups}
-                    clinics={clinics}
                     search={search}
                     onSearchChange={setSearch}
-                    onOpenAddModal={() => setRoleModalOpen(true)}
                 />
             </div>
-
-            {/* Modal */}
-            <RoleModal
-                isOpen={roleModalOpen}
-                onClose={() => setRoleModalOpen(false)}
-                groups={groups}
-                clinics={clinics}
-                allUsers={allUsers}
-            />
         </AdminDashboardLayout>
     );
 }

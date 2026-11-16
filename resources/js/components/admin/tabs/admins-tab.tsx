@@ -10,14 +10,13 @@ interface AdminsTabProps {
     roleAssignments: RoleAssignmentItem[];
     search: string;
     onSearchChange: (value: string) => void;
-    onOpenAddModal: () => void;
+    onOpenAddModal?: () => void;
 }
 
 export const AdminsTab: React.FC<AdminsTabProps> = ({
     roleAssignments,
     search,
     onSearchChange,
-    onOpenAddModal,
 }) => {
     const [roleFilter, setRoleFilter] = useState<string>('all');
     const [deletingAssignment, setDeletingAssignment] = useState<RoleAssignmentItem | null>(null);
@@ -85,9 +84,6 @@ export const AdminsTab: React.FC<AdminsTabProps> = ({
                         ],
                     },
                 ]}
-                actionLabel="تعيين مشرف جديد"
-                onAction={onOpenAddModal}
-                actionIcon={<Plus className="w-4 h-4" />}
             />
 
             <div className="bg-white rounded-3xl border border-gray-200/80 shadow-xs overflow-hidden">

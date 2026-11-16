@@ -1,9 +1,13 @@
 import React, { useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
-import { Modal } from '@/components/common/modal';
-import { FormInput } from '@/components/common/form-input';
-import { CustomSelect } from '@/components/common/custom-select';
-import { LoadingButton } from '@/components/common/loading-button';
+import {
+    Modal,
+    FormInput,
+    CustomSelect,
+    SurfaceCard,
+    ModalFooter,
+    ChoicePillGroup,
+} from '@/components/common';
 import { Group, Clinic, UserSimple } from '../types';
 
 interface RoleModalProps {
@@ -17,7 +21,12 @@ interface RoleModalProps {
     defaultScopeId?: number;
 }
 
-export const RoleModal: React.FC<RoleModalProps> = ({
+const USER_MODE_OPTIONS = [
+    { value: 'new' as const, label: '+ إنشاء مستخدم جديد' },
+    { value: 'existing' as const, label: 'اختيار مستخدم مسجل مسبقاً' },
+];
+
+export const RoleModal: React.FC<RoleModalProps> = React.memo(({
     isOpen,
     onClose,
     groups,
@@ -45,7 +54,9 @@ export const RoleModal: React.FC<RoleModalProps> = ({
                 ...prev,
                 role: defaultRole,
                 scope_type: defaultScopeType,
-                scope_id: defaultScopeId || (defaultScopeType === 'group' ? (groups[0]?.id || 0) : (clinics[0]?.id || 0)),
+                scope_id:
+                    defaultScopeId ||
+                    (defaultScopeType === 'group' ? groups[0]?.id || 0 : clinics[0]?.id || 0),
             }));
         }
     }, [isOpen, defaultRole, defaultScopeType, defaultScopeId]);
@@ -66,9 +77,18 @@ export const RoleModal: React.FC<RoleModalProps> = ({
         { value: 'receptionist', label: 'موظف استقبال', sublabel: 'إدارة التذاكر والحضور' },
     ];
 
-    const scopeOptions = data.scope_type === 'group'
-        ? groups.map((g) => ({ value: g.id, label: g.name_ar, sublabel: g.cr_number ? `سجل: ${g.cr_number}` : undefined }))
-        : clinics.map((c) => ({ value: c.id, label: c.name, sublabel: `${c.city} - ${c.district || ''}` }));
+    const scopeOptions =
+        data.scope_type === 'group'
+            ? groups.map((g) => ({
+                  value: g.id,
+                  label: g.name_ar,
+                  sublabel: g.cr_number ? `سجل: ${g.cr_number}` : undefined,
+              }))
+            : clinics.map((c) => ({
+                  value: c.id,
+                  label: c.name,
+                  sublabel: `${c.city} - ${c.district || ''}`,
+              }));
 
     const userOptions = allUsers.map((u) => ({
         value: u.id,
@@ -95,7 +115,10 @@ export const RoleModal: React.FC<RoleModalProps> = ({
                                 ...prev,
                                 role: newRole,
                                 scope_type: newRole === 'group_admin' ? 'group' : 'facility',
-                                scope_id: newRole === 'group_admin' ? (groups[0]?.id || 0) : (clinics[0]?.id || 0),
+                                scope_id:
+                                    newRole === 'group_admin'
+                                        ? groups[0]?.id || 0
+                                        : clinics[0]?.id || 0,
                             }));
                         }}
                         options={roleOptions}
@@ -111,36 +134,13 @@ export const RoleModal: React.FC<RoleModalProps> = ({
                     />
                 </div>
 
-                {/* User Mode (Existing or New) */}
-                <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-2 font-['Cairo']">
-                        المستخدم المطلوب تعيينه:
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                        <button
-                            type="button"
-                            onClick={() => setData('user_mode', 'new')}
-                            className={`p-3 rounded-2xl border text-xs font-bold transition-all cursor-pointer font-['Cairo'] ${
-                                data.user_mode === 'new'
-                                    ? 'border-[#005ab5] bg-blue-50/70 text-[#005ab5] shadow-xs'
-                                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                            }`}
-                        >
-                            + إنشاء مستخدم جديد
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setData('user_mode', 'existing')}
-                            className={`p-3 rounded-2xl border text-xs font-bold transition-all cursor-pointer font-['Cairo'] ${
-                                data.user_mode === 'existing'
-                                    ? 'border-[#005ab5] bg-blue-50/70 text-[#005ab5] shadow-xs'
-                                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                            }`}
-                        >
-                            اختيار مستخدم مسجل مسبقاً
-                        </button>
-                    </div>
-                </div>
+                <ChoicePillGroup
+                    label="المستخدم المطلوب تعيينه:"
+                    value={data.user_mode}
+                    onChange={(val) => setData('user_mode', val)}
+                    options={USER_MODE_OPTIONS}
+                    columns={2}
+                />
 
                 {data.user_mode === 'existing' ? (
                     <CustomSelect
@@ -152,7 +152,7 @@ export const RoleModal: React.FC<RoleModalProps> = ({
                         placeholder="ابحث أو اختر المستخدم..."
                     />
                 ) : (
-                    <div className="p-4 rounded-3xl bg-gray-50/80 border border-gray-200/80 space-y-3.5">
+                    <SurfaceCard variant="muted" padding="sm" rounded="3xl" className="space-y-3.5">
                         <FormInput
                             label="اسم المستخدم"
                             required
@@ -183,27 +183,16 @@ export const RoleModal: React.FC<RoleModalProps> = ({
                                 dir="ltr"
                             />
                         </div>
-                    </div>
+                    </SurfaceCard>
                 )}
 
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        disabled={processing}
-                        className="px-4 py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                        إلغاء
-                    </button>
-                    <LoadingButton
-                        type="submit"
-                        loading={processing}
-                        className="font-['Cairo']"
-                    >
-                        تأكيد التعيين والصلاحية
-                    </LoadingButton>
-                </div>
+                <ModalFooter
+                    onCancel={onClose}
+                    loading={processing}
+                    submitText="تأكيد التعيين والصلاحية"
+                />
             </form>
         </Modal>
     );
-};
+});
+RoleModal.displayName = 'RoleModal';

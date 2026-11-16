@@ -1,13 +1,15 @@
 import React from 'react';
 import { useForm } from '@inertiajs/react';
-import { Modal } from '@/components/common/modal';
-import { FormInput } from '@/components/common/form-input';
-import { CustomSelect } from '@/components/common/custom-select';
-import { InternationalPhoneInput } from '@/components/common/international-phone-input';
-import { PasswordInput } from '@/components/common/password-input';
-import { LoadingButton } from '@/components/common/loading-button';
+import {
+    Modal,
+    FormInput,
+    CustomSelect,
+    InternationalPhoneInput,
+    PasswordInput,
+    ModalFooter,
+} from '@/components/common';
 import { Facility } from '../types';
-import { User, Mail, ShieldCheck, Check } from 'lucide-react';
+import { User, Mail, Check } from 'lucide-react';
 
 interface AssignStaffModalProps {
     isOpen: boolean;
@@ -21,7 +23,7 @@ const STAFF_ROLES = [
     { value: 'receptionist', label: 'موظف استقبال (Receptionist)' },
 ];
 
-export const AssignStaffModal: React.FC<AssignStaffModalProps> = ({
+export const AssignStaffModal: React.FC<AssignStaffModalProps> = React.memo(({
     isOpen,
     onClose,
     groupId,
@@ -83,7 +85,7 @@ export const AssignStaffModal: React.FC<AssignStaffModalProps> = ({
                     value={data.new_name}
                     onChange={(e) => setData('new_name', e.target.value)}
                     error={errors.new_name}
-                    icon={<User className="w-4 h-4 text-gray-400" />}
+                    icon={<User className="w-4 h-4 text-slate-400" />}
                 />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -96,7 +98,7 @@ export const AssignStaffModal: React.FC<AssignStaffModalProps> = ({
                         value={data.new_email}
                         onChange={(e) => setData('new_email', e.target.value)}
                         error={errors.new_email}
-                        icon={<Mail className="w-4 h-4 text-gray-400" />}
+                        icon={<Mail className="w-4 h-4 text-slate-400" />}
                     />
 
                     <PasswordInput
@@ -116,26 +118,15 @@ export const AssignStaffModal: React.FC<AssignStaffModalProps> = ({
                     error={errors.new_phone}
                 />
 
-                <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="px-4 py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold transition-all"
-                    >
-                        إلغاء
-                    </button>
-                    <LoadingButton
-                        type="submit"
-                        loading={processing}
-                        loadingText="جاري التعيين..."
-                        variant="primary"
-                        icon={<Check className="w-4 h-4" />}
-                    >
-                        حفظ وتعيين المشرف
-                    </LoadingButton>
-                </div>
+                <ModalFooter
+                    onCancel={onClose}
+                    loading={processing}
+                    loadingText="جاري التعيين..."
+                    submitText="حفظ وتعيين المشرف"
+                    submitIcon={<Check className="w-4 h-4" />}
+                />
             </form>
         </Modal>
     );
-};
-
+});
+AssignStaffModal.displayName = 'AssignStaffModal';

@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, Building2, CalendarDays, Stethoscope } from 'lucide-react';
+import React, { memo } from 'react';
+import { X, Building2, CalendarDays } from 'lucide-react';
 import { Doctor } from './types';
 
 interface BookingHeaderProps {
@@ -9,16 +9,15 @@ interface BookingHeaderProps {
     onClose: () => void;
 }
 
-export const BookingHeader: React.FC<BookingHeaderProps> = ({
+export const BookingHeader: React.FC<BookingHeaderProps> = memo(function BookingHeader({
     doctor,
     selectedDayLabel,
     selectedTimeSlot,
     onClose,
-}) => {
+}) {
     return (
         <div className="shrink-0 bg-gradient-to-r from-[#005ab5] via-[#00478f] to-[#003366] text-white px-5 py-4 sm:px-7 sm:py-5 border-b border-blue-800/40">
             <div className="flex items-center justify-between gap-4">
-                {/* Right: Doctor Avatar & Information */}
                 <div className="flex items-center gap-3.5 min-w-0">
                     <div className="relative shrink-0">
                         <img
@@ -27,14 +26,14 @@ export const BookingHeader: React.FC<BookingHeaderProps> = ({
                                 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150&h=150&fit=crop&crop=faces'
                             }
                             alt={doctor.user.name}
-                            className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl object-cover ring-2 ring-white/30 shadow-md"
+                            className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl object-cover ring-2 ring-white/30"
                         />
-                        <span className="absolute -bottom-1 -left-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white ring-1 ring-emerald-500/30" />
+                        <span className="absolute -bottom-1 -left-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white" />
                     </div>
 
                     <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
-                            <span className="bg-white/15 text-blue-100 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-white/20 backdrop-blur-xs">
+                            <span className="bg-white/15 text-blue-100 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-white/20">
                                 حجز وتتبع فوري
                             </span>
                         </div>
@@ -58,10 +57,8 @@ export const BookingHeader: React.FC<BookingHeaderProps> = ({
                     </div>
                 </div>
 
-                {/* Left: Selected Slot Pill & Close Button (Side by Side with zero overlap!) */}
                 <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-                    {/* Selected Slot Badge on Desktop */}
-                    <div className="hidden md:flex items-center gap-2.5 bg-white/10 hover:bg-white/15 transition-colors backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/15">
+                    <div className="hidden md:flex items-center gap-2.5 bg-white/10 px-3.5 py-2 rounded-2xl border border-white/15">
                         <div className="w-7 h-7 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
                             <CalendarDays className="w-4 h-4 text-white" />
                         </div>
@@ -73,11 +70,10 @@ export const BookingHeader: React.FC<BookingHeaderProps> = ({
                         </div>
                     </div>
 
-                    {/* Integrated Close Button */}
                     <button
                         type="button"
                         onClick={onClose}
-                        className="w-10 h-10 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-95 text-white flex items-center justify-center transition-all cursor-pointer border border-white/15 shadow-xs"
+                        className="w-10 h-10 rounded-2xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer border border-white/15"
                         title="إغلاق النافذة"
                     >
                         <X className="w-5 h-5" />
@@ -86,4 +82,4 @@ export const BookingHeader: React.FC<BookingHeaderProps> = ({
             </div>
         </div>
     );
-};
+});

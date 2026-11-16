@@ -59,6 +59,8 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
         const minHeightNeeded = 180;
         const openUpwards = spaceBelow < minHeightNeeded && spaceAbove > spaceBelow;
 
+        const hasSublabel = options.some((opt) => !!opt.sublabel);
+
         let computedWidth = rect.width;
         if (typeof menuWidth === 'number') {
             computedWidth = menuWidth;
@@ -67,11 +69,11 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
         } else if (isSmall) {
             computedWidth = Math.max(rect.width, 100);
         } else {
-            computedWidth = Math.max(rect.width, 180);
+            computedWidth = Math.max(rect.width, hasSublabel ? 280 : 200);
         }
 
         const availableHeight = openUpwards ? spaceAbove - 16 : spaceBelow - 16;
-        const calculatedMaxHeight = Math.max(100, Math.min(260, availableHeight));
+        const calculatedMaxHeight = Math.max(120, Math.min(320, availableHeight));
 
         const isRtl = document.documentElement.dir === 'rtl' || document.body.dir === 'rtl';
 
@@ -164,14 +166,14 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                         : 'border-gray-200 hover:border-gray-300'
                 )}
             >
-                <div className="flex items-center gap-1.5 truncate">
+                <div className="flex items-center gap-2 min-w-0 flex-1 text-right">
                     {icon && <span className="text-gray-400 shrink-0">{icon}</span>}
                     {selectedOption ? (
-                        <span className="text-gray-900 font-bold truncate">
+                        <span className="text-gray-900 font-bold truncate block">
                             {selectedOption.label}
                         </span>
                     ) : (
-                        <span className="text-gray-400 font-normal truncate">{placeholder}</span>
+                        <span className="text-gray-400 font-normal truncate block">{placeholder}</span>
                     )}
                 </div>
                 <ChevronDown
@@ -213,20 +215,32 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                                         setIsOpen(false);
                                     }}
                                     className={cn(
-                                        'w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs sm:text-sm transition-colors text-right cursor-pointer select-none',
+                                        'w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs sm:text-sm transition-colors text-right cursor-pointer select-none',
                                         isSelected
                                             ? 'bg-blue-50 text-[#005ab5] font-bold'
                                             : 'hover:bg-gray-50 text-gray-700'
                                     )}
                                 >
-                                    <div className="flex items-center gap-1.5 truncate">
-                                        {opt.icon && <span className="shrink-0">{opt.icon}</span>}
-                                        <span className="truncate">{opt.label}</span>
-                                        {opt.sublabel && (
-                                            <span className="text-[11px] text-gray-400">({opt.sublabel})</span>
-                                        )}
+                                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                        {opt.icon && <span className="shrink-0 text-gray-400">{opt.icon}</span>}
+                                        <div className="min-w-0 flex-1 text-right">
+                                            <div
+                                                className={cn(
+                                                    'font-bold font-["Cairo"] leading-snug break-words',
+                                                    isSelected ? 'text-[#005ab5]' : 'text-gray-900',
+                                                    opt.sublabel ? 'text-xs sm:text-[13px]' : 'text-xs sm:text-sm'
+                                                )}
+                                            >
+                                                {opt.label}
+                                            </div>
+                                            {opt.sublabel && (
+                                                <div className="text-[11px] text-gray-500 font-normal leading-tight mt-1 font-['Cairo'] break-words">
+                                                    {opt.sublabel}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                    {isSelected && <Check className="w-3.5 h-3.5 text-[#005ab5] shrink-0 mr-1.5" />}
+                                    {isSelected && <Check className="w-4 h-4 text-[#005ab5] shrink-0 mr-1.5" />}
                                 </button>
                             );
                         })}

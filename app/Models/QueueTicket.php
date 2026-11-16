@@ -17,6 +17,9 @@ class QueueTicket extends Model
         'ticket_number',
         'current_serving_number',
         'estimated_wait_minutes',
+        'delay_minutes',
+        'call_count',
+        'last_called_at',
         'status',
         'called_at',
         'started_at',
@@ -27,6 +30,10 @@ class QueueTicket extends Model
     {
         return [
             'queue_date' => 'date',
+            'estimated_wait_minutes' => 'integer',
+            'delay_minutes' => 'integer',
+            'call_count' => 'integer',
+            'last_called_at' => 'datetime',
             'called_at' => 'datetime',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',

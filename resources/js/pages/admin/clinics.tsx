@@ -3,13 +3,14 @@ import { Head } from '@inertiajs/react';
 import { AdminDashboardLayout } from '@/layouts/admin-dashboard-layout';
 import { MetricCard } from '@/components/common/metric-card';
 import { Hospital, Building2, Stethoscope, ShieldCheck } from 'lucide-react';
-import { Clinic, Group } from '@/components/admin/types';
+import { Clinic, Group, UserSimple } from '@/components/admin/types';
 import { ClinicsTab } from '@/components/admin/tabs/clinics-tab';
 import { ClinicModal } from '@/components/admin/modals/clinic-modal';
 
 interface ClinicsPageProps {
     clinics: Clinic[];
     groups: Group[];
+    allUsers?: UserSimple[];
     metrics: {
         total: number;
         hospitals: number;
@@ -21,6 +22,7 @@ interface ClinicsPageProps {
 export default function ClinicsPage({
     clinics,
     groups,
+    allUsers = [],
     metrics,
 }: ClinicsPageProps) {
     const [search, setSearch] = useState('');
@@ -93,6 +95,7 @@ export default function ClinicsPage({
                 }}
                 groups={groups}
                 clinic={editingClinic}
+                allUsers={allUsers}
             />
         </AdminDashboardLayout>
     );

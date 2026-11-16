@@ -1,17 +1,22 @@
 import React from 'react';
 import { useForm } from '@inertiajs/react';
-import { Modal } from '@/components/common/modal';
-import { FormInput } from '@/components/common/form-input';
-import { CustomSelect } from '@/components/common/custom-select';
-import { InternationalPhoneInput } from '@/components/common/international-phone-input';
-import { LoadingButton } from '@/components/common/loading-button';
-import { Building2, MapPin, ShieldCheck, Check } from 'lucide-react';
+import {
+    Modal,
+    FormInput,
+    CustomSelect,
+    InternationalPhoneInput,
+    ModalFooter,
+} from '@/components/common';
+import { Building2, MapPin, ShieldCheck, Check, Stethoscope, CheckCircle2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { SpecialtyOption } from '../types';
 
 interface AddFacilityModalProps {
     isOpen: boolean;
     onClose: () => void;
     groupId: number;
     groupName: string;
+    specialties?: SpecialtyOption[];
 }
 
 const FACILITY_TYPES = [
@@ -32,11 +37,12 @@ const COMMON_CITIES = [
     { value: 'بريدة', label: 'بريدة' },
 ];
 
-export const AddFacilityModal: React.FC<AddFacilityModalProps> = ({
+export const AddFacilityModal: React.FC<AddFacilityModalProps> = React.memo(({
     isOpen,
     onClose,
     groupId,
     groupName,
+    specialties = [],
 }) => {
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
@@ -47,7 +53,20 @@ export const AddFacilityModal: React.FC<AddFacilityModalProps> = ({
         district: '',
         address: '',
         phone: '',
+        specialty_ids: specialties.slice(0, 4).map((s) => s.id) as number[],
     });
+
+    const toggleSpecialty = (specId: number) => {
+        setData((prev) => {
+            const exists = prev.specialty_ids.includes(specId);
+            return {
+                ...prev,
+                specialty_ids: exists
+                    ? prev.specialty_ids.filter((id) => id !== specId)
+                    : [...prev.specialty_ids, specId],
+            };
+        });
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -64,7 +83,7 @@ export const AddFacilityModal: React.FC<AddFacilityModalProps> = ({
             isOpen={isOpen}
             onClose={onClose}
             title={`إضافة منشأة طبية تابعة لـ ${groupName}`}
-            description="إضافة مستشفى أو مركز عيادات وربطه بالسجل الطبي للمجمع"
+            description="إضافة مستشفى أو مركز عيادات وتحديد الأقسام والتخصصات الطبية المتوفرة بها"
             maxWidth="xl"
         >
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -83,7 +102,7 @@ export const AddFacilityModal: React.FC<AddFacilityModalProps> = ({
                     value={data.name}
                     onChange={(e) => setData('name', e.target.value)}
                     error={errors.name}
-                    icon={<Building2 className="w-4 h-4 text-gray-400" />}
+                    icon={<Building2 className="w-4 h-4 text-slate-400" />}
                 />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -101,7 +120,7 @@ export const AddFacilityModal: React.FC<AddFacilityModalProps> = ({
                         value={data.moh_license_no}
                         onChange={(e) => setData('moh_license_no', e.target.value)}
                         error={errors.moh_license_no}
-                        icon={<ShieldCheck className="w-4 h-4 text-gray-400" />}
+                        icon={<ShieldCheck className="w-4 h-4 text-slate-400" />}
                     />
                 </div>
 
@@ -121,7 +140,7 @@ export const AddFacilityModal: React.FC<AddFacilityModalProps> = ({
                         value={data.district}
                         onChange={(e) => setData('district', e.target.value)}
                         error={errors.district}
-                        icon={<MapPin className="w-4 h-4 text-gray-400" />}
+                        icon={<MapPin className="w-4 h-4 text-slate-400" />}
                     />
                 </div>
 
@@ -141,26 +160,50 @@ export const AddFacilityModal: React.FC<AddFacilityModalProps> = ({
                     error={errors.phone}
                 />
 
-                <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="px-4 py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold transition-all"
-                    >
-                        إلغاء
-                    </button>
-                    <LoadingButton
-                        type="submit"
-                        loading={processing}
-                        loadingText="جاري الحفظ..."
-                        variant="primary"
-                        icon={<Check className="w-4 h-4" />}
-                    >
-                        حفظ المنشأة
-                    </LoadingButton>
-                </div>
+                {specialties.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-slate-100">
+                        <label className="block text-xs font-bold text-slate-700 font-['Cairo'] flex items-center gap-1.5">
+                            <Stethoscope className="w-3.5 h-3.5 text-[#005ab5]" />
+                            <span>الأقسام والتخصصات الطبية المتوفرة بالمنشأة:</span>
+                        </label>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-1">
+                            {specialties.map((spec) => {
+                                const selected = data.specialty_ids.includes(spec.id);
+                                return (
+                                    <button
+                                        key={spec.id}
+                                        type="button"
+                                        onClick={() => toggleSpecialty(spec.id)}
+                                        className={cn(
+                                            'p-2 rounded-xl border text-xs font-bold text-right flex items-center gap-1.5 cursor-pointer transition-colors',
+                                            selected
+                                                ? 'bg-blue-50 border-[#005ab5] text-[#005ab5]'
+                                                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                        )}
+                                    >
+                                        <CheckCircle2
+                                            className={cn(
+                                                'w-3.5 h-3.5 shrink-0',
+                                                selected ? 'text-[#005ab5]' : 'text-slate-300'
+                                            )}
+                                        />
+                                        <span className="truncate">{spec.name_ar}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                <ModalFooter
+                    onCancel={onClose}
+                    loading={processing}
+                    loadingText="جاري الحفظ..."
+                    submitText="حفظ المنشأة وتخصصاتها"
+                    submitIcon={<Check className="w-4 h-4" />}
+                />
             </form>
         </Modal>
     );
-};
-
+});
+AddFacilityModal.displayName = 'AddFacilityModal';

@@ -8,11 +8,39 @@ use App\Models\Prescription;
 use App\Models\QueueTicket;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DoctorDashboardController extends Controller
 {
+    public static function pushFacilityLiveEvent(int $facilityId, array $eventData): void
+    {
+        if ($facilityId <= 0) {
+            return;
+        }
+
+        $cacheKey = "facility_live_events_{$facilityId}";
+        $events = Cache::get($cacheKey, []);
+        if (! is_array($events)) {
+            $events = [];
+        }
+
+        // Keep only events from the last 15 minutes
+        $cutoff = Carbon::now()->subMinutes(15)->getTimestampMs();
+        $events = array_values(array_filter($events, fn ($e) => ($e['timestamp_ms'] ?? 0) >= $cutoff));
+
+        array_unshift($events, array_merge([
+            'id' => uniqid('evt_', true),
+            'created_at' => Carbon::now()->toIso8601String(),
+            'timestamp_ms' => Carbon::now()->getTimestampMs(),
+        ], $eventData));
+
+        // Keep max 15 recent events
+        $events = array_slice($events, 0, 15);
+        Cache::put($cacheKey, $events, now()->addMinutes(30));
+    }
+
     private function getDoctorData(Request $request): array
     {
         $user = $request->user();
@@ -97,51 +125,189 @@ class DoctorDashboardController extends Controller
             abort(403, 'غير مصرح لك باستدعاء الحالات لعدم وجود ملف طبيب مرتبط.');
         }
 
+        $doctor->loadMissing(['user', 'specialty']);
         $doctorId = $doctor->id;
         $today = Carbon::today();
 
-        // Complete current examining session if exists
-        $currentExamining = QueueTicket::whereHas('appointment', function ($q) use ($doctorId, $today) {
-            $q->where('doctor_id', $doctorId)
-              ->whereDate('appointment_date', $today);
-        })->where('status', 'examining')->first();
+        // 1. Complete any currently active consultation for this doctor today
+        $activeAppts = Appointment::with('queueTicket')
+            ->where('doctor_id', $doctorId)
+            ->whereDate('appointment_date', $today)
+            ->where('status', 'in_consultation')
+            ->get();
 
-        if ($currentExamining) {
-            $currentExamining->update([
-                'status' => 'completed',
-                'completed_at' => Carbon::now(),
-            ]);
-            $currentExamining->appointment->update(['status' => 'completed']);
+        foreach ($activeAppts as $activeAppt) {
+            $activeAppt->confirmFinishConsultation($user->id);
         }
 
-        // Find next waiting ticket (patient who checked in at reception)
-        $nextTicket = QueueTicket::whereHas('appointment', function ($q) use ($doctorId, $today) {
+        QueueTicket::whereHas('appointment', function ($q) use ($doctorId, $today) {
             $q->where('doctor_id', $doctorId)
               ->whereDate('appointment_date', $today);
-        })->where('status', 'waiting')->orderBy('ticket_number')->first();
+        })->whereIn('status', ['examining', 'called'])->update([
+            'status' => 'completed',
+            'completed_at' => Carbon::now(),
+        ]);
 
-        if ($nextTicket) {
-            $nextTicket->update([
-                'status' => 'examining',
-                'started_at' => Carbon::now(),
-            ]);
-            $nextTicket->appointment->update(['status' => 'in_consultation']);
-            return back()->with('success', 'تم استدعاء المريض التالي (' . $nextTicket->ticket_number . ') إلى العيادة.');
-        }
-
-        // Fallback: Check if there is an appointment with status 'waiting' without ticket
-        $nextAppt = Appointment::where('doctor_id', $doctorId)
+        // 2. Find next waiting appointment (priority: 'waiting', then 'confirmed'/'booked')
+        $nextAppt = Appointment::with(['patient', 'queueTicket'])
+            ->where('doctor_id', $doctorId)
             ->whereDate('appointment_date', $today)
             ->where('status', 'waiting')
             ->orderBy('appointment_time')
             ->first();
 
-        if ($nextAppt) {
-            $nextAppt->update(['status' => 'in_consultation']);
-            return back()->with('success', 'تم بدء الكشف للمريض بالعيادة.');
+        if (! $nextAppt) {
+            $nextAppt = Appointment::with(['patient', 'queueTicket'])
+                ->where('doctor_id', $doctorId)
+                ->whereDate('appointment_date', $today)
+                ->whereIn('status', ['confirmed', 'booked'])
+                ->orderBy('appointment_time')
+                ->first();
         }
 
-        return back()->with('info', 'لا يوجد مرضى في صالة الانتظار حالياً.');
+        if (! $nextAppt) {
+            return back()->with('info', 'لا يوجد مرضى في قائمة الانتظار حالياً.');
+        }
+
+        // Ensure ticket exists
+        $ticket = $nextAppt->queueTicket;
+        if (! $ticket) {
+            $maxNum = QueueTicket::whereHas('appointment', function ($q) use ($doctorId, $today) {
+                $q->where('doctor_id', $doctorId)
+                  ->whereDate('appointment_date', $today);
+            })->max('ticket_number') ?? 0;
+
+            $ticket = QueueTicket::create([
+                'appointment_id' => $nextAppt->id,
+                'ticket_number' => $maxNum + 1,
+                'current_serving_number' => $maxNum + 1,
+                'status' => 'called',
+                'queue_date' => $today,
+                'estimated_wait_minutes' => 0,
+                'called_at' => Carbon::now(),
+                'last_called_at' => Carbon::now(),
+                'call_count' => 1,
+                'started_at' => Carbon::now(),
+            ]);
+        } else {
+            $ticket->update([
+                'status' => 'called',
+                'current_serving_number' => $ticket->ticket_number,
+                'estimated_wait_minutes' => 0,
+                'called_at' => Carbon::now(),
+                'last_called_at' => Carbon::now(),
+                'call_count' => ($ticket->call_count ?? 0) + 1,
+                'started_at' => Carbon::now(),
+            ]);
+        }
+
+        $nextAppt->update([
+            'status' => 'in_consultation',
+            'booking_confirmed_at' => $nextAppt->booking_confirmed_at ?? Carbon::now(),
+            'booking_confirmed_by' => $nextAppt->booking_confirmed_by ?? $user->id,
+            'arrival_confirmed_at' => $nextAppt->arrival_confirmed_at ?? Carbon::now(),
+            'arrival_confirmed_by' => $nextAppt->arrival_confirmed_by ?? $user->id,
+        ]);
+
+        // Update current_serving_number on all remaining tickets for this doctor today
+        $slotMinutes = $doctor->waiting_time_minutes ?: 15;
+        $remainingTickets = QueueTicket::whereHas('appointment', function ($q) use ($doctorId, $today) {
+            $q->where('doctor_id', $doctorId)
+              ->whereDate('appointment_date', $today);
+        })->where('status', 'waiting')->get();
+
+        foreach ($remainingTickets as $remTicket) {
+            $ahead = max(0, $remTicket->ticket_number - $ticket->ticket_number);
+            $remTicket->update([
+                'current_serving_number' => $ticket->ticket_number,
+                'estimated_wait_minutes' => ($ahead * $slotMinutes) + (int) ($remTicket->delay_minutes ?? 0),
+            ]);
+        }
+
+        $facilityId = (int) ($nextAppt->facility_id ?: $doctor->clinic_id ?: 0);
+        $doctorName = $doctor->user?->name ?? 'الطبيب';
+        $patientName = $nextAppt->patient?->name ?? "تذكرة #{$ticket->ticket_number}";
+
+        self::pushFacilityLiveEvent($facilityId, [
+            'id' => 'call_' . $nextAppt->id . '_' . Carbon::now()->getTimestampMs(),
+            'type' => 'call_next',
+            'doctor_id' => $doctorId,
+            'doctor_name' => $doctorName,
+            'specialty_name' => $doctor->specialty?->name_ar ?? 'العيادة',
+            'patient_name' => $patientName,
+            'ticket_number' => $ticket->ticket_number,
+            'booking_reference' => $nextAppt->booking_reference,
+            'appointment_id' => $nextAppt->id,
+            'message' => "🔔 نداء عيادة فوري: استدعى {$doctorName} المريض التالي ({$patientName}) - تذكرة رقم #{$ticket->ticket_number} للدخول إلى غرفة الفحص الآن!",
+        ]);
+
+        return back()->with('success', "تم استدعاء المريض ({$patientName} - تذكرة #{$ticket->ticket_number}) وإرسال تنبيه فوري لشاشة الاستقبال وشاشة المريض.");
+    }
+
+    public function addDelay(Request $request, Appointment $appointment)
+    {
+        $user = $request->user();
+        $doctor = $user ? $user->doctorProfile : null;
+
+        if (! $user || ($user->role !== 'admin' && (! $doctor || $appointment->doctor_id !== $doctor->id))) {
+            abort(403, 'غير مصرح لك بتعديل مواعيد هذا الطبيب.');
+        }
+
+        $validated = $request->validate([
+            'delay_minutes' => 'required|integer|min:5|max:180',
+            'delay_reason' => 'nullable|string|max:255',
+        ]);
+
+        $addedMinutes = (int) $validated['delay_minutes'];
+        $reason = $validated['delay_reason'] ?: 'نعتذر عن التأخير: تستدعي الحالة السريرية الحالية وقتاً إضافياً لتقديم العناية الطبية اللازمة. تم ترحيل وقت موعدك تلقائياً.';
+
+        // 1. Update current appointment
+        $appointment->increment('delay_minutes', $addedMinutes);
+        $appointment->update(['delay_reason' => $reason]);
+        if ($appointment->queueTicket) {
+            $appointment->queueTicket->increment('delay_minutes', $addedMinutes);
+        }
+
+        // 2. Shift all waiting/confirmed/booked appointments for this doctor on the same date
+        $subsequentAppts = Appointment::with('queueTicket')
+            ->where('doctor_id', $appointment->doctor_id)
+            ->whereDate('appointment_date', $appointment->appointment_date)
+            ->where('id', '!=', $appointment->id)
+            ->whereIn('status', ['waiting', 'confirmed', 'booked'])
+            ->get();
+
+        foreach ($subsequentAppts as $subAppt) {
+            $subAppt->increment('delay_minutes', $addedMinutes);
+            $subAppt->update(['delay_reason' => $reason]);
+
+            if ($subAppt->queueTicket) {
+                $subAppt->queueTicket->increment('estimated_wait_minutes', $addedMinutes);
+                $subAppt->queueTicket->increment('delay_minutes', $addedMinutes);
+            }
+        }
+
+        $appointment->loadMissing(['doctor.user', 'doctor.specialty', 'patient']);
+        $docModel = $appointment->doctor;
+        $facilityId = (int) ($appointment->facility_id ?: $docModel?->clinic_id ?: 0);
+        $doctorName = $docModel?->user?->name ?? 'الطبيب';
+        $patientName = $appointment->patient?->name ?? 'المريض الحالي';
+
+        self::pushFacilityLiveEvent($facilityId, [
+            'id' => 'delay_' . $appointment->id . '_' . $addedMinutes . '_' . Carbon::now()->getTimestampMs(),
+            'type' => 'delay_added',
+            'doctor_id' => $appointment->doctor_id,
+            'doctor_name' => $doctorName,
+            'specialty_name' => $docModel?->specialty?->name_ar ?? 'العيادة',
+            'patient_name' => $patientName,
+            'added_minutes' => $addedMinutes,
+            'total_delay_minutes' => $appointment->delay_minutes,
+            'delay_reason' => $reason,
+            'affected_count' => $subsequentAppts->count(),
+            'appointment_id' => $appointment->id,
+            'message' => "⏰ تمديد وقت كشف: قام {$doctorName} بتمديد الكشف الحالي بمقدار (+{$addedMinutes} دقيقة) وتم تحديث أوقات انتظار المرضى تلقائياً.",
+        ]);
+
+        return back()->with('success', "تم تمديد وقت الكشف (+{$addedMinutes} دقيقة) بنجاح، وتحديث مواعيد كافة المرضى وإرسال تنبيه فوري للاستقبال والمرضى.");
     }
 
     public function startConsultation(Request $request, Appointment $appointment)
@@ -153,16 +319,47 @@ class DoctorDashboardController extends Controller
             abort(403, 'غير مصرح لك ببدء كشف لطبيب آخر.');
         }
 
-        $appointment->update(['status' => 'in_consultation']);
+        $appointment->update([
+            'status' => 'in_consultation',
+            'booking_confirmed_at' => $appointment->booking_confirmed_at ?? Carbon::now(),
+            'booking_confirmed_by' => $appointment->booking_confirmed_by ?? $user->id,
+            'arrival_confirmed_at' => $appointment->arrival_confirmed_at ?? Carbon::now(),
+            'arrival_confirmed_by' => $appointment->arrival_confirmed_by ?? $user->id,
+        ]);
 
-        if ($appointment->queueTicket) {
-            $appointment->queueTicket->update([
-                'status' => 'examining',
+        $ticket = $appointment->queueTicket;
+        if ($ticket) {
+            $ticket->update([
+                'status' => 'called',
+                'current_serving_number' => $ticket->ticket_number,
+                'called_at' => Carbon::now(),
+                'last_called_at' => Carbon::now(),
+                'call_count' => ($ticket->call_count ?? 0) + 1,
                 'started_at' => Carbon::now(),
             ]);
         }
 
-        return back()->with('success', 'تم بدء الكشف الطبي للمريض.');
+        $appointment->loadMissing(['doctor.user', 'doctor.specialty', 'patient']);
+        $docModel = $appointment->doctor;
+        $facilityId = (int) ($appointment->facility_id ?: $docModel?->clinic_id ?: 0);
+        $doctorName = $docModel?->user?->name ?? 'الطبيب';
+        $patientName = $appointment->patient?->name ?? 'المريض';
+        $ticketNum = $ticket?->ticket_number ?? 1;
+
+        self::pushFacilityLiveEvent($facilityId, [
+            'id' => 'call_' . $appointment->id . '_' . Carbon::now()->getTimestampMs(),
+            'type' => 'call_next',
+            'doctor_id' => $appointment->doctor_id,
+            'doctor_name' => $doctorName,
+            'specialty_name' => $docModel?->specialty?->name_ar ?? 'العيادة',
+            'patient_name' => $patientName,
+            'ticket_number' => $ticketNum,
+            'booking_reference' => $appointment->booking_reference,
+            'appointment_id' => $appointment->id,
+            'message' => "🔔 نداء عيادة فوري: استدعى {$doctorName} المريض ({$patientName}) - تذكرة رقم #{$ticketNum} للدخول إلى غرفة الفحص الآن!",
+        ]);
+
+        return back()->with('success', 'تم بدء الكشف الطبي للمريض وإشعار الاستقبال وشاشة المريض.');
     }
 
     public function completeConsultation(Request $request, Appointment $appointment)
@@ -174,7 +371,6 @@ class DoctorDashboardController extends Controller
             abort(403, 'غير مصرح لك بإنهاء كشف لطبيب آخر.');
         }
 
-        // Stage 3: Confirm Finish Consultation / Kashf
         $appointment->confirmFinishConsultation($user->id);
 
         if ($request->filled('diagnosis')) {
@@ -227,7 +423,6 @@ class DoctorDashboardController extends Controller
             abort(403, 'غير مصرح لك بتعديل أو إنهاء كشف يخص طبيباً آخر.');
         }
         
-        // Stage 3: Confirm Finish Consultation / Kashf
         $appointment->confirmFinishConsultation($user->id);
 
         Prescription::create([

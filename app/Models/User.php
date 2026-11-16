@@ -69,51 +69,61 @@ class User extends Authenticatable
         return $this->role === 'admin';
     }
 
+    protected function getCachedRoleAssignments(): Collection
+    {
+        $this->loadMissing('roleAssignments');
+        return $this->getRelation('roleAssignments');
+    }
+
     public function isGroupAdmin(?int $groupId = null): bool
     {
-        $query = $this->roleAssignments()
+        $assignments = $this->getCachedRoleAssignments()
             ->where('role', 'group_admin')
             ->where('scope_type', 'group');
 
         if ($groupId !== null) {
-            $query->where('scope_id', $groupId);
+            $assignments = $assignments->where('scope_id', $groupId);
         }
 
-        return $query->exists();
+        return $assignments->isNotEmpty();
     }
 
     public function isFacilityAdmin(?int $facilityId = null): bool
     {
+        $assignments = $this->getCachedRoleAssignments();
+
         if ($facilityId !== null) {
-            $facility = Facility::find($facilityId);
+            if ($assignments->where('role', 'facility_admin')->where('scope_type', 'facility')->where('scope_id', $facilityId)->isNotEmpty()) {
+                return true;
+            }
+            $facility = Facility::select('id', 'group_id')->find($facilityId);
             if ($facility && $this->isGroupAdmin($facility->group_id)) {
                 return true;
             }
-
-            return $this->roleAssignments()
-                ->where('role', 'facility_admin')
-                ->where('scope_type', 'facility')
-                ->where('scope_id', $facilityId)
-                ->exists();
+            return false;
         }
 
-        return $this->roleAssignments()
+        return $assignments
             ->where('role', 'facility_admin')
             ->where('scope_type', 'facility')
-            ->exists() || $this->isGroupAdmin();
+            ->isNotEmpty() || $this->isGroupAdmin();
     }
 
     public function isReceptionist(?int $facilityId = null): bool
     {
-        $query = $this->roleAssignments()
+        if ($this->role === 'receptionist') {
+            return true;
+        }
+
+        $assignments = $this->getCachedRoleAssignments()
             ->where('role', 'receptionist')
             ->where('scope_type', 'facility');
 
         if ($facilityId !== null) {
-            $query->where('scope_id', $facilityId);
+            $assignments = $assignments->where('scope_id', $facilityId);
         }
 
-        return $query->exists();
+        return $assignments->isNotEmpty();
     }
 
     public function accessibleFacilityIds(): Collection
@@ -122,14 +132,18 @@ class User extends Authenticatable
             return Facility::pluck('id');
         }
 
-        $groupAdminGroupIds = $this->roleAssignments()
+        $assignments = $this->getCachedRoleAssignments();
+
+        $groupAdminGroupIds = $assignments
             ->where('role', 'group_admin')
             ->where('scope_type', 'group')
             ->pluck('scope_id');
 
-        $facilitiesFromGroups = Facility::whereIn('group_id', $groupAdminGroupIds)->pluck('id');
+        $facilitiesFromGroups = $groupAdminGroupIds->isNotEmpty()
+            ? Facility::whereIn('group_id', $groupAdminGroupIds)->pluck('id')
+            : collect();
 
-        $directFacilities = $this->roleAssignments()
+        $directFacilities = $assignments
             ->whereIn('role', ['facility_admin', 'receptionist'])
             ->where('scope_type', 'facility')
             ->pluck('scope_id');

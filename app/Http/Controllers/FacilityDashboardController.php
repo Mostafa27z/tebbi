@@ -22,7 +22,7 @@ use Inertia\Response;
 
 class FacilityDashboardController extends Controller
 {
-    private function getFacilityData(Request $request): array
+    private function getFacilityData(Request $request, string $section = 'all'): array
     {
         $user = $request->user();
         if (!$user->isSuperAdmin() && !$user->isGroupAdmin() && !$user->isFacilityAdmin() && !$user->isReceptionist()) {
@@ -46,24 +46,35 @@ class FacilityDashboardController extends Controller
         }
 
         $today = Carbon::today();
+        $needsDoctors = in_array($section, ['all', 'index', 'doctors', 'specialties', 'appointments'], true);
+        $needsTodayAppointments = in_array($section, ['all', 'index', 'appointments'], true);
+        $needsAllAppointments = in_array($section, ['all', 'appointments'], true);
+        $needsAvailableDoctors = in_array($section, ['all', 'doctors'], true);
+        $needsAllSpecialties = in_array($section, ['all', 'doctors', 'specialties'], true);
+        $needsReceptionists = in_array($section, ['all', 'receptionists'], true);
 
         // Doctors practicing at this facility (via primary clinic or multi-facility assignment)
-        $doctors = DoctorProfile::where('clinic_id', $primaryFacility->id)
-            ->orWhereHas('doctorFacilities', function ($q) use ($primaryFacility) {
-                $q->where('facility_id', $primaryFacility->id);
+        $doctors = collect();
+        if ($needsDoctors) {
+            $doctors = DoctorProfile::where(function ($query) use ($primaryFacility) {
+                $query->where('clinic_id', $primaryFacility->id)
+                    ->orWhereHas('doctorFacilities', function ($q) use ($primaryFacility) {
+                        $q->where('facility_id', $primaryFacility->id);
+                    });
             })
-            ->with(['user', 'specialty', 'doctorFacilities' => function ($q) use ($primaryFacility) {
-                $q->where('facility_id', $primaryFacility->id);
-            }])
-            ->get()
-            ->map(function ($doc) use ($primaryFacility) {
-                $pivot = $doc->doctorFacilities->first();
-                $doc->facility_consultation_fee = $pivot ? (float) $pivot->consultation_fee : (float) $doc->consultation_fee;
-                $doc->facility_slot_minutes = $pivot ? (int) $pivot->default_slot_minutes : (int) ($doc->waiting_time_minutes ?: 15);
-                $doc->facility_accepts_insurance = $pivot ? (bool) $pivot->accepts_insurance : (bool) $doc->accepts_insurance;
-                $doc->facility_is_active = $pivot ? (bool) $pivot->is_active : (bool) $doc->is_available_today;
-                return $doc;
-            });
+                ->with(['user', 'specialty', 'doctorFacilities' => function ($q) use ($primaryFacility) {
+                    $q->where('facility_id', $primaryFacility->id);
+                }])
+                ->get()
+                ->map(function ($doc) {
+                    $pivot = $doc->doctorFacilities->first();
+                    $doc->facility_consultation_fee = $pivot ? (float) $pivot->consultation_fee : (float) $doc->consultation_fee;
+                    $doc->facility_slot_minutes = $pivot ? (int) $pivot->default_slot_minutes : (int) ($doc->waiting_time_minutes ?: 15);
+                    $doc->facility_accepts_insurance = $pivot ? (bool) $pivot->accepts_insurance : (bool) $doc->accepts_insurance;
+                    $doc->facility_is_active = $pivot ? (bool) $pivot->is_active : (bool) $doc->is_available_today;
+                    return $doc;
+                });
+        }
 
         $dateParam = $request->input('date') ?? $request->query('date');
         $isAllDates = $dateParam === 'all';
@@ -79,91 +90,118 @@ class FacilityDashboardController extends Controller
             $filterDate = $today->toDateString();
         }
 
-        // Appointments at this facility for the selected date (or all dates)
-        $appointmentsQuery = Appointment::where('facility_id', $primaryFacility->id)
-            ->with(['patient', 'doctor.user', 'queueTicket']);
+        $todayAppointments = collect();
+        if ($needsTodayAppointments) {
+            $appointmentsQuery = Appointment::where('facility_id', $primaryFacility->id)
+                ->with(['patient', 'doctor.user', 'doctor.specialty', 'queueTicket']);
 
-        if (!$isAllDates && $filterDate) {
-            $appointmentsQuery->whereDate('appointment_date', $filterDate);
+            if (!$isAllDates && $filterDate) {
+                $appointmentsQuery->whereDate('appointment_date', $filterDate);
+            }
+
+            $todayAppointments = $appointmentsQuery
+                ->orderBy('appointment_date')
+                ->orderBy('appointment_time')
+                ->get();
         }
 
-        $todayAppointments = $appointmentsQuery
-            ->orderBy('appointment_date')
-            ->orderBy('appointment_time')
-            ->get();
+        $allAppointments = collect();
+        if ($needsAllAppointments) {
+            $allAppointments = Appointment::where('facility_id', $primaryFacility->id)
+                ->with(['patient', 'doctor.user', 'queueTicket'])
+                ->orderByDesc('appointment_date')
+                ->orderByDesc('appointment_time')
+                ->take(100)
+                ->get();
+        }
 
-        // All appointments for this facility (last 100)
-        $allAppointments = Appointment::where('facility_id', $primaryFacility->id)
-            ->with(['patient', 'doctor.user', 'queueTicket'])
-            ->orderByDesc('appointment_date')
-            ->orderByDesc('appointment_time')
-            ->take(100)
-            ->get();
+        $allSpecialties = $needsAllSpecialties
+            ? Specialty::orderBy('id')->get()->unique('name_ar')->values()
+            : collect();
 
-        $specialties = $doctors->pluck('specialty')->filter()->unique('id')->values();
-        $allSpecialties = Specialty::orderBy('name_ar')->get();
+        $facilitySettings = is_array($primaryFacility->settings) ? $primaryFacility->settings : [];
+        $configuredSpecialtyIds = $facilitySettings['specialty_ids'] ?? [];
+        $doctorSpecialtyIds = $doctors->pluck('specialty.id')->filter()->unique()->values()->all();
+        $activeSpecialtyIds = array_values(array_unique(array_merge($doctorSpecialtyIds, $configuredSpecialtyIds)));
 
-        // Doctors registered in the system who are not practicing at this facility yet
-        $availableDoctors = DoctorProfile::with(['user', 'specialty', 'clinic'])
-            ->where('clinic_id', '!=', $primaryFacility->id)
-            ->whereDoesntHave('doctorFacilities', function ($q) use ($primaryFacility) {
-                $q->where('facility_id', $primaryFacility->id);
-            })
-            ->get();
+        $specialties = $needsAllSpecialties
+            ? $allSpecialties->filter(fn ($s) => in_array($s->id, $activeSpecialtyIds))->values()
+            : $doctors->pluck('specialty')->filter()->unique('id')->values();
 
-        // Operational metrics reflect today's status
-        $todayOnlyAppointments = Appointment::where('facility_id', $primaryFacility->id)
+        $availableDoctors = collect();
+        if ($needsAvailableDoctors) {
+            $availableDoctors = DoctorProfile::with(['user', 'specialty', 'clinic'])
+                ->where('clinic_id', '!=', $primaryFacility->id)
+                ->whereDoesntHave('doctorFacilities', function ($q) use ($primaryFacility) {
+                    $q->where('facility_id', $primaryFacility->id);
+                })
+                ->get();
+        }
+
+        // Fast aggregated SQL metrics for today's status
+        $todayStatusCounts = Appointment::where('facility_id', $primaryFacility->id)
             ->whereDate('appointment_date', $today)
-            ->get();
+            ->selectRaw("
+                COUNT(*) as total_today,
+                SUM(CASE WHEN status = 'waiting' THEN 1 ELSE 0 END) as waiting_count,
+                SUM(CASE WHEN status = 'in_consultation' THEN 1 ELSE 0 END) as in_consultation_count,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_count,
+                SUM(CASE WHEN status IN ('confirmed', 'booked') THEN 1 ELSE 0 END) as not_arrived_count,
+                SUM(CASE WHEN payment_method = 'insurance' THEN 1 ELSE 0 END) as insurance_count
+            ")
+            ->first();
 
-        $totalToday = $todayOnlyAppointments->count();
-        $waitingCount = $todayOnlyAppointments->where('status', 'waiting')->count();
-        $inConsultationCount = $todayOnlyAppointments->where('status', 'in_consultation')->count();
-        $completedCount = $todayOnlyAppointments->where('status', 'completed')->count();
-        $notArrivedCount = $todayOnlyAppointments->whereIn('status', ['confirmed', 'booked'])->count();
-        $insuranceCount = $todayOnlyAppointments->where('payment_method', 'insurance')->count();
+        $receptionists = collect();
+        $availableUsers = collect();
+        if ($needsReceptionists) {
+            $receptionists = RoleAssignment::where('scope_type', 'facility')
+                ->where('scope_id', $primaryFacility->id)
+                ->where('role', 'receptionist')
+                ->with('user')
+                ->orderByDesc('id')
+                ->get()
+                ->map(function ($assignment) {
+                    return [
+                        'id' => $assignment->id,
+                        'user_id' => $assignment->user_id,
+                        'name' => $assignment->user?->name ?? 'غير محدد',
+                        'email' => $assignment->user?->email ?? '',
+                        'phone' => $assignment->user?->phone ?? '',
+                        'avatar' => $assignment->user?->avatar,
+                        'national_id' => $assignment->user?->national_id,
+                        'created_at' => $assignment->created_at?->toIso8601String() ?? '',
+                        'scope_id' => $assignment->scope_id,
+                        'role' => $assignment->role,
+                    ];
+                });
 
-        // Receptionists assigned to this facility
-        $receptionists = RoleAssignment::where('scope_type', 'facility')
-            ->where('scope_id', $primaryFacility->id)
-            ->where('role', 'receptionist')
-            ->with('user')
-            ->orderByDesc('id')
-            ->get()
-            ->map(function ($assignment) {
-                return [
-                    'id' => $assignment->id,
-                    'user_id' => $assignment->user_id,
-                    'name' => $assignment->user?->name ?? 'غير محدد',
-                    'email' => $assignment->user?->email ?? '',
-                    'phone' => $assignment->user?->phone ?? '',
-                    'avatar' => $assignment->user?->avatar,
-                    'national_id' => $assignment->user?->national_id,
-                    'created_at' => $assignment->created_at?->toIso8601String() ?? '',
-                    'scope_id' => $assignment->scope_id,
-                    'role' => $assignment->role,
-                ];
-            });
+            $assignedUserIds = $receptionists->pluck('user_id')->filter()->all();
+            $availableUsers = User::select('id', 'name', 'email', 'phone')
+                ->where('role', '!=', 'admin')
+                ->whereNotIn('id', $assignedUserIds)
+                ->orderBy('name')
+                ->take(100)
+                ->get();
+        }
 
-        $assignedUserIds = $receptionists->pluck('user_id')->filter()->all();
-        $availableUsers = User::select('id', 'name', 'email', 'phone')
-            ->where('role', '!=', 'admin')
-            ->whereNotIn('id', $assignedUserIds)
-            ->orderBy('name')
-            ->take(100)
-            ->get();
+        $receptionistsCount = $needsReceptionists
+            ? $receptionists->count()
+            : RoleAssignment::where('scope_type', 'facility')
+                ->where('scope_id', $primaryFacility->id)
+                ->where('role', 'receptionist')
+                ->count();
 
         $metrics = [
-            'doctorsCount' => $doctors->count(),
-            'activeDoctorsCount' => $doctors->where('is_available_today', true)->count(),
+            'doctorsCount' => $needsDoctors ? $doctors->count() : DoctorProfile::where('clinic_id', $primaryFacility->id)->count(),
+            'activeDoctorsCount' => $needsDoctors ? $doctors->where('is_available_today', true)->count() : 0,
             'specialtiesCount' => $specialties->count(),
-            'totalToday' => $totalToday,
-            'waitingCount' => $waitingCount,
-            'inConsultationCount' => $inConsultationCount,
-            'completedCount' => $completedCount,
-            'notArrivedCount' => $notArrivedCount,
-            'insuranceCount' => $insuranceCount,
-            'receptionistsCount' => $receptionists->count(),
+            'totalToday' => (int) ($todayStatusCounts->total_today ?? 0),
+            'waitingCount' => (int) ($todayStatusCounts->waiting_count ?? 0),
+            'inConsultationCount' => (int) ($todayStatusCounts->in_consultation_count ?? 0),
+            'completedCount' => (int) ($todayStatusCounts->completed_count ?? 0),
+            'notArrivedCount' => (int) ($todayStatusCounts->not_arrived_count ?? 0),
+            'insuranceCount' => (int) ($todayStatusCounts->insurance_count ?? 0),
+            'receptionistsCount' => $receptionistsCount,
         ];
 
         return [
@@ -186,20 +224,36 @@ class FacilityDashboardController extends Controller
 
     public function index(Request $request): Response
     {
-        $data = $this->getFacilityData($request);
+        $data = $this->getFacilityData($request, 'index');
+        $facilityId = $data['facility']->id;
+        $data['initialLiveEvents'] = \Illuminate\Support\Facades\Cache::get("facility_live_events_{$facilityId}", []);
         return Inertia::render('facility/dashboard', $data);
+    }
+
+    public function liveSync(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $data = $this->getFacilityData($request, 'index');
+        $facilityId = $data['facility']->id;
+        $events = \Illuminate\Support\Facades\Cache::get("facility_live_events_{$facilityId}", []);
+
+        return response()->json([
+            'metrics' => $data['metrics'],
+            'todayAppointments' => $data['todayAppointments'],
+            'events' => is_array($events) ? $events : [],
+            'serverTime' => Carbon::now()->format('h:i:s A'),
+        ]);
     }
 
     public function doctors(Request $request): Response
     {
-        $data = $this->getFacilityData($request);
+        $data = $this->getFacilityData($request, 'doctors');
         return Inertia::render('facility/doctors', $data);
     }
 
     public function specialties(Request $request): Response
     {
         $user = $request->user();
-        $data = $this->getFacilityData($request);
+        $data = $this->getFacilityData($request, 'specialties');
         $resolver = new ScopeResolver();
 
         if (!$resolver->canManageFacility($user, $data['facility']->id)) {
@@ -211,14 +265,14 @@ class FacilityDashboardController extends Controller
 
     public function appointments(Request $request): Response
     {
-        $data = $this->getFacilityData($request);
+        $data = $this->getFacilityData($request, 'appointments');
         return Inertia::render('facility/appointments', $data);
     }
 
     public function receptionists(Request $request): Response
     {
         $user = $request->user();
-        $data = $this->getFacilityData($request);
+        $data = $this->getFacilityData($request, 'receptionists');
         $resolver = new ScopeResolver();
 
         if (!$resolver->canManageFacility($user, $data['facility']->id)) {
@@ -615,13 +669,17 @@ class FacilityDashboardController extends Controller
         $resolver = new ScopeResolver();
         $facilityId = $appointment->facility_id ?? 0;
 
-        if (!$resolver->canManageFacility($user, $facilityId) && $user->role !== 'admin') {
-            abort(403, 'غير مصرح لك بتأكيد الحجز. هذه الصلاحية خاصة بإدارة المنشأة فقط.');
+        $canConfirm = $user->role === 'admin'
+            || $resolver->canManageFacility($user, $facilityId)
+            || $user->isReceptionist($facilityId);
+
+        if (!$canConfirm) {
+            abort(403, 'غير مصرح لك بتأكيد الحجز. هذه الصلاحية خاصة بإدارة واستقبال المنشأة.');
         }
 
         $appointment->confirmBooking($user->id);
 
-        return back()->with('success', "تم تأكيد الحجز للمريض ({$appointment->patient?->name}) بنجاح (المرحلة 1: تأكيد الإدارة).");
+        return back()->with('success', "تم تأكيد الحجز للمريض ({$appointment->patient?->name}) بنجاح.");
     }
 
     public function updateStatus(Request $request, Appointment $appointment): RedirectResponse
@@ -637,8 +695,12 @@ class FacilityDashboardController extends Controller
         $status = $validated['status'];
 
         if ($status === 'confirmed') {
-            if (!$resolver->canManageFacility($user, $facilityId) && $user->role !== 'admin') {
-                abort(403, 'تأكيد الحجز (المرحلة 1) من صلاحيات إدارة المنشأة فقط.');
+            $canConfirm = $user->role === 'admin'
+                || $resolver->canManageFacility($user, $facilityId)
+                || $user->isReceptionist($facilityId);
+
+            if (!$canConfirm) {
+                abort(403, 'تأكيد الحجز من صلاحيات موظفي الاستقبال وإدارة المنشأة.');
             }
             $appointment->confirmBooking($user->id);
         } elseif ($status === 'waiting') {
@@ -650,8 +712,12 @@ class FacilityDashboardController extends Controller
             }
             $appointment->confirmArrival($user->id);
         } elseif ($status === 'completed') {
-            if ($user->isReceptionist($facilityId) && !$resolver->canManageFacility($user, $facilityId) && $user->role !== 'admin') {
-                abort(403, 'إنهاء الكشف الطبي (المرحلة 3) خاص بالطبيب المعالج فقط.');
+            $canComplete = $user->role === 'admin'
+                || $resolver->canManageFacility($user, $facilityId)
+                || ($user->doctorProfile && $user->doctorProfile->id === $appointment->doctor_id);
+
+            if (!$canComplete) {
+                abort(403, 'إنهاء الكشف الطبي خاص بالطبيب المعالج أو إدارة المنشأة.');
             }
             $appointment->confirmFinishConsultation($user->id);
         } else {
@@ -681,30 +747,40 @@ class FacilityDashboardController extends Controller
     public function updatePayment(Request $request, Appointment $appointment): RedirectResponse
     {
         $validated = $request->validate([
-            'payment_status' => 'required|in:paid,pending,refunded',
-            'payment_method' => 'required|in:cash,pos,card,insurance',
+            'payment_status' => 'nullable|in:paid,pending,refunded,pending_verification',
+            'payment_method' => 'nullable|in:cash,pos,card,insurance',
+            'payment_notes' => 'nullable|string|max:500',
             'total_amount' => 'nullable|numeric',
+            'amount' => 'nullable|numeric',
         ]);
 
+        $status = $validated['payment_status'] ?? ($request->input('payment_method') === 'insurance' ? 'pending_verification' : 'paid');
+        $method = $validated['payment_method'] ?? $appointment->payment_method ?? 'cash';
+        $amount = $validated['total_amount'] ?? $validated['amount'] ?? null;
+
         $updateData = [
-            'payment_status' => $validated['payment_status'],
-            'payment_method' => $validated['payment_method'],
+            'payment_status' => $status,
+            'payment_method' => $method,
         ];
 
-        if ($request->filled('total_amount')) {
-            $updateData['total_amount'] = $validated['total_amount'];
+        if ($request->filled('payment_notes')) {
+            $updateData['payment_notes'] = $request->input('payment_notes');
+        }
+
+        if ($amount !== null) {
+            $updateData['total_amount'] = $amount;
         }
 
         $appointment->update($updateData);
 
         $methodLabels = [
-            'cash' => 'نقداً (Cash)',
-            'pos' => 'شبكة / مدى (POS)',
+            'cash' => 'نقداً (كاش)',
+            'pos' => 'مدى (Mada / POS)',
             'card' => 'بطاقة ائتمانية',
             'insurance' => 'تأمين طبي معتمد',
         ];
 
-        return back()->with('success', "تم تسجيل تحصيل الرسوم للمريض ({$appointment->patient->name}) بنجاح عبر: " . ($methodLabels[$validated['payment_method']] ?? $validated['payment_method']));
+        return back()->with('success', "تم تسجيل تحصيل الرسوم للمريض ({$appointment->patient?->name}) بنجاح عبر: " . ($methodLabels[$method] ?? $method));
     }
 
     public function markArrived(Request $request, Appointment $appointment): RedirectResponse
@@ -810,5 +886,61 @@ class FacilityDashboardController extends Controller
         ]);
 
         return back()->with('success', "تم قطع التذكرة الفورية بنجاح برقم #{$newTicketNumber} للمريض ({$patient->name}).");
+    }
+
+    public function storeSpecialtyAndSectors(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        $resolver = new ScopeResolver();
+
+        $facilityId = $request->input('facility_id');
+        $facility = $facilityId ? Facility::findOrFail($facilityId) : null;
+        if (!$facility) {
+            $accessibleIds = $resolver->accessibleFacilityIds($user);
+            $facility = Facility::whereIn('id', $accessibleIds)->first();
+        }
+
+        if (!$facility || !$resolver->canManageFacility($user, $facility->id)) {
+            abort(403, 'غير مصرح لك بإدارة التخصصات والقطاعات الطبية لهذه المنشأة.');
+        }
+
+        $mode = $request->input('mode', 'sync');
+        $settings = is_array($facility->settings) ? $facility->settings : [];
+
+        if ($mode === 'create_specialty') {
+            $validated = $request->validate([
+                'name_ar' => 'required|string|max:255',
+                'name_en' => 'nullable|string|max:255',
+                'badge_text' => 'nullable|string|max:100',
+                'description' => 'nullable|string|max:500',
+            ]);
+
+            $specialty = Specialty::create([
+                'name_ar' => $validated['name_ar'],
+                'name_en' => $validated['name_en'] ?? '',
+                'icon_slug' => 'stethoscope',
+                'badge_text' => $validated['badge_text'] ?? 'قسم معتمد',
+                'description' => $validated['description'] ?? 'قسم طبي تخصصي معتمد داخل المنشأة.',
+            ]);
+
+            $currentIds = $settings['specialty_ids'] ?? [];
+            $currentIds[] = $specialty->id;
+            $settings['specialty_ids'] = array_values(array_unique(array_map('intval', $currentIds)));
+            $facility->update(['settings' => $settings]);
+
+            return back()->with('success', "تم إنشاء وإضافة تخصص ({$specialty->name_ar}) للمنشأة بنجاح.");
+        }
+
+        if ($request->has('specialty_ids') && is_array($request->input('specialty_ids'))) {
+            $settings['specialty_ids'] = array_values(array_unique(array_map('intval', $request->input('specialty_ids'))));
+        }
+
+        if ($request->has('sectors') && is_array($request->input('sectors'))) {
+            $settings['sectors'] = array_values(array_filter(array_map('trim', $request->input('sectors'))));
+        }
+
+        $facility->update(['settings' => $settings]);
+
+        return back()->with('success', "تم تحديث الأقسام التخصصية والقطاعات والمهام الطبية لمنشأة ({$facility->name}) بنجاح.");
     }
 }

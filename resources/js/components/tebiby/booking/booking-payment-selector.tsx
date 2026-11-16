@@ -1,36 +1,56 @@
-import React from 'react';
-import { ShieldCheck, CreditCard, Banknote, CheckCircle2, FileText, Check } from 'lucide-react';
+import React, { useState, useCallback, memo } from 'react';
+import { ShieldCheck, CreditCard, Banknote, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { INSURANCE_COMPANIES } from './types';
 import { CustomSelect } from '@/components/common/custom-select';
 
+const INSURANCE_SELECT_OPTIONS = INSURANCE_COMPANIES.map((c) => ({ value: c, label: c }));
+
+export interface PaymentExtraValues {
+    insuranceProvider: string;
+    insurancePolicyNumber: string;
+    notifyWhatsapp: boolean;
+}
+
 interface BookingPaymentSelectorProps {
     paymentMethod: 'insurance' | 'at-clinic' | 'online';
     setPaymentMethod: (method: 'insurance' | 'at-clinic' | 'online') => void;
-    insuranceProvider: string;
-    setInsuranceProvider: (provider: string) => void;
-    insurancePolicyNumber: string;
-    setInsurancePolicyNumber: (policy: string) => void;
-    notifyWhatsapp: boolean;
-    setNotifyWhatsapp: (notify: boolean) => void;
+    paymentExtrasRef: React.MutableRefObject<PaymentExtraValues>;
 }
 
-export const BookingPaymentSelector: React.FC<BookingPaymentSelectorProps> = ({
+export const BookingPaymentSelector: React.FC<BookingPaymentSelectorProps> = memo(function BookingPaymentSelector({
     paymentMethod,
     setPaymentMethod,
-    insuranceProvider,
-    setInsuranceProvider,
-    insurancePolicyNumber,
-    setInsurancePolicyNumber,
-    notifyWhatsapp,
-    setNotifyWhatsapp,
-}) => {
+    paymentExtrasRef,
+}) {
+    const [insuranceProvider, setInsuranceProvider] = useState(paymentExtrasRef.current.insuranceProvider);
+    const [insurancePolicyNumber, setInsurancePolicyNumber] = useState(paymentExtrasRef.current.insurancePolicyNumber);
+    const [notifyWhatsapp, setNotifyWhatsapp] = useState(paymentExtrasRef.current.notifyWhatsapp);
+
     const isInsurance = paymentMethod === 'insurance';
+
+    const handleProviderChange = useCallback((val: string | number) => {
+        const str = String(val);
+        setInsuranceProvider(str);
+        paymentExtrasRef.current.insuranceProvider = str;
+    }, [paymentExtrasRef]);
+
+    const handlePolicyChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        setInsurancePolicyNumber(val);
+        paymentExtrasRef.current.insurancePolicyNumber = val;
+    }, [paymentExtrasRef]);
+
+    const handleWhatsappChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const checked = e.target.checked;
+        setNotifyWhatsapp(checked);
+        paymentExtrasRef.current.notifyWhatsapp = checked;
+    }, [paymentExtrasRef]);
 
     return (
         <div className="bg-gray-50/70 p-4 sm:p-5 rounded-3xl border border-gray-200/80 space-y-4">
             <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-blue-100 text-[#005ab5] flex items-center justify-center font-black text-xs font-['Cairo'] shadow-xs">
+                <div className="w-8 h-8 rounded-xl bg-blue-100 text-[#005ab5] flex items-center justify-center font-black text-xs font-['Cairo']">
                     4
                 </div>
                 <div>
@@ -41,23 +61,21 @@ export const BookingPaymentSelector: React.FC<BookingPaymentSelectorProps> = ({
                 </div>
             </div>
 
-            {/* 3 Payment Method Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {/* Insurance Option */}
                 <button
                     type="button"
                     onClick={() => setPaymentMethod('insurance')}
                     className={cn(
-                        'p-4 rounded-2xl border text-right transition-all cursor-pointer flex flex-col justify-between gap-3 select-none',
+                        'p-4 rounded-2xl border text-right transition-colors cursor-pointer flex flex-col justify-between gap-3 select-none',
                         paymentMethod === 'insurance'
-                            ? 'border-[#005ab5] bg-blue-50/90 ring-2 ring-[#005ab5]/20 text-[#005ab5] shadow-xs'
+                            ? 'border-[#005ab5] bg-blue-50/90 text-[#005ab5]'
                             : 'border-gray-200 hover:border-gray-300 bg-white text-gray-700'
                     )}
                 >
                     <div className="flex items-center justify-between">
                         <div className={cn(
                             'w-8 h-8 rounded-xl flex items-center justify-center transition-colors',
-                            paymentMethod === 'insurance' ? 'bg-[#005ab5] text-white shadow-xs' : 'bg-blue-100/70 text-[#005ab5]'
+                            paymentMethod === 'insurance' ? 'bg-[#005ab5] text-white' : 'bg-blue-100/70 text-[#005ab5]'
                         )}>
                             <ShieldCheck className="w-4 h-4" />
                         </div>
@@ -69,21 +87,20 @@ export const BookingPaymentSelector: React.FC<BookingPaymentSelectorProps> = ({
                     </div>
                 </button>
 
-                {/* Online Pay Option */}
                 <button
                     type="button"
                     onClick={() => setPaymentMethod('online')}
                     className={cn(
-                        'p-4 rounded-2xl border text-right transition-all cursor-pointer flex flex-col justify-between gap-3 select-none',
+                        'p-4 rounded-2xl border text-right transition-colors cursor-pointer flex flex-col justify-between gap-3 select-none',
                         paymentMethod === 'online'
-                            ? 'border-purple-600 bg-purple-50/90 ring-2 ring-purple-600/20 text-purple-700 shadow-xs'
+                            ? 'border-purple-600 bg-purple-50/90 text-purple-700'
                             : 'border-gray-200 hover:border-gray-300 bg-white text-gray-700'
                     )}
                 >
                     <div className="flex items-center justify-between">
                         <div className={cn(
                             'w-8 h-8 rounded-xl flex items-center justify-center transition-colors',
-                            paymentMethod === 'online' ? 'bg-purple-600 text-white shadow-xs' : 'bg-purple-100/70 text-purple-600'
+                            paymentMethod === 'online' ? 'bg-purple-600 text-white' : 'bg-purple-100/70 text-purple-600'
                         )}>
                             <CreditCard className="w-4 h-4" />
                         </div>
@@ -95,21 +112,20 @@ export const BookingPaymentSelector: React.FC<BookingPaymentSelectorProps> = ({
                     </div>
                 </button>
 
-                {/* At Clinic Option */}
                 <button
                     type="button"
                     onClick={() => setPaymentMethod('at-clinic')}
                     className={cn(
-                        'p-4 rounded-2xl border text-right transition-all cursor-pointer flex flex-col justify-between gap-3 select-none',
+                        'p-4 rounded-2xl border text-right transition-colors cursor-pointer flex flex-col justify-between gap-3 select-none',
                         paymentMethod === 'at-clinic'
-                            ? 'border-[#006b5c] bg-emerald-50/90 ring-2 ring-[#006b5c]/20 text-[#006b5c] shadow-xs'
+                            ? 'border-[#006b5c] bg-emerald-50/90 text-[#006b5c]'
                             : 'border-gray-200 hover:border-gray-300 bg-white text-gray-700'
                     )}
                 >
                     <div className="flex items-center justify-between">
                         <div className={cn(
                             'w-8 h-8 rounded-xl flex items-center justify-center transition-colors',
-                            paymentMethod === 'at-clinic' ? 'bg-[#006b5c] text-white shadow-xs' : 'bg-emerald-100/70 text-[#006b5c]'
+                            paymentMethod === 'at-clinic' ? 'bg-[#006b5c] text-white' : 'bg-emerald-100/70 text-[#006b5c]'
                         )}>
                             <Banknote className="w-4 h-4" />
                         </div>
@@ -122,15 +138,14 @@ export const BookingPaymentSelector: React.FC<BookingPaymentSelectorProps> = ({
                 </button>
             </div>
 
-            {/* Insurance Details Box (Harmonized Inputs) */}
             {isInsurance && (
-                <div className="p-4 sm:p-5 rounded-2xl bg-white border border-emerald-200/90 space-y-3.5 shadow-xs animate-in fade-in duration-200">
+                <div className="p-4 sm:p-5 rounded-2xl bg-white border border-emerald-200/90 space-y-3.5">
                     <div className="flex items-center justify-between">
                         <span className="text-xs font-black text-emerald-950 font-['Cairo'] flex items-center gap-1.5">
                             <ShieldCheck className="w-4 h-4 text-emerald-600" />
                             <span>بيانات وثيقة التأمين الصحي:</span>
                         </span>
-                        <span className="bg-emerald-600 text-white text-[10px] px-3 py-1 rounded-full font-bold shadow-xs">
+                        <span className="bg-emerald-600 text-white text-[10px] px-3 py-1 rounded-full font-bold">
                             تغطية 100% بدون دفع
                         </span>
                     </div>
@@ -140,8 +155,8 @@ export const BookingPaymentSelector: React.FC<BookingPaymentSelectorProps> = ({
                             <CustomSelect
                                 label="شركة التأمين:"
                                 value={insuranceProvider}
-                                onChange={(val) => setInsuranceProvider(String(val))}
-                                options={INSURANCE_COMPANIES.map((c) => ({ value: c, label: c }))}
+                                onChange={handleProviderChange}
+                                options={INSURANCE_SELECT_OPTIONS}
                             />
                         </div>
 
@@ -152,9 +167,9 @@ export const BookingPaymentSelector: React.FC<BookingPaymentSelectorProps> = ({
                             <input
                                 type="text"
                                 value={insurancePolicyNumber}
-                                onChange={(e) => setInsurancePolicyNumber(e.target.value)}
+                                onChange={handlePolicyChange}
                                 placeholder="BUP-XXXXXXX"
-                                className="w-full h-12 px-4 rounded-2xl border border-gray-200 hover:border-gray-300 text-xs sm:text-sm font-mono bg-white focus:border-[#005ab5] focus:ring-2 focus:ring-[#005ab5]/20 focus:outline-hidden text-left"
+                                className="w-full h-12 px-4 rounded-2xl border border-gray-200 hover:border-gray-300 text-xs sm:text-sm font-mono bg-white focus:border-[#005ab5] focus:outline-none text-left transition-colors"
                                 dir="ltr"
                             />
                         </div>
@@ -162,13 +177,12 @@ export const BookingPaymentSelector: React.FC<BookingPaymentSelectorProps> = ({
                 </div>
             )}
 
-            {/* WhatsApp Notification Agreement */}
             <div className="p-3.5 sm:p-4 rounded-2xl bg-blue-50/70 border border-blue-200/70 flex items-start gap-3">
                 <input
                     type="checkbox"
                     id="whatsapp-agree-check"
                     checked={notifyWhatsapp}
-                    onChange={(e) => setNotifyWhatsapp(e.target.checked)}
+                    onChange={handleWhatsappChange}
                     className="mt-0.5 rounded-lg text-[#005ab5] focus:ring-[#005ab5] w-4 h-4 border-gray-300 cursor-pointer shrink-0"
                 />
                 <label
@@ -180,4 +194,4 @@ export const BookingPaymentSelector: React.FC<BookingPaymentSelectorProps> = ({
             </div>
         </div>
     );
-};
+});

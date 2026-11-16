@@ -1,11 +1,13 @@
 import React from 'react';
 import { useForm } from '@inertiajs/react';
-import { Modal } from '@/components/common/modal';
-import { FormInput } from '@/components/common/form-input';
-import { CustomSelect } from '@/components/common/custom-select';
-import { InternationalPhoneInput } from '@/components/common/international-phone-input';
-import { PasswordInput } from '@/components/common/password-input';
-import { LoadingButton } from '@/components/common/loading-button';
+import {
+    Modal,
+    FormInput,
+    CustomSelect,
+    InternationalPhoneInput,
+    PasswordInput,
+    ModalFooter,
+} from '@/components/common';
 import { Facility, SpecialtyOption } from '../types';
 import { User, Mail, Award, Clock, DollarSign, Check } from 'lucide-react';
 
@@ -17,7 +19,7 @@ interface AddDoctorModalProps {
     specialties: SpecialtyOption[];
 }
 
-export const AddDoctorModal: React.FC<AddDoctorModalProps> = ({
+export const AddDoctorModal: React.FC<AddDoctorModalProps> = React.memo(({
     isOpen,
     onClose,
     groupId,
@@ -66,7 +68,7 @@ export const AddDoctorModal: React.FC<AddDoctorModalProps> = ({
                         value={data.name}
                         onChange={(e) => setData('name', e.target.value)}
                         error={errors.name}
-                        icon={<User className="w-4 h-4 text-gray-400" />}
+                        icon={<User className="w-4 h-4 text-slate-400" />}
                     />
 
                     <FormInput
@@ -78,7 +80,7 @@ export const AddDoctorModal: React.FC<AddDoctorModalProps> = ({
                         value={data.email}
                         onChange={(e) => setData('email', e.target.value)}
                         error={errors.email}
-                        icon={<Mail className="w-4 h-4 text-gray-400" />}
+                        icon={<Mail className="w-4 h-4 text-slate-400" />}
                     />
                 </div>
 
@@ -131,7 +133,7 @@ export const AddDoctorModal: React.FC<AddDoctorModalProps> = ({
                     value={data.title_ar}
                     onChange={(e) => setData('title_ar', e.target.value)}
                     error={errors.title_ar}
-                    icon={<Award className="w-4 h-4 text-gray-400" />}
+                    icon={<Award className="w-4 h-4 text-slate-400" />}
                 />
 
                 <FormInput
@@ -152,7 +154,7 @@ export const AddDoctorModal: React.FC<AddDoctorModalProps> = ({
                         value={data.consultation_fee}
                         onChange={(e) => setData('consultation_fee', parseFloat(e.target.value) || 0)}
                         error={errors.consultation_fee}
-                        icon={<DollarSign className="w-4 h-4 text-gray-400" />}
+                        icon={<DollarSign className="w-4 h-4 text-slate-400" />}
                     />
 
                     <FormInput
@@ -164,7 +166,7 @@ export const AddDoctorModal: React.FC<AddDoctorModalProps> = ({
                         value={data.waiting_time_minutes}
                         onChange={(e) => setData('waiting_time_minutes', parseInt(e.target.value) || 15)}
                         error={errors.waiting_time_minutes}
-                        icon={<Clock className="w-4 h-4 text-gray-400" />}
+                        icon={<Clock className="w-4 h-4 text-slate-400" />}
                     />
 
                     <FormInput
@@ -186,32 +188,21 @@ export const AddDoctorModal: React.FC<AddDoctorModalProps> = ({
                             onChange={(e) => setData('accepts_insurance', e.target.checked)}
                             className="rounded text-[#005ab5] focus:ring-[#005ab5] w-4 h-4"
                         />
-                        <span className="font-bold text-gray-700 text-xs font-['Cairo']">
+                        <span className="font-bold text-slate-700 text-xs font-['Cairo']">
                             قبول شركات التأمين الطبي المعتمدة بالمجمع
                         </span>
                     </label>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="px-4 py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold transition-all"
-                    >
-                        إلغاء
-                    </button>
-                    <LoadingButton
-                        type="submit"
-                        loading={processing}
-                        loadingText="جاري الحفظ..."
-                        variant="primary"
-                        icon={<Check className="w-4 h-4" />}
-                    >
-                        حفظ واعتماد الطبيب
-                    </LoadingButton>
-                </div>
+                <ModalFooter
+                    onCancel={onClose}
+                    loading={processing}
+                    loadingText="جاري الحفظ..."
+                    submitText="حفظ واعتماد الطبيب"
+                    submitIcon={<Check className="w-4 h-4" />}
+                />
             </form>
         </Modal>
     );
-};
-
+});
+AddDoctorModal.displayName = 'AddDoctorModal';

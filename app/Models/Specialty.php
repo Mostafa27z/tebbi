@@ -18,6 +18,13 @@ class Specialty extends Model
         'description',
     ];
 
+    protected $appends = ['icon'];
+
+    public function getIconAttribute(): ?string
+    {
+        return $this->attributes['icon_slug'] ?? null;
+    }
+
     public function doctorProfiles(): HasMany
     {
         return $this->hasMany(DoctorProfile::class);

@@ -1,28 +1,44 @@
 import React, { useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
-import { Modal } from '@/components/common/modal';
-import { FormInput } from '@/components/common/form-input';
-import { CustomSelect } from '@/components/common/custom-select';
-import { InternationalPhoneInput } from '@/components/common/international-phone-input';
-import { LoadingButton } from '@/components/common/loading-button';
-import { Clinic, Group } from '../types';
-import { Building2, MapPin, Building, Phone } from 'lucide-react';
+import {
+    Modal,
+    FormInput,
+    CustomSelect,
+    InternationalPhoneInput,
+    SurfaceCard,
+    ModalFooter,
+    ChoicePillGroup,
+} from '@/components/common';
+import { Clinic, Group, UserSimple } from '../types';
+import { Shield } from 'lucide-react';
 
 interface ClinicModalProps {
     isOpen: boolean;
     onClose: () => void;
-    editingClinic: Clinic | null;
+    editingClinic?: Clinic | null;
+    clinic?: Clinic | null;
     defaultGroupId?: number;
     groups: Group[];
+    allUsers?: UserSimple[];
 }
 
-export const ClinicModal: React.FC<ClinicModalProps> = ({
+const ADMIN_MODE_OPTIONS = [
+    { value: 'none' as const, label: 'بدون تعيين الآن' },
+    { value: 'existing' as const, label: 'اختيار مستخدم مسجل' },
+    { value: 'new' as const, label: '+ إنشاء حساب مدير جديد' },
+];
+
+export const ClinicModal: React.FC<ClinicModalProps> = React.memo(({
     isOpen,
     onClose,
     editingClinic,
+    clinic,
     defaultGroupId,
     groups,
+    allUsers = [],
 }) => {
+    const currentClinic = editingClinic || clinic || null;
+
     const { data, setData, post, put, processing, errors, reset } = useForm({
         name: '',
         branch_name: '',
@@ -33,33 +49,41 @@ export const ClinicModal: React.FC<ClinicModalProps> = ({
         district: '',
         address: '',
         phone: '',
+        admin_mode: 'none' as 'none' | 'existing' | 'new',
+        admin_user_id: '' as string | number,
+        admin_name: '',
+        admin_email: '',
+        admin_password: '',
+        admin_phone: '',
     });
 
     useEffect(() => {
-        if (editingClinic) {
-            setData({
-                name: editingClinic.name,
-                branch_name: editingClinic.branch_name,
-                group_id: editingClinic.group_id || '',
-                type: editingClinic.type || 'hospital',
-                moh_license_no: editingClinic.moh_license_no || '',
-                city: editingClinic.city,
-                district: editingClinic.district,
-                address: editingClinic.address,
-                phone: editingClinic.phone,
-            });
+        if (currentClinic) {
+            setData((prev) => ({
+                ...prev,
+                name: currentClinic.name,
+                branch_name: currentClinic.branch_name,
+                group_id: currentClinic.group_id || '',
+                type: currentClinic.type || 'hospital',
+                moh_license_no: currentClinic.moh_license_no || '',
+                city: currentClinic.city,
+                district: currentClinic.district,
+                address: currentClinic.address,
+                phone: currentClinic.phone,
+                admin_mode: 'none',
+            }));
         } else {
             reset();
             if (defaultGroupId) {
                 setData('group_id', defaultGroupId);
             }
         }
-    }, [editingClinic, defaultGroupId, isOpen]);
+    }, [currentClinic, defaultGroupId, isOpen]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (editingClinic) {
-            put(`/admin/clinics/${editingClinic.id}`, {
+        if (currentClinic) {
+            put(`/admin/clinics/${currentClinic.id}`, {
                 onSuccess: () => {
                     onClose();
                     reset();
@@ -102,7 +126,7 @@ export const ClinicModal: React.FC<ClinicModalProps> = ({
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title={editingClinic ? `تعديل المنشأة (${editingClinic.name})` : 'إضافة مستشفى أو عيادة جديدة'}
+            title={currentClinic ? `تعديل المنشأة (${currentClinic.name})` : 'إضافة مستشفى أو عيادة جديدة'}
             description="إضافة منشأة طبية وربطها بالمجمع الطبي المناسب وتحديد تفاصيل الموقع"
             maxWidth="xl"
         >
@@ -182,24 +206,77 @@ export const ClinicModal: React.FC<ClinicModalProps> = ({
                     />
                 </div>
 
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        disabled={processing}
-                        className="px-4 py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                        إلغاء
-                    </button>
-                    <LoadingButton
-                        type="submit"
-                        loading={processing}
-                        className="font-['Cairo']"
-                    >
-                        {editingClinic ? 'تحديث بيانات المنشأة' : 'حفظ واعتماد المنشأة'}
-                    </LoadingButton>
-                </div>
+                {!currentClinic && (
+                    <SurfaceCard variant="blue" padding="sm" rounded="3xl" className="space-y-3.5">
+                        <div className="flex items-center gap-2">
+                            <Shield className="w-4 h-4 text-[#005ab5]" />
+                            <h4 className="text-xs font-bold text-slate-900 font-['Cairo']">
+                                تعيين مدير للمنشأة الطبية (مدير المستشفى / العيادة)
+                            </h4>
+                        </div>
+
+                        <ChoicePillGroup
+                            value={data.admin_mode}
+                            onChange={(val) => setData('admin_mode', val)}
+                            options={ADMIN_MODE_OPTIONS}
+                            columns={3}
+                            size="sm"
+                        />
+
+                        {data.admin_mode === 'existing' && (
+                            <CustomSelect
+                                label="اختر المدير من قائمة المستخدمين المسجلين"
+                                value={data.admin_user_id}
+                                onChange={(val) => setData('admin_user_id', val)}
+                                options={allUsers.map((u) => ({
+                                    value: u.id,
+                                    label: u.name,
+                                    sublabel: u.email,
+                                }))}
+                                placeholder="ابحث واختر المدير..."
+                            />
+                        )}
+
+                        {data.admin_mode === 'new' && (
+                            <SurfaceCard variant="default" padding="sm" rounded="2xl" className="space-y-3">
+                                <FormInput
+                                    label="اسم المدير المسؤول"
+                                    placeholder="سلطان القحطاني"
+                                    value={data.admin_name}
+                                    onChange={(e) => setData('admin_name', e.target.value)}
+                                    error={errors.admin_name}
+                                />
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <FormInput
+                                        label="البريد الإلكتروني للدخول"
+                                        type="email"
+                                        placeholder="admin.hospital@tebiby.com"
+                                        value={data.admin_email}
+                                        onChange={(e) => setData('admin_email', e.target.value)}
+                                        error={errors.admin_email}
+                                        dir="ltr"
+                                    />
+                                    <FormInput
+                                        label="كلمة المرور المبدئية"
+                                        type="password"
+                                        placeholder="••••••••"
+                                        value={data.admin_password}
+                                        onChange={(e) => setData('admin_password', e.target.value)}
+                                        error={errors.admin_password}
+                                    />
+                                </div>
+                            </SurfaceCard>
+                        )}
+                    </SurfaceCard>
+                )}
+
+                <ModalFooter
+                    onCancel={onClose}
+                    loading={processing}
+                    submitText={editingClinic ? 'تحديث بيانات المنشأة' : 'حفظ واعتماد المنشأة'}
+                />
             </form>
         </Modal>
     );
-};
+});
+ClinicModal.displayName = 'ClinicModal';

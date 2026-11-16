@@ -1,28 +1,33 @@
 import React, { useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
-import { Modal } from '@/components/common/modal';
-import { FormInput } from '@/components/common/form-input';
-import { CustomSelect } from '@/components/common/custom-select';
-import { InternationalPhoneInput } from '@/components/common/international-phone-input';
-import { LoadingButton } from '@/components/common/loading-button';
+import {
+    Modal,
+    FormInput,
+    CustomSelect,
+    InternationalPhoneInput,
+    ModalFooter,
+} from '@/components/common';
 import { Doctor, Clinic, Specialty } from '../types';
 
 interface DoctorModalProps {
     isOpen: boolean;
     onClose: () => void;
-    editingDoctor: Doctor | null;
+    editingDoctor?: Doctor | null;
+    doctor?: Doctor | null;
     specialties: Specialty[];
     clinics: Clinic[];
 }
 
-export const DoctorModal: React.FC<DoctorModalProps> = ({
+export const DoctorModal: React.FC<DoctorModalProps> = React.memo(({
     isOpen,
     onClose,
     editingDoctor,
+    doctor,
     specialties,
     clinics,
 }) => {
-    // Edit Form
+    const currentDoctor = editingDoctor || doctor || null;
+
     const editForm = useForm({
         title_ar: '',
         subspecialty: '',
@@ -33,7 +38,6 @@ export const DoctorModal: React.FC<DoctorModalProps> = ({
         is_available_today: true as boolean,
     });
 
-    // New Doctor Form
     const newForm = useForm({
         name: '',
         email: '',
@@ -61,25 +65,25 @@ export const DoctorModal: React.FC<DoctorModalProps> = ({
     }));
 
     useEffect(() => {
-        if (editingDoctor) {
+        if (currentDoctor) {
             editForm.setData({
-                title_ar: editingDoctor.title_ar,
-                subspecialty: editingDoctor.subspecialty || '',
-                consultation_fee: editingDoctor.consultation_fee,
-                waiting_time_minutes: editingDoctor.waiting_time_minutes,
-                specialty_id: editingDoctor.specialty_id,
-                clinic_id: editingDoctor.clinic_id,
-                is_available_today: editingDoctor.is_available_today,
+                title_ar: currentDoctor.title_ar,
+                subspecialty: currentDoctor.subspecialty || '',
+                consultation_fee: currentDoctor.consultation_fee,
+                waiting_time_minutes: currentDoctor.waiting_time_minutes,
+                specialty_id: currentDoctor.specialty_id,
+                clinic_id: currentDoctor.clinic_id,
+                is_available_today: currentDoctor.is_available_today,
             });
         } else {
             newForm.reset();
         }
-    }, [editingDoctor, isOpen]);
+    }, [currentDoctor, isOpen]);
 
     const handleEditSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!editingDoctor) return;
-        editForm.put(`/admin/doctors/${editingDoctor.id}`, {
+        if (!currentDoctor) return;
+        editForm.put(`/admin/doctors/${currentDoctor.id}`, {
             onSuccess: () => onClose(),
         });
     };
@@ -94,12 +98,12 @@ export const DoctorModal: React.FC<DoctorModalProps> = ({
         });
     };
 
-    if (editingDoctor) {
+    if (currentDoctor) {
         return (
             <Modal
                 isOpen={isOpen}
                 onClose={onClose}
-                title={`تعديل بيانات الطبيب (${editingDoctor.user.name})`}
+                title={`تعديل بيانات الطبيب (${currentDoctor.user.name})`}
                 description="تعديل المسمى، التخصص، والرسوم"
                 maxWidth="lg"
             >
@@ -157,23 +161,11 @@ export const DoctorModal: React.FC<DoctorModalProps> = ({
                         />
                     </div>
 
-                    <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            disabled={editForm.processing}
-                            className="px-4 py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs transition-colors cursor-pointer disabled:opacity-50"
-                        >
-                            إلغاء
-                        </button>
-                        <LoadingButton
-                            type="submit"
-                            loading={editForm.processing}
-                            className="font-['Cairo']"
-                        >
-                            حفظ التعديلات
-                        </LoadingButton>
-                    </div>
+                    <ModalFooter
+                        onCancel={onClose}
+                        loading={editForm.processing}
+                        submitText="حفظ التعديلات"
+                    />
                 </form>
             </Modal>
         );
@@ -294,24 +286,13 @@ export const DoctorModal: React.FC<DoctorModalProps> = ({
                     />
                 </div>
 
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        disabled={newForm.processing}
-                        className="px-4 py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                        إلغاء
-                    </button>
-                    <LoadingButton
-                        type="submit"
-                        loading={newForm.processing}
-                        className="font-['Cairo']"
-                    >
-                        اعتماد وتسجيل الطبيب
-                    </LoadingButton>
-                </div>
+                <ModalFooter
+                    onCancel={onClose}
+                    loading={newForm.processing}
+                    submitText="اعتماد وتسجيل الطبيب"
+                />
             </form>
         </Modal>
     );
-};
+});
+DoctorModal.displayName = 'DoctorModal';

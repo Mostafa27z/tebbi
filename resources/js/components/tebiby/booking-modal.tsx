@@ -1,71 +1,98 @@
-import React, { useState, useEffect } from 'react';
-import { router } from '@inertiajs/react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { router, usePage } from '@inertiajs/react';
 import toast from 'react-hot-toast';
 import { showAlert } from '@/components/common/toast';
 import { parseTimeTo24Hour } from '@/lib/utils';
-import { 
+import {
     Doctor,
     PRESET_DAYS,
-    INSURANCE_COMPANIES,
     BookingHeader,
     BookingDateSelector,
     BookingTimeSelector,
     BookingPatientForm,
-    BookingPaymentSelector,
     BookingSummarySidebar,
     BookingFooter,
 } from './booking';
+import type { PatientFormValues } from './booking/booking-patient-form';
 
 interface BookingModalProps {
     doctor: Doctor | null;
-    selectedSlot: { date: string; time: string } | null;
+    selectedSlot?: { date?: string; time: string } | string | null;
     isOpen: boolean;
     onClose: () => void;
 }
 
-export default function BookingModal({ doctor, selectedSlot, isOpen, onClose }: BookingModalProps) {
-    if (!isOpen || !doctor) return null;
+export default function BookingModal(props: BookingModalProps) {
+    if (!props.isOpen || !props.doctor) return null;
+    return <BookingModalContent {...props} doctor={props.doctor} />;
+}
 
-    // Appointment Schedule State
+function BookingModalContent({
+    doctor,
+    selectedSlot,
+    onClose,
+}: {
+    doctor: Doctor;
+    selectedSlot?: { date?: string; time: string } | string | null;
+    isOpen: boolean;
+    onClose: () => void;
+}) {
+    const { auth } = usePage<{ auth?: { user?: { name?: string; phone?: string; national_id?: string } } }>().props;
+    const authUser = auth?.user;
+
+    const initialSlotTime =
+        typeof selectedSlot === 'string'
+            ? selectedSlot
+            : selectedSlot?.time || '05:40 م';
+    const initialSlotDate =
+        typeof selectedSlot === 'object' && selectedSlot?.date
+            ? selectedSlot.date
+            : PRESET_DAYS[0].fullFormatted;
+
     const [selectedDayIso, setSelectedDayIso] = useState<string>(PRESET_DAYS[0].iso);
-    const [selectedDayLabel, setSelectedDayLabel] = useState<string>(selectedSlot?.date || PRESET_DAYS[0].fullFormatted);
-    const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>(selectedSlot?.time || '05:40 م');
+    const [selectedDayLabel, setSelectedDayLabel] = useState<string>(initialSlotDate);
+    const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>(initialSlotTime);
     const [timePeriod, setTimePeriod] = useState<'all' | 'morning' | 'evening'>('all');
     const [showCustomDatePicker, setShowCustomDatePicker] = useState<boolean>(false);
 
-    // Patient Form State
-    const [patientName, setPatientName] = useState('محمد فهد الدوسري');
-    const [patientPhone, setPatientPhone] = useState('+966555123456');
-    const [patientNationalId, setPatientNationalId] = useState('1098765432');
-    const [patientNotes, setPatientNotes] = useState('');
-    const [paymentMethod, setPaymentMethod] = useState<'insurance' | 'at-clinic' | 'online'>('insurance');
-    const [insuranceProvider, setInsuranceProvider] = useState(INSURANCE_COMPANIES[0]);
-    const [insurancePolicyNumber, setInsurancePolicyNumber] = useState('BUP-8491023');
-    const [notifyWhatsapp, setNotifyWhatsapp] = useState(true);
+    // Isolated refs for text inputs so typing never triggers parent modal re-renders
+    const initialPatientValues = useMemo<PatientFormValues>(
+        () => ({
+            patientName: authUser?.name || '',
+            patientPhone: authUser?.phone || '+966',
+            patientNationalId: authUser?.national_id || '',
+            patientNotes: '',
+        }),
+        [authUser?.name, authUser?.phone, authUser?.national_id]
+    );
+    const patientValuesRef = useRef<PatientFormValues>({ ...initialPatientValues });
+
     const [submitting, setSubmitting] = useState(false);
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-    // Sync when selectedSlot prop changes
     useEffect(() => {
-        if (selectedSlot?.time) {
-            setSelectedTimeSlot(selectedSlot.time);
-        }
-        if (selectedSlot?.date) {
-            setSelectedDayLabel(selectedSlot.date);
+        if (typeof selectedSlot === 'string') {
+            setSelectedTimeSlot(selectedSlot);
+        } else if (selectedSlot) {
+            if (selectedSlot.time) setSelectedTimeSlot(selectedSlot.time);
+            if (selectedSlot.date) setSelectedDayLabel(selectedSlot.date);
         }
     }, [selectedSlot]);
 
     const fee = Number(doctor.consultation_fee) || 250;
-    const isInsurance = paymentMethod === 'insurance';
-    const vat = isInsurance ? 0 : fee * 0.15;
-    const totalAmount = isInsurance ? 0 : fee + vat;
+    const vat = fee * 0.15;
+    const totalAmount = fee + vat;
 
-    const handleSelectDay = (iso: string, formattedLabel: string) => {
+    const handleSelectDay = useCallback((iso: string, formattedLabel: string) => {
         setSelectedDayIso(iso);
         setSelectedDayLabel(formattedLabel);
-    };
+    }, []);
 
-    const handleCustomDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleToggleCustomPicker = useCallback(() => {
+        setShowCustomDatePicker((prev) => !prev);
+    }, []);
+
+    const handleCustomDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const val = e.target.value;
         if (!val) return;
         setSelectedDayIso(val);
@@ -81,14 +108,15 @@ export default function BookingModal({ doctor, selectedSlot, isOpen, onClose }: 
         } catch {
             setSelectedDayLabel(val);
         }
-    };
+    }, []);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
         if (submitting) return;
 
-        // Validation
+        const { patientName, patientPhone, patientNationalId, patientNotes } = patientValuesRef.current;
+
         const errs: { [key: string]: string } = {};
         if (!patientName.trim()) errs.name = 'اسم المريض مطلوب';
         if (!patientPhone.trim() || patientPhone.length < 8) errs.phone = 'رقم الجوال غير صحيح أو ناقص';
@@ -112,11 +140,11 @@ export default function BookingModal({ doctor, selectedSlot, isOpen, onClose }: 
                 patient_national_id: patientNationalId,
                 appointment_date: selectedDayIso,
                 appointment_time: parseTimeTo24Hour(selectedTimeSlot),
-                payment_method: paymentMethod === 'at-clinic' ? 'at_clinic' : paymentMethod,
-                insurance_provider: isInsurance ? insuranceProvider : null,
-                insurance_policy_number: isInsurance ? insurancePolicyNumber : null,
+                payment_method: 'at_clinic',
+                insurance_provider: null,
+                insurance_policy_number: null,
                 patient_notes: patientNotes,
-                notify_whatsapp: notifyWhatsapp,
+                notify_whatsapp: true,
             },
             {
                 onSuccess: () => {
@@ -142,7 +170,6 @@ export default function BookingModal({ doctor, selectedSlot, isOpen, onClose }: 
         );
     };
 
-    // Close on Escape key
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') onClose();
@@ -156,11 +183,10 @@ export default function BookingModal({ doctor, selectedSlot, isOpen, onClose }: 
             onClick={(e) => {
                 if (e.target === e.currentTarget) onClose();
             }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs overflow-y-auto font-['Tajawal']"
+            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/65 overflow-y-auto font-['Tajawal']"
             dir="rtl"
         >
-            <div className="relative w-full max-w-4xl max-h-[92vh] flex flex-col bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
-                {/* 1. FIXED MODAL HEADER */}
+            <div className="relative w-full max-w-4xl max-h-[92vh] flex flex-col bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-auto">
                 <BookingHeader
                     doctor={doctor}
                     selectedDayLabel={selectedDayLabel}
@@ -168,16 +194,14 @@ export default function BookingModal({ doctor, selectedSlot, isOpen, onClose }: 
                     onClose={onClose}
                 />
 
-                {/* 2. SCROLLABLE FORM BODY (2-Column Grid on Laptop/Desktop) */}
                 <form id="booking-modal-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 sm:p-7 overscroll-contain">
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                        {/* RIGHT COLUMN (8 cols): Interactive Step-by-Step Selection Flow */}
                         <div className="lg:col-span-8 space-y-6">
                             <BookingDateSelector
                                 selectedDayIso={selectedDayIso}
                                 onSelectDay={handleSelectDay}
                                 showCustomDatePicker={showCustomDatePicker}
-                                onToggleCustomPicker={() => setShowCustomDatePicker(!showCustomDatePicker)}
+                                onToggleCustomPicker={handleToggleCustomPicker}
                                 onCustomDateChange={handleCustomDateChange}
                             />
 
@@ -189,30 +213,12 @@ export default function BookingModal({ doctor, selectedSlot, isOpen, onClose }: 
                             />
 
                             <BookingPatientForm
-                                patientName={patientName}
-                                setPatientName={setPatientName}
-                                patientNationalId={patientNationalId}
-                                setPatientNationalId={setPatientNationalId}
-                                patientPhone={patientPhone}
-                                setPatientPhone={setPatientPhone}
-                                patientNotes={patientNotes}
-                                setPatientNotes={setPatientNotes}
+                                initialValues={initialPatientValues}
+                                valuesRef={patientValuesRef}
                                 errors={errors}
-                            />
-
-                            <BookingPaymentSelector
-                                paymentMethod={paymentMethod}
-                                setPaymentMethod={setPaymentMethod}
-                                insuranceProvider={insuranceProvider}
-                                setInsuranceProvider={setInsuranceProvider}
-                                insurancePolicyNumber={insurancePolicyNumber}
-                                setInsurancePolicyNumber={setInsurancePolicyNumber}
-                                notifyWhatsapp={notifyWhatsapp}
-                                setNotifyWhatsapp={setNotifyWhatsapp}
                             />
                         </div>
 
-                        {/* LEFT COLUMN (4 cols): Sticky Summary Card on Desktop */}
                         <BookingSummarySidebar
                             doctor={doctor}
                             selectedDayLabel={selectedDayLabel}
@@ -220,14 +226,13 @@ export default function BookingModal({ doctor, selectedSlot, isOpen, onClose }: 
                             fee={fee}
                             vat={vat}
                             totalAmount={totalAmount}
-                            isInsurance={isInsurance}
+                            isInsurance={false}
                         />
                     </div>
                 </form>
 
-                {/* 3. FIXED BOTTOM ACTION BAR (Never cut off, always visible) */}
                 <BookingFooter
-                    isInsurance={isInsurance}
+                    isInsurance={false}
                     totalAmount={totalAmount}
                     submitting={submitting}
                     onClose={onClose}

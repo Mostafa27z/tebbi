@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { router } from '@inertiajs/react';
-import { Modal } from '@/components/common/modal';
-import { FormInput } from '@/components/common/form-input';
+import { Modal, FormInput, FormTextarea, ModalFooter } from '@/components/common';
 import { Save } from 'lucide-react';
 
 interface PrescriptionModalProps {
@@ -10,7 +9,7 @@ interface PrescriptionModalProps {
     currentSession: any;
 }
 
-export const PrescriptionModal: React.FC<PrescriptionModalProps> = ({
+export const PrescriptionModal: React.FC<PrescriptionModalProps> = React.memo(({
     isOpen,
     onClose,
     currentSession,
@@ -76,47 +75,32 @@ export const PrescriptionModal: React.FC<PrescriptionModalProps> = ({
                     onChange={(e) => setDiagnosis(e.target.value)}
                 />
 
-                <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">تعليمات وتوصيات للمريض</label>
-                    <textarea
-                        rows={3}
-                        placeholder="تعليمات ما بعد الكشف..."
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-emerald-600 focus:outline-hidden"
-                    />
-                </div>
+                <FormTextarea
+                    label="تعليمات وتوصيات للمريض"
+                    rows={3}
+                    placeholder="تعليمات ما بعد الكشف..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                />
 
-                <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">الأدوية والوصفة الطبية (اختياري)</label>
-                    <textarea
-                        rows={2}
-                        placeholder="أدخل أسماء الأدوية الموصوفة والجرعات (اختياري)..."
-                        value={medicationsText}
-                        onChange={(e) => setMedicationsText(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-emerald-600 focus:outline-hidden"
-                    />
-                </div>
+                <FormTextarea
+                    label="الأدوية والوصفة الطبية (اختياري)"
+                    rows={2}
+                    placeholder="أدخل أسماء الأدوية الموصوفة والجرعات (اختياري)..."
+                    value={medicationsText}
+                    onChange={(e) => setMedicationsText(e.target.value)}
+                />
 
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-bold text-xs"
-                    >
-                        إلغاء
-                    </button>
-                    <button
-                        type="submit"
-                        disabled={submitting}
-                        className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 disabled:opacity-50"
-                    >
-                        <Save className="w-4 h-4" />
-                        <span>{submitting ? 'جارٍ الحفظ...' : 'تأكيد وحفظ الكشف'}</span>
-                    </button>
-                </div>
+                <ModalFooter
+                    onCancel={onClose}
+                    loading={submitting}
+                    loadingText="جارٍ الحفظ..."
+                    submitText="تأكيد وحفظ الكشف"
+                    submitVariant="emerald"
+                    submitIcon={<Save className="w-4 h-4" />}
+                />
             </form>
         </Modal>
     );
-};
-
+});
+PrescriptionModal.displayName = 'PrescriptionModal';

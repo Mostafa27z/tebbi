@@ -1,34 +1,57 @@
-import React from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { User, CreditCard, Stethoscope, AlertCircle } from 'lucide-react';
 import { InternationalPhoneInput } from '@/components/common/international-phone-input';
 
-interface BookingPatientFormProps {
+export interface PatientFormValues {
     patientName: string;
-    setPatientName: (name: string) => void;
     patientNationalId: string;
-    setPatientNationalId: (nid: string) => void;
     patientPhone: string;
-    setPatientPhone: (phone: string) => void;
     patientNotes: string;
-    setPatientNotes: (notes: string) => void;
+}
+
+interface BookingPatientFormProps {
+    initialValues: PatientFormValues;
+    valuesRef: React.MutableRefObject<PatientFormValues>;
     errors: { [key: string]: string };
 }
 
-export const BookingPatientForm: React.FC<BookingPatientFormProps> = ({
-    patientName,
-    setPatientName,
-    patientNationalId,
-    setPatientNationalId,
-    patientPhone,
-    setPatientPhone,
-    patientNotes,
-    setPatientNotes,
+export const BookingPatientForm: React.FC<BookingPatientFormProps> = memo(function BookingPatientForm({
+    initialValues,
+    valuesRef,
     errors,
-}) => {
+}) {
+    const [patientName, setPatientName] = useState(initialValues.patientName);
+    const [patientNationalId, setPatientNationalId] = useState(initialValues.patientNationalId);
+    const [patientPhone, setPatientPhone] = useState(initialValues.patientPhone);
+    const [patientNotes, setPatientNotes] = useState(initialValues.patientNotes);
+
+    const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        setPatientName(val);
+        valuesRef.current.patientName = val;
+    }, [valuesRef]);
+
+    const handleNationalIdChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        setPatientNationalId(val);
+        valuesRef.current.patientNationalId = val;
+    }, [valuesRef]);
+
+    const handlePhoneChange = useCallback((fullNum: string) => {
+        setPatientPhone(fullNum);
+        valuesRef.current.patientPhone = fullNum;
+    }, [valuesRef]);
+
+    const handleNotesChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        setPatientNotes(val);
+        valuesRef.current.patientNotes = val;
+    }, [valuesRef]);
+
     return (
         <div className="bg-gray-50/70 p-4 sm:p-5 rounded-3xl border border-gray-200/80 space-y-4">
             <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-blue-100 text-[#005ab5] flex items-center justify-center font-black text-xs font-['Cairo'] shadow-xs">
+                <div className="w-8 h-8 rounded-xl bg-blue-100 text-[#005ab5] flex items-center justify-center font-black text-xs font-['Cairo']">
                     3
                 </div>
                 <div>
@@ -40,7 +63,6 @@ export const BookingPatientForm: React.FC<BookingPatientFormProps> = ({
             </div>
 
             <div className="space-y-3.5">
-                {/* Patient Full Name */}
                 <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1.5 font-['Cairo']">
                         الاسم الثلاثي للمريض <span className="text-red-500">*</span>
@@ -53,9 +75,9 @@ export const BookingPatientForm: React.FC<BookingPatientFormProps> = ({
                             type="text"
                             required
                             value={patientName}
-                            onChange={(e) => setPatientName(e.target.value)}
-                            placeholder="محمد فهد الدوسري"
-                            className="w-full h-12 pr-11 pl-4 rounded-2xl border border-gray-200 hover:border-gray-300 text-xs sm:text-sm font-semibold bg-white focus:ring-2 focus:ring-[#005ab5]/20 focus:border-[#005ab5] focus:outline-hidden transition-all shadow-2xs"
+                            onChange={handleNameChange}
+                            placeholder="الاسم الثلاثي كما في الهوية"
+                            className="w-full h-12 pr-11 pl-4 rounded-2xl border border-gray-200 hover:border-gray-300 text-xs sm:text-sm font-semibold bg-white focus:border-[#005ab5] focus:outline-none transition-colors"
                         />
                     </div>
                     {errors.name && (
@@ -66,7 +88,6 @@ export const BookingPatientForm: React.FC<BookingPatientFormProps> = ({
                     )}
                 </div>
 
-                {/* National ID & International Phone Input */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-start">
                     <div>
                         <label className="block text-xs font-bold text-gray-700 mb-1.5 font-['Cairo']">
@@ -80,9 +101,9 @@ export const BookingPatientForm: React.FC<BookingPatientFormProps> = ({
                                 type="text"
                                 required
                                 value={patientNationalId}
-                                onChange={(e) => setPatientNationalId(e.target.value)}
+                                onChange={handleNationalIdChange}
                                 placeholder="10xxxxxxxx"
-                                className="w-full h-12 pr-11 pl-4 rounded-2xl border border-gray-200 hover:border-gray-300 text-xs sm:text-sm font-mono text-left bg-white focus:ring-2 focus:ring-[#005ab5]/20 focus:border-[#005ab5] focus:outline-hidden transition-all shadow-2xs"
+                                className="w-full h-12 pr-11 pl-4 rounded-2xl border border-gray-200 hover:border-gray-300 text-xs sm:text-sm font-mono text-left bg-white focus:border-[#005ab5] focus:outline-none transition-colors"
                                 dir="ltr"
                             />
                         </div>
@@ -98,12 +119,11 @@ export const BookingPatientForm: React.FC<BookingPatientFormProps> = ({
                         label="رقم الجوال (تنبيهات الواتساب)"
                         required
                         value={patientPhone}
-                        onChange={(fullNum) => setPatientPhone(fullNum)}
+                        onChange={handlePhoneChange}
                         error={errors.phone}
                     />
                 </div>
 
-                {/* Optional Symptoms / Notes */}
                 <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1.5 font-['Cairo']">
                         ملاحظات أو أعراض طبية (اختياري)
@@ -115,13 +135,13 @@ export const BookingPatientForm: React.FC<BookingPatientFormProps> = ({
                         <input
                             type="text"
                             value={patientNotes}
-                            onChange={(e) => setPatientNotes(e.target.value)}
+                            onChange={handleNotesChange}
                             placeholder="مثال: آلام في المفاصل منذ 3 أيام..."
-                            className="w-full h-12 pr-11 pl-4 rounded-2xl border border-gray-200 hover:border-gray-300 text-xs sm:text-sm font-medium bg-white focus:ring-2 focus:ring-[#005ab5]/20 focus:border-[#005ab5] focus:outline-hidden transition-all shadow-2xs"
+                            className="w-full h-12 pr-11 pl-4 rounded-2xl border border-gray-200 hover:border-gray-300 text-xs sm:text-sm font-medium bg-white focus:border-[#005ab5] focus:outline-none transition-colors"
                         />
                     </div>
                 </div>
             </div>
         </div>
     );
-};
+});

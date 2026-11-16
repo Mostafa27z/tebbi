@@ -1,21 +1,52 @@
 import React, { useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
-import { Modal } from '@/components/common/modal';
-import { FormInput } from '@/components/common/form-input';
-import { LoadingButton } from '@/components/common/loading-button';
+import {
+    Modal,
+    FormInput,
+    SurfaceCard,
+    ModalFooter,
+    ChoicePillGroup,
+    InfoBanner,
+} from '@/components/common';
 import { Group } from '../types';
+import { Globe, Sparkles } from 'lucide-react';
 
 interface GroupModalProps {
     isOpen: boolean;
     onClose: () => void;
-    editingGroup: Group | null;
+    editingGroup?: Group | null;
+    group?: Group | null;
 }
 
-export const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, editingGroup }) => {
+const STATUS_OPTIONS = [
+    {
+        value: 'active' as const,
+        label: 'نشط وفعال',
+        dotColor: 'bg-emerald-500',
+        activeTone: 'emerald' as const,
+    },
+    {
+        value: 'suspended' as const,
+        label: 'معلّق مؤقتاً',
+        dotColor: 'bg-red-500',
+        activeTone: 'danger' as const,
+    },
+];
+
+export const GroupModal: React.FC<GroupModalProps> = React.memo(({
+    isOpen,
+    onClose,
+    editingGroup,
+    group,
+}) => {
+    const currentGroup = editingGroup || group || null;
+
     const { data, setData, post, put, processing, errors, reset } = useForm({
         name_ar: '',
         name_en: '',
+        slug: '',
         cr_number: '',
+        status: 'active' as 'active' | 'suspended',
         create_admin: false as boolean,
         admin_name: '',
         admin_email: '',
@@ -23,27 +54,66 @@ export const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, editing
         admin_phone: '',
     });
 
+    const [customSlugEdited, setCustomSlugEdited] = React.useState(false);
+
+    const slugify = (text: string) => {
+        return text
+            .toString()
+            .toLowerCase()
+            .trim()
+            .replace(/\s+/g, '-')
+            .replace(/[^\w\u0621-\u064A\-]+/g, '')
+            .replace(/\-\-+/g, '-')
+            .replace(/^-+/, '')
+            .replace(/-+$/, '');
+    };
+
     useEffect(() => {
-        if (editingGroup) {
+        if (currentGroup) {
             setData({
-                name_ar: editingGroup.name_ar,
-                name_en: editingGroup.name_en || '',
-                cr_number: editingGroup.cr_number || '',
+                name_ar: currentGroup.name_ar || '',
+                name_en: currentGroup.name_en || '',
+                slug: currentGroup.slug || '',
+                cr_number: currentGroup.cr_number || '',
+                status: currentGroup.status === 'suspended' ? 'suspended' : 'active',
                 create_admin: false,
                 admin_name: '',
                 admin_email: '',
                 admin_password: '',
                 admin_phone: '',
             });
+            setCustomSlugEdited(true);
         } else {
             reset();
+            setData('status', 'active');
+            setCustomSlugEdited(false);
         }
-    }, [editingGroup, isOpen]);
+    }, [currentGroup, isOpen]);
+
+    const handleNameArChange = (val: string) => {
+        setData((prev) => {
+            const next = { ...prev, name_ar: val };
+            if (!customSlugEdited && !currentGroup) {
+                next.slug = slugify(prev.name_en || val);
+            }
+            return next;
+        });
+    };
+
+    const handleNameEnChange = (val: string) => {
+        setData((prev) => {
+            const next = { ...prev, name_en: val };
+            if (!customSlugEdited && !currentGroup) {
+                next.slug = slugify(val || prev.name_ar);
+            }
+            return next;
+        });
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (editingGroup) {
-            put(`/admin/groups/${editingGroup.id}`, {
+        if (currentGroup) {
+            put(`/admin/groups/${currentGroup.id}`, {
                 onSuccess: () => {
                     onClose();
                     reset();
@@ -63,17 +133,17 @@ export const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, editing
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title={editingGroup ? `تعديل المجمع الطبي (${editingGroup.name_ar})` : 'إضافة مجمع طبي جديد'}
-            description="إدارة المجمعات والمنظومات الطبية الرئيسية في المنصة"
+            title={currentGroup ? `تعديل المجمع الطبي (${currentGroup.name_ar})` : 'إضافة مجمع طبي جديد'}
+            description="إدارة المجمعات والمنظومات الطبية الرئيسية في المنصة وتحديث بياناتها الرسمية"
             maxWidth="lg"
         >
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4 font-['Tajawal']" dir="rtl">
                 <FormInput
                     label="اسم المجمع الطبي (بالعربية)"
                     required
                     placeholder="مثال: مجموعة د. سليمان الحبيب الطبية"
                     value={data.name_ar}
-                    onChange={(e) => setData('name_ar', e.target.value)}
+                    onChange={(e) => handleNameArChange(e.target.value)}
                     error={errors.name_ar}
                 />
 
@@ -81,10 +151,41 @@ export const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, editing
                     label="اسم المجمع (بالإنجليزية)"
                     placeholder="e.g. Dr. Sulaiman Al Habib Medical Group"
                     value={data.name_en}
-                    onChange={(e) => setData('name_en', e.target.value)}
+                    onChange={(e) => handleNameEnChange(e.target.value)}
                     error={errors.name_en}
                     dir="ltr"
                 />
+
+                <div className="space-y-2">
+                    <FormInput
+                        label={
+                            <span className="inline-flex items-center gap-1.5">
+                                <Globe className="w-3.5 h-3.5 text-[#005ab5]" />
+                                <span>رابط صفحة المجمع المخصصة (Slug)</span>
+                            </span>
+                        }
+                        labelAction="اسم مخصص للترويج واستعراض الأطباء"
+                        value={data.slug}
+                        onChange={(e) => {
+                            setCustomSlugEdited(true);
+                            setData('slug', slugify(e.target.value));
+                        }}
+                        placeholder="habeeb-medical-group"
+                        dir="ltr"
+                        className="font-mono text-xs"
+                        error={errors.slug}
+                    />
+
+                    <InfoBanner
+                        variant="blue"
+                        icon={<Sparkles className="w-3.5 h-3.5 text-amber-500" />}
+                    >
+                        <span className="text-[11px] text-slate-500 ml-1.5">معاينة رابط الصفحة:</span>
+                        <span className="font-mono font-bold text-[11px] text-[#005ab5]" dir="ltr">
+                            {typeof window !== 'undefined' ? window.location.origin : 'https://tebiby.com'}/group/{data.slug || 'your-group-name'}
+                        </span>
+                    </InfoBanner>
+                </div>
 
                 <FormInput
                     label="رقم السجل التجاري"
@@ -95,8 +196,16 @@ export const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, editing
                     dir="ltr"
                 />
 
-                {!editingGroup && (
-                    <div className="pt-3 border-t border-gray-100 space-y-3">
+                {currentGroup ? (
+                    <ChoicePillGroup
+                        label="حالة تفعيل المنظومة الطبية"
+                        value={data.status}
+                        onChange={(val) => setData('status', val)}
+                        options={STATUS_OPTIONS}
+                        columns={2}
+                    />
+                ) : (
+                    <div className="pt-3 border-t border-slate-100 space-y-3">
                         <label className="flex items-center gap-2 cursor-pointer select-none">
                             <input
                                 type="checkbox"
@@ -104,13 +213,13 @@ export const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, editing
                                 onChange={(e) => setData('create_admin', e.target.checked)}
                                 className="rounded text-[#005ab5] focus:ring-[#005ab5]"
                             />
-                            <span className="text-xs font-bold text-gray-700">
+                            <span className="text-xs font-bold text-slate-700 font-['Cairo']">
                                 إنشاء وتعيين حساب مدير للمجمع الآن
                             </span>
                         </label>
 
                         {data.create_admin && (
-                            <div className="p-3.5 rounded-2xl bg-blue-50/50 border border-blue-100 space-y-3">
+                            <SurfaceCard variant="blue" padding="sm" rounded="2xl" className="space-y-3">
                                 <FormInput
                                     label="اسم المدير"
                                     required
@@ -141,30 +250,18 @@ export const GroupModal: React.FC<GroupModalProps> = ({ isOpen, onClose, editing
                                         dir="ltr"
                                     />
                                 </div>
-                            </div>
+                            </SurfaceCard>
                         )}
                     </div>
                 )}
 
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        disabled={processing}
-                        className="px-4 py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                        إلغاء
-                    </button>
-                    <LoadingButton
-                        type="submit"
-                        loading={processing}
-                        className="font-['Cairo']"
-                    >
-                        {editingGroup ? 'تحديث البيانات' : 'حفظ واعتماد المجمع'}
-                    </LoadingButton>
-                </div>
+                <ModalFooter
+                    onCancel={onClose}
+                    loading={processing}
+                    submitText={currentGroup ? 'حفظ التعديلات' : 'حفظ واعتماد المجمع'}
+                />
             </form>
         </Modal>
     );
-};
-
+});
+GroupModal.displayName = 'GroupModal';

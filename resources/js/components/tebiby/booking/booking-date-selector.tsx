@@ -11,7 +11,7 @@ interface BookingDateSelectorProps {
     onCustomDateChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-export const BookingDateSelector: React.FC<BookingDateSelectorProps> = ({
+export const BookingDateSelector: React.FC<BookingDateSelectorProps> = React.memo(({
     selectedDayIso,
     onSelectDay,
     showCustomDatePicker,
@@ -69,9 +69,9 @@ export const BookingDateSelector: React.FC<BookingDateSelectorProps> = ({
                             type="button"
                             onClick={() => onSelectDay(day.iso, day.fullFormatted)}
                             className={cn(
-                                'p-3 rounded-2xl border text-center transition-all cursor-pointer select-none flex flex-col items-center justify-between min-h-[76px]',
+                                'p-3 rounded-2xl border text-center transition-colors cursor-pointer select-none flex flex-col items-center justify-between min-h-[76px]',
                                 isSelected
-                                    ? 'bg-[#005ab5] border-[#005ab5] text-white shadow-md shadow-blue-600/25 scale-[1.02]'
+                                    ? 'bg-[#005ab5] border-[#005ab5] text-white shadow-sm'
                                     : 'bg-white hover:bg-gray-100/80 border-gray-200 hover:border-gray-300 text-gray-700'
                             )}
                         >
@@ -93,4 +93,5 @@ export const BookingDateSelector: React.FC<BookingDateSelectorProps> = ({
             </div>
         </div>
     );
-};
+});
+BookingDateSelector.displayName = 'BookingDateSelector';

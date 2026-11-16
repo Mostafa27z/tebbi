@@ -16,7 +16,8 @@ import {
     Ticket,
     Activity,
     ShieldCheck,
-    UserCheck
+    UserCheck,
+    QrCode
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -36,6 +37,7 @@ interface FacilityDashboardLayoutProps {
         receptionists?: number;
     };
     onOpenWalkInModal?: () => void;
+    onOpenQrModal?: () => void;
 }
 
 export const FacilityDashboardLayout: React.FC<FacilityDashboardLayoutProps> = ({
@@ -46,6 +48,7 @@ export const FacilityDashboardLayout: React.FC<FacilityDashboardLayoutProps> = (
     branchName,
     counts,
     onOpenWalkInModal,
+    onOpenQrModal,
 }) => {
     const { url, props } = usePage();
     const user = (props as any).auth?.user || {};
@@ -332,7 +335,19 @@ export const FacilityDashboardLayout: React.FC<FacilityDashboardLayoutProps> = (
                     </div>
 
                     {/* Top Actions */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2.5">
+                        {onOpenQrModal && (
+                            <button
+                                type="button"
+                                onClick={onOpenQrModal}
+                                className="px-3.5 py-2.5 rounded-2xl bg-blue-50 hover:bg-blue-100 text-[#005ab5] border border-blue-200/80 font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-2xs"
+                                title="عرض وطباعة كود QR الحضور الذكي للمنشأة"
+                            >
+                                <QrCode className="w-4 h-4" />
+                                <span className="hidden md:inline">كود QR الحضور</span>
+                            </button>
+                        )}
+
                         {onOpenWalkInModal && (
                             <button
                                 type="button"

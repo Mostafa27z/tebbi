@@ -71,10 +71,13 @@ class HomeController extends Controller
 
     public function specialties(): Response
     {
-        $specialties = Specialty::withCount('doctorProfiles')->get()->map(function ($spec) {
-            $facilitiesCount = Facility::whereHas('doctorProfiles', function ($q) use ($spec) {
-                $q->where('specialty_id', $spec->id);
-            })->count();
+        $facilityCountsBySpecialty = DoctorProfile::selectRaw('specialty_id, COUNT(DISTINCT clinic_id) as facilities_count')
+            ->whereNotNull('clinic_id')
+            ->groupBy('specialty_id')
+            ->pluck('facilities_count', 'specialty_id');
+
+        $specialties = Specialty::withCount('doctorProfiles')->get()->map(function ($spec) use ($facilityCountsBySpecialty) {
+            $facilitiesCount = (int) ($facilityCountsBySpecialty[$spec->id] ?? 0);
 
             return [
                 'id' => $spec->id,
@@ -83,8 +86,8 @@ class HomeController extends Controller
                 'icon_slug' => $spec->icon_slug,
                 'badge_text' => $spec->badge_text,
                 'description' => $spec->description,
-                'doctors_count' => $spec->doctor_profiles_count,
-                'facilities_count' => max(1, $facilitiesCount),
+                'doctors_count' => (int) $spec->doctor_profiles_count,
+                'facilities_count' => $facilitiesCount,
             ];
         });
 

@@ -162,9 +162,12 @@ class AdminDashboardController extends Controller
         $clinicsCount = Facility::where('type', 'clinic')->count();
         $verifiedFacilitiesCount = Facility::where('is_verified', true)->count();
 
+        $allUsers = User::select('id', 'name', 'email', 'phone')->orderBy('name')->get();
+
         return Inertia::render('admin/clinics', [
             'clinics' => $clinics,
             'groups' => $groups,
+            'allUsers' => $allUsers,
             'metrics' => [
                 'total' => $totalHospitals,
                 'hospitals' => $hospitalsCount,
@@ -321,6 +324,7 @@ class AdminDashboardController extends Controller
         $validated = $request->validate([
             'name_ar' => 'required|string|max:255',
             'name_en' => 'nullable|string|max:255',
+            'slug' => 'nullable|string|max:100|unique:groups,slug',
             'cr_number' => 'nullable|string|max:50',
             'create_admin' => 'nullable|boolean',
             'admin_name' => 'nullable|required_if:create_admin,true|string|max:255',
@@ -329,10 +333,22 @@ class AdminDashboardController extends Controller
             'admin_phone' => 'nullable|string|max:30',
         ]);
 
+        $rawSlug = $request->input('slug') ?: ($validated['name_en'] ?? $validated['name_ar']);
+        $baseSlug = Str::slug($rawSlug);
+        if (empty($baseSlug)) {
+            $baseSlug = 'medical-group';
+        }
+        $slug = $baseSlug;
+        $counter = 1;
+        while (Group::where('slug', $slug)->exists()) {
+            $slug = "{$baseSlug}-{$counter}";
+            $counter++;
+        }
+
         $group = Group::create([
             'name_ar' => $validated['name_ar'],
             'name_en' => $validated['name_en'] ?? null,
-            'slug' => 'grp-' . Str::slug($validated['name_ar']) . '-' . Str::lower(Str::random(6)),
+            'slug' => $slug,
             'cr_number' => $validated['cr_number'] ?? null,
             'status' => 'active',
         ]);
@@ -362,9 +378,14 @@ class AdminDashboardController extends Controller
         $validated = $request->validate([
             'name_ar' => 'required|string|max:255',
             'name_en' => 'nullable|string|max:255',
+            'slug' => ['nullable', 'string', 'max:100', \Illuminate\Validation\Rule::unique('groups', 'slug')->ignore($group->id)],
             'cr_number' => 'nullable|string|max:50',
             'status' => 'nullable|in:active,suspended',
         ]);
+
+        if ($request->filled('slug')) {
+            $validated['slug'] = Str::slug($request->input('slug'));
+        }
 
         $group->update($validated);
 
@@ -374,7 +395,8 @@ class AdminDashboardController extends Controller
     public function deleteGroup(Group $group): RedirectResponse
     {
         if ($group->facilities()->count() > 0) {
-            return back()->withErrors(['group' => 'لا يمكن حذف المجمع الطبي لوجود مستشفيات أو عيادات مرتبطة به.']);
+            return back()->with('error', 'لا يمكن حذف المجمع الطبي لوجود منشآت طبية تابعة له، يرجى حذف أو نقل الفروع أولاً.')
+                ->withErrors(['group' => 'لا يمكن حذف المجمع الطبي لوجود مستشفيات أو عيادات مرتبطة به.']);
         }
 
         $group->delete();
@@ -491,9 +513,15 @@ class AdminDashboardController extends Controller
             'district' => 'required|string|max:100',
             'address' => 'required|string|max:255',
             'phone' => 'nullable|string|max:30',
+            'admin_mode' => 'nullable|in:none,existing,new',
+            'admin_user_id' => 'nullable|exists:users,id',
+            'admin_name' => 'nullable|string|max:255',
+            'admin_email' => 'nullable|email|max:255',
+            'admin_password' => 'nullable|string|min:6',
+            'admin_phone' => 'nullable|string|max:30',
         ]);
 
-        Clinic::create([
+        $clinic = Clinic::create([
             'name' => $validated['name'],
             'branch_name' => $validated['branch_name'] ?? 'الفرع الرئيسي',
             'group_id' => $validated['group_id'] ?? null,
@@ -503,10 +531,37 @@ class AdminDashboardController extends Controller
             'address' => $validated['address'],
             'phone' => $validated['phone'] ?? '+966110000000',
             'is_active' => true,
-            'is_verified' => false,
+            'is_verified' => true,
         ]);
 
-        return back()->with('success', 'تم إضافة المنشأة الطبية الجديدة بنجاح (قيد التدقيق).');
+        $adminMode = $validated['admin_mode'] ?? 'none';
+        if ($adminMode === 'existing' && !empty($validated['admin_user_id'])) {
+            RoleAssignment::firstOrCreate([
+                'user_id' => $validated['admin_user_id'],
+                'role' => 'facility_admin',
+                'scope_type' => 'facility',
+                'scope_id' => $clinic->id,
+            ]);
+        } elseif ($adminMode === 'new' && !empty($validated['admin_email'])) {
+            $adminUser = User::firstOrCreate(
+                ['email' => $validated['admin_email']],
+                [
+                    'name' => $validated['admin_name'] ?? 'مدير المنشأة',
+                    'password' => Hash::make($validated['admin_password'] ?? 'password123'),
+                    'phone' => $validated['admin_phone'] ?? '+966500000000',
+                    'role' => 'patient',
+                ]
+            );
+
+            RoleAssignment::firstOrCreate([
+                'user_id' => $adminUser->id,
+                'role' => 'facility_admin',
+                'scope_type' => 'facility',
+                'scope_id' => $clinic->id,
+            ]);
+        }
+
+        return back()->with('success', "تم إضافة المنشأة الطبية ({$clinic->name}) وتعيين الصلاحيات الإدارية بنجاح.");
     }
 
     public function updateClinic(Request $request, Clinic $clinic): RedirectResponse

@@ -1,6 +1,8 @@
 import React from 'react';
-import { Search, X, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { CustomSelect } from './custom-select';
+import { SearchBox } from './search-box';
+import { AppButton, AppButtonVariant } from './loading-button';
 import { cn } from '@/lib/utils';
 
 export interface ToolbarFilterOption {
@@ -25,12 +27,12 @@ export interface TableToolbarProps {
     actionLabel?: string;
     onAction?: () => void;
     actionIcon?: React.ReactNode;
-    actionVariant?: 'primary' | 'secondary' | 'emerald';
+    actionVariant?: AppButtonVariant;
     className?: string;
     children?: React.ReactNode;
 }
 
-export const TableToolbar: React.FC<TableToolbarProps> = ({
+export const TableToolbar: React.FC<TableToolbarProps> = React.memo(({
     search,
     onSearchChange,
     searchPlaceholder = 'ابحث هنا...',
@@ -42,12 +44,6 @@ export const TableToolbar: React.FC<TableToolbarProps> = ({
     className,
     children,
 }) => {
-    const actionBgClasses = {
-        primary: 'bg-[#005ab5] hover:bg-[#00458e] text-white shadow-blue-500/20',
-        secondary: 'bg-gray-100 hover:bg-gray-200 text-gray-800 shadow-gray-400/20',
-        emerald: 'bg-[#006b5c] hover:bg-[#005549] text-white shadow-emerald-600/20',
-    };
-
     return (
         <div
             className={cn(
@@ -58,27 +54,12 @@ export const TableToolbar: React.FC<TableToolbarProps> = ({
         >
             {/* Search Input & Select Filters */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1">
-                {/* Search Box */}
-                <div className="relative flex-1 min-w-[200px]">
-                    <Search className="w-4 h-4 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                        type="text"
-                        placeholder={searchPlaceholder}
-                        value={search}
-                        onChange={(e) => onSearchChange(e.target.value)}
-                        className="w-full h-11 pr-10 pl-9 rounded-2xl bg-white border border-gray-200 text-xs font-medium focus:ring-2 focus:ring-[#005ab5] focus:outline-hidden transition-all shadow-xs"
-                    />
-                    {search && (
-                        <button
-                            type="button"
-                            onClick={() => onSearchChange('')}
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
-                            title="مسح البحث"
-                        >
-                            <X className="w-3.5 h-3.5" />
-                        </button>
-                    )}
-                </div>
+                <SearchBox
+                    value={search}
+                    onChange={onSearchChange}
+                    placeholder={searchPlaceholder}
+                    containerClassName="flex-1 min-w-[200px]"
+                />
 
                 {/* Filter Dropdowns */}
                 {filters.map((filter) => (
@@ -100,20 +81,17 @@ export const TableToolbar: React.FC<TableToolbarProps> = ({
                 {children}
 
                 {actionLabel && onAction && (
-                    <button
+                    <AppButton
                         type="button"
+                        variant={actionVariant}
+                        icon={actionIcon}
                         onClick={onAction}
-                        className={cn(
-                            'px-5 h-11 rounded-2xl font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer whitespace-nowrap active:scale-[0.98]',
-                            actionBgClasses[actionVariant]
-                        )}
                     >
-                        {actionIcon}
-                        <span>{actionLabel}</span>
-                    </button>
+                        {actionLabel}
+                    </AppButton>
                 )}
             </div>
         </div>
     );
-};
-
+});
+TableToolbar.displayName = 'TableToolbar';

@@ -20,7 +20,7 @@ use Inertia\Response;
 
 class GroupDashboardController extends Controller
 {
-    public function index(Request $request): Response
+    private function getGroupBaseData(Request $request): array
     {
         $user = $request->user();
         if (!$user->isSuperAdmin() && !$user->isGroupAdmin()) {
@@ -31,7 +31,10 @@ class GroupDashboardController extends Controller
         $groupIds = $resolver->accessibleGroupIds($user);
         $groups = Group::whereIn('id', $groupIds)->with(['facilities.admins'])->get();
 
-        $primaryGroup = $groups->first();
+        $requestedGroupId = $request->input('group_id') ?? $request->query('group_id');
+        $primaryGroup = $requestedGroupId
+            ? ($groups->firstWhere('id', (int) $requestedGroupId) ?? $groups->first())
+            : $groups->first();
         if (!$primaryGroup) {
             abort(404, 'لا يوجد مجمع طبي مرتبط بحسابك.');
         }
@@ -90,7 +93,36 @@ class GroupDashboardController extends Controller
             ];
         });
 
-        return Inertia::render('group/dashboard', [
+        $specialties = Specialty::orderBy('id')
+            ->get()
+            ->unique('name_ar')
+            ->values()
+            ->map(function ($spec) use ($doctors, $facilities) {
+                $groupDocCount = $doctors->filter(function ($d) use ($spec) {
+                    return $d->specialty_id === $spec->id
+                        || ($d->specialty && $d->specialty->name_ar === $spec->name_ar);
+                })->count();
+
+                $matchingFacilityIds = $facilities->filter(function ($f) use ($spec, $doctors) {
+                    $settingsIds = is_array($f->settings) ? ($f->settings['specialty_ids'] ?? []) : [];
+                    if (in_array($spec->id, $settingsIds)) {
+                        return true;
+                    }
+                    return $doctors->contains(function ($d) use ($f, $spec) {
+                        $inFac = (int) $d->clinic_id === (int) $f->id
+                            || ($d->doctorFacilities && $d->doctorFacilities->contains('facility_id', $f->id));
+                        $inSpec = $d->specialty_id === $spec->id
+                            || ($d->specialty && $d->specialty->name_ar === $spec->name_ar);
+                        return $inFac && $inSpec;
+                    });
+                })->pluck('id')->values()->all();
+
+                $spec->group_doctors_count = $groupDocCount;
+                $spec->facility_ids = $matchingFacilityIds;
+                return $spec;
+            });
+
+        return [
             'group' => $primaryGroup,
             'groups' => $groups,
             'metrics' => [
@@ -98,14 +130,45 @@ class GroupDashboardController extends Controller
                 'hospitalsCount' => $hospitalsCount,
                 'clinicsCount' => $clinicsCount,
                 'doctorsCount' => $doctorsCount,
+                'specialtiesCount' => $specialties->count(),
                 'todayAppointments' => $todayAppointments,
                 'totalRevenue' => number_format($totalRevenue, 0) . ' ر.س',
             ],
             'facilities' => $facilities,
             'doctors' => $doctors,
-            'specialties' => Specialty::orderBy('name_ar')->get(),
+            'specialties' => $specialties,
             'staffAssignments' => $staffAssignments,
-        ]);
+        ];
+    }
+
+    public function index(Request $request): Response
+    {
+        $data = $this->getGroupBaseData($request);
+        return Inertia::render('group/dashboard', $data);
+    }
+
+    public function facilities(Request $request): Response
+    {
+        $data = $this->getGroupBaseData($request);
+        return Inertia::render('group/facilities', $data);
+    }
+
+    public function doctors(Request $request): Response
+    {
+        $data = $this->getGroupBaseData($request);
+        return Inertia::render('group/doctors', $data);
+    }
+
+    public function specialties(Request $request): Response
+    {
+        $data = $this->getGroupBaseData($request);
+        return Inertia::render('group/specialties', $data);
+    }
+
+    public function staff(Request $request): Response
+    {
+        $data = $this->getGroupBaseData($request);
+        return Inertia::render('group/staff', $data);
     }
 
     public function storeDoctor(Request $request, Group $group): RedirectResponse
@@ -186,7 +249,17 @@ class GroupDashboardController extends Controller
             'district' => 'required|string|max:100',
             'address' => 'required|string|max:255',
             'phone' => 'nullable|string|max:30',
+            'specialty_ids' => 'nullable|array',
+            'sectors' => 'nullable|array',
         ]);
+
+        $settings = [];
+        if (!empty($validated['specialty_ids'])) {
+            $settings['specialty_ids'] = array_values(array_unique(array_map('intval', $validated['specialty_ids'])));
+        }
+        if (!empty($validated['sectors'])) {
+            $settings['sectors'] = array_values(array_filter(array_map('trim', $validated['sectors'])));
+        }
 
         Facility::create([
             'group_id' => $group->id,
@@ -200,9 +273,117 @@ class GroupDashboardController extends Controller
             'phone' => $validated['phone'] ?? '+966110000000',
             'is_active' => true,
             'is_verified' => false,
+            'settings' => !empty($settings) ? $settings : null,
         ]);
 
         return back()->with('success', 'تم إضافة المنشأة الطبية الجديدة التابعة للمجمع بنجاح.');
+    }
+
+    public function storeSpecialty(Request $request, Group $group): RedirectResponse
+    {
+        $user = $request->user();
+        $resolver = new ScopeResolver();
+        if (!$resolver->canManageGroup($user, $group->id)) {
+            abort(403, 'غير مصرح لك بإضافة تخصصات لهذا المجمع.');
+        }
+
+        $validated = $request->validate([
+            'name_ar' => 'required|string|max:255',
+            'name_en' => 'nullable|string|max:255',
+            'badge_text' => 'nullable|string|max:100',
+            'description' => 'nullable|string|max:500',
+            'facility_ids' => 'nullable|array',
+        ]);
+
+        $specialty = Specialty::create([
+            'name_ar' => $validated['name_ar'],
+            'name_en' => $validated['name_en'] ?? '',
+            'icon_slug' => 'stethoscope',
+            'badge_text' => $validated['badge_text'] ?? 'قسم معتمد',
+            'description' => $validated['description'] ?? 'قسم طبي تخصصي معتمد بالمجمع الطبي.',
+        ]);
+
+        $targetFacilityIds = !empty($validated['facility_ids'])
+            ? array_map('intval', $validated['facility_ids'])
+            : Facility::where('group_id', $group->id)->pluck('id')->all();
+
+        $facilities = Facility::where('group_id', $group->id)
+            ->whereIn('id', $targetFacilityIds)
+            ->get();
+
+        foreach ($facilities as $fac) {
+            $settings = is_array($fac->settings) ? $fac->settings : [];
+            $ids = $settings['specialty_ids'] ?? [];
+            $ids[] = $specialty->id;
+            $settings['specialty_ids'] = array_values(array_unique(array_map('intval', $ids)));
+            $fac->update(['settings' => $settings]);
+        }
+
+        return back()->with('success', "تم إضافة القسم/التخصص الطبي ({$specialty->name_ar}) وربطه بمنشآت المجمع بنجاح.");
+    }
+
+    public function updateSpecialty(Request $request, Group $group, Specialty $specialty): RedirectResponse
+    {
+        $user = $request->user();
+        $resolver = new ScopeResolver();
+        if (!$resolver->canManageGroup($user, $group->id)) {
+            abort(403, 'غير مصرح لك بتعديل التخصصات.');
+        }
+
+        $validated = $request->validate([
+            'name_ar' => 'required|string|max:255',
+            'name_en' => 'nullable|string|max:255',
+            'badge_text' => 'nullable|string|max:100',
+            'description' => 'nullable|string|max:500',
+            'facility_ids' => 'nullable|array',
+        ]);
+
+        $specialty->update([
+            'name_ar' => $validated['name_ar'],
+            'name_en' => $validated['name_en'] ?? $specialty->name_en,
+            'badge_text' => $validated['badge_text'] ?? $specialty->badge_text,
+            'description' => $validated['description'] ?? $specialty->description,
+        ]);
+
+        if ($request->has('facility_ids') && is_array($validated['facility_ids'])) {
+            $selectedIds = array_map('intval', $validated['facility_ids']);
+            $groupFacilities = Facility::where('group_id', $group->id)->get();
+
+            foreach ($groupFacilities as $fac) {
+                $settings = is_array($fac->settings) ? $fac->settings : [];
+                $ids = $settings['specialty_ids'] ?? [];
+                if (in_array($fac->id, $selectedIds)) {
+                    $ids[] = $specialty->id;
+                } else {
+                    $ids = array_filter($ids, fn ($id) => (int) $id !== (int) $specialty->id);
+                }
+                $settings['specialty_ids'] = array_values(array_unique(array_map('intval', $ids)));
+                $fac->update(['settings' => $settings]);
+            }
+        }
+
+        return back()->with('success', "تم تحديث بيانات التخصص ({$specialty->name_ar}) بنجاح.");
+    }
+
+    public function syncFacilitySpecialties(Request $request, Group $group, Facility $facility): RedirectResponse
+    {
+        $user = $request->user();
+        $resolver = new ScopeResolver();
+        if (!$resolver->canManageGroup($user, $group->id) || (int) $facility->group_id !== (int) $group->id) {
+            abort(403, 'غير مصرح لك بتعديل أقسام هذه المنشأة.');
+        }
+
+        $settings = is_array($facility->settings) ? $facility->settings : [];
+        if ($request->has('specialty_ids') && is_array($request->input('specialty_ids'))) {
+            $settings['specialty_ids'] = array_values(array_unique(array_map('intval', $request->input('specialty_ids'))));
+        }
+        if ($request->has('sectors') && is_array($request->input('sectors'))) {
+            $settings['sectors'] = array_values(array_filter(array_map('trim', $request->input('sectors'))));
+        }
+
+        $facility->update(['settings' => $settings]);
+
+        return back()->with('success', "تم تحديث التخصصات والقطاعات الطبية لمنشأة ({$facility->name}) بنجاح.");
     }
 
     public function storeFacilityStaff(Request $request, Group $group): RedirectResponse

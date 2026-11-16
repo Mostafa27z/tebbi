@@ -48,6 +48,7 @@ class PatientPortalController extends Controller
 
             return array_merge($appt->toArray(), [
                 'clinic_location' => $facility ? [
+                    'id' => $facility->id,
                     'name' => $facility->name,
                     'branch_name' => $facility->branch_name,
                     'address' => $facility->address,
@@ -56,6 +57,7 @@ class PatientPortalController extends Controller
                     'phone' => $facility->phone,
                     'latitude' => $facility->latitude ?? 24.6978,
                     'longitude' => $facility->longitude ?? 46.6841,
+                    'checkin_code' => 'TEBBY-FAC-' . $facility->id,
                 ] : null,
                 'people_ahead' => $peopleAhead,
             ]);
@@ -104,5 +106,70 @@ class PatientPortalController extends Controller
             'prescriptions' => $prescriptions,
             'medicalRecords' => $medicalRecords,
         ]);
+    }
+
+    /**
+     * Patient QR / Reception Self Check-In
+     */
+    public function checkIn(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+
+        $validated = $request->validate([
+            'appointment_id' => 'required|exists:appointments,id',
+            'facility_code' => 'required|string',
+        ]);
+
+        $appointment = Appointment::with(['facility', 'doctor.clinic'])->findOrFail($validated['appointment_id']);
+
+        // Check ownership or admin
+        if ($appointment->patient_id !== $user->id && $user->role !== 'admin') {
+            abort(403, 'غير مصرح لك بتأكيد حضور هذا الموعد.');
+        }
+
+        $facility = $appointment->facility ?? $appointment->doctor?->clinic;
+        $targetFacilityId = $facility ? $facility->id : null;
+
+        // Clean scanned code
+        $scannedCode = trim(strtoupper($validated['facility_code']));
+        $isValid = false;
+
+        if ($targetFacilityId) {
+            $validPatterns = [
+                (string) $targetFacilityId,
+                'FAC-' . $targetFacilityId,
+                'TEBBY-FAC-' . $targetFacilityId,
+                'TEBBY-FACILITY-' . $targetFacilityId,
+            ];
+
+            if (in_array($scannedCode, $validPatterns) || str_contains($scannedCode, (string) $targetFacilityId)) {
+                $isValid = true;
+            }
+        } else {
+            $isValid = true;
+        }
+
+        if (!$isValid) {
+            return back()->withErrors([
+                'facility_code' => 'رمز الـ QR الذي مسحته لا يطابق منشأة موعدك الحالي. يرجى مسح كود الاستقبال لـ: ' . ($facility?->name ?? 'العيادة'),
+            ]);
+        }
+
+        // Confirm Arrival: sets status to 'waiting', confirms stage 2 & stage 1, generates/updates queue ticket
+        $appointment->confirmArrival($user->id);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'تم تأكيد وصولك بالعيادة بنجاح! رقم تذكرتك هو: #' . ($appointment->queueTicket?->ticket_number ?? '01'),
+                'ticket_number' => $appointment->queueTicket?->ticket_number ?? 1,
+                'status' => 'waiting',
+            ]);
+        }
+
+        return back()->with('success', 'تم تأكيد حضورك في العيادة بنجاح! رقم تذكرتك هو: #' . ($appointment->queueTicket?->ticket_number ?? '01'));
     }
 }
