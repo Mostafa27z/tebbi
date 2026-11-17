@@ -35,6 +35,8 @@ class GupshupWhatsAppNotificationTest extends TestCase
         $this->assertEquals('966501234567', $service->normalizePhoneNumber('00966501234567'));
         $this->assertEquals('966501234567', $service->normalizePhoneNumber('501234567'));
         $this->assertEquals('966501234567', $service->normalizePhoneNumber('٠٥٠١٢٣٤٥٦٧'));
+        $this->assertEquals('201011707304', $service->normalizePhoneNumber('01011707304'));
+        $this->assertEquals('201011707304', $service->normalizePhoneNumber('+201011707304'));
         $this->assertNull($service->normalizePhoneNumber(''));
     }
 

@@ -21,6 +21,8 @@ return [
 
     'base_url' => env('GUPSHUP_BASE_URL', 'https://api.gupshup.io/wa'),
 
+    'verify_ssl' => env('GUPSHUP_VERIFY_SSL', false),
+
     /*
     |--------------------------------------------------------------------------
     | Patient Notification Templates (Meta UTILITY - Arabic)

@@ -48,7 +48,29 @@ class GupshupWhatsAppService
             $digits = '966' . $digits;
         }
 
+        // Convert local Egyptian mobile format '01XXXXXXXXX' (11 digits) -> '201XXXXXXXXX'
+        if (strlen($digits) === 11 && str_starts_with($digits, '01')) {
+            $digits = '20' . substr($digits, 1);
+        }
+
         return strlen($digits) >= 9 ? $digits : null;
+    }
+
+    /**
+     * Build configured HTTP client for Gupshup requests
+     */
+    protected function httpClient(?string $apiKey, int $timeout = 10): \Illuminate\Http\Client\PendingRequest
+    {
+        $client = Http::withHeaders([
+            'apikey' => (string) $apiKey,
+            'Accept' => 'application/json',
+        ])->timeout($timeout);
+
+        if (!config('gupshup.verify_ssl', false)) {
+            $client = $client->withoutVerifying();
+        }
+
+        return $client;
     }
 
     /**
@@ -170,12 +192,8 @@ class GupshupWhatsAppService
         ], JSON_UNESCAPED_UNICODE);
 
         try {
-            $response = Http::withHeaders([
-                'apikey' => $apiKey,
-                'Accept' => 'application/json',
-            ])
+            $response = $this->httpClient($apiKey, 10)
                 ->asForm()
-                ->timeout(10)
                 ->post("{$baseUrl}/api/v1/template/msg", [
                     'channel' => $channel,
                     'source' => $source,
@@ -251,12 +269,8 @@ class GupshupWhatsAppService
         $baseUrl = rtrim(config('gupshup.base_url', 'https://api.gupshup.io/wa'), '/');
 
         try {
-            $response = Http::withHeaders([
-                'apikey' => $apiKey,
-                'Accept' => 'application/json',
-            ])
+            $response = $this->httpClient($apiKey, 10)
                 ->asForm()
-                ->timeout(10)
                 ->post("{$baseUrl}/api/v1/msg", [
                     'channel' => $channel,
                     'source' => $source,
@@ -290,11 +304,7 @@ class GupshupWhatsAppService
         $baseUrl = rtrim(config('gupshup.base_url', 'https://api.gupshup.io/wa'), '/');
 
         try {
-            $response = Http::withHeaders([
-                'apikey' => $apiKey,
-                'Accept' => 'application/json',
-            ])
-                ->timeout(15)
+            $response = $this->httpClient($apiKey, 15)
                 ->get("{$baseUrl}/app/{$appId}/template");
 
             $data = $response->json() ?? [];
@@ -337,12 +347,8 @@ class GupshupWhatsAppService
         $baseUrl = rtrim(config('gupshup.base_url', 'https://api.gupshup.io/wa'), '/');
 
         try {
-            $response = Http::withHeaders([
-                'apikey' => $apiKey,
-                'Accept' => 'application/json',
-            ])
+            $response = $this->httpClient($apiKey, 15)
                 ->asForm()
-                ->timeout(15)
                 ->post("{$baseUrl}/app/{$appId}/template", [
                     'elementName' => $templateDef['elementName'],
                     'languageCode' => $templateDef['languageCode'] ?? 'ar',
