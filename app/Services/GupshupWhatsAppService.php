@@ -418,7 +418,7 @@ class GupshupWhatsAppService
     }
 
     // =========================================================================
-    // PATIENT LIFECYCLE NOTIFICATION TRIGGERS (7 TEMPLATES)
+    // PATIENT LIFECYCLE NOTIFICATION TRIGGERS (8 TEMPLATES)
     // =========================================================================
 
     /**
@@ -593,6 +593,41 @@ class GupshupWhatsAppService
             $appointment->patient?->phone,
             'appointment_cancelled',
             [$patientName, $bookingRef, $doctorName, $facilityName, $date]
+        );
+    }
+
+    /**
+     * Template 8: Doctor Delay Added / Appointment Rescheduled
+     * Params: {{1}} Patient Name, {{2}} Doctor Name, {{3}} Facility Name, {{4}} Added Delay Minutes, {{5}} New Expected Time, {{6}} Queue URL
+     */
+    public function notifyAppointmentDelayed(Appointment $appointment, int $addedMinutes, ?string $newExpectedTime = null): array
+    {
+        if ($appointment->notify_whatsapp === false) {
+            return ['status' => 'skipped', 'reason' => 'patient_opted_out'];
+        }
+
+        $appointment->loadMissing(['patient', 'doctor.user', 'doctor.clinic', 'facility']);
+
+        $patientName = $appointment->patient?->name ?? 'مريضنا الكريم';
+        $doctorName = $this->cleanDoctorName($appointment->doctor?->user?->name);
+        $facilityName = $appointment->facility?->name ?? $appointment->doctor?->clinic?->name ?? 'المركز الطبي';
+        $delayMins = (string) $addedMinutes;
+
+        if (empty($newExpectedTime)) {
+            try {
+                $baseTime = Carbon::parse($appointment->appointment_time);
+                $newExpectedTime = $this->formatArabicTime($baseTime->copy()->addMinutes((int) ($appointment->delay_minutes ?: $addedMinutes))->toTimeString());
+            } catch (\Throwable) {
+                $newExpectedTime = $this->formatArabicTime($appointment->appointment_time);
+            }
+        }
+
+        $queueUrl = url('/queue/' . $appointment->booking_reference);
+
+        return $this->sendTemplateMessage(
+            $appointment->patient?->phone,
+            'appointment_delayed',
+            [$patientName, $doctorName, $facilityName, $delayMins, $newExpectedTime, $queueUrl]
         );
     }
 }

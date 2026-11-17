@@ -25,6 +25,7 @@ class GupshupTestSendCommand extends Command
                 'patient_called' => ['فيصل سعد', 'أحمد المحمد', 'مجمع عيادات العليا الطبي', '4'],
                 'consultation_completed' => ['فيصل سعد', 'أحمد المحمد', 'RX-948201', url('/patient/portal')],
                 'appointment_cancelled' => ['فيصل سعد', 'TB-4892', 'أحمد المحمد', 'مجمع عيادات العليا الطبي', '2026-11-20'],
+                'appointment_delayed' => ['فيصل سعد', 'أحمد المحمد', 'مجمع عيادات العليا الطبي', '20', '05:50 م', url('/queue/TB-4892')],
                 default => ['فيصل سعد'],
             };
         }

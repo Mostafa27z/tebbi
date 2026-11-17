@@ -9,7 +9,7 @@ class GupshupRegisterTemplatesCommand extends Command
 {
     protected $signature = 'gupshup:register-templates';
 
-    protected $description = 'Register all 7 Tebiby WhatsApp notification templates on Gupshup & Meta';
+    protected $description = 'Register all 8 Tebiby WhatsApp notification templates on Gupshup & Meta';
 
     public function handle(GupshupWhatsAppService $gupshup): int
     {

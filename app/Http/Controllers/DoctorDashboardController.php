@@ -281,12 +281,14 @@ class DoctorDashboardController extends Controller
         }
 
         // 2. Shift all waiting/confirmed/booked appointments for this doctor on the same date
-        $subsequentAppts = Appointment::with('queueTicket')
+        $subsequentAppts = Appointment::with(['queueTicket', 'patient', 'doctor.user', 'facility'])
             ->where('doctor_id', $appointment->doctor_id)
             ->whereDate('appointment_date', $appointment->appointment_date)
             ->where('id', '!=', $appointment->id)
             ->whereIn('status', ['waiting', 'confirmed', 'booked'])
             ->get();
+
+        $gupshup = app(\App\Services\GupshupWhatsAppService::class);
 
         foreach ($subsequentAppts as $subAppt) {
             $subAppt->increment('delay_minutes', $addedMinutes);
@@ -296,6 +298,14 @@ class DoctorDashboardController extends Controller
                 $subAppt->queueTicket->increment('estimated_wait_minutes', $addedMinutes);
                 $subAppt->queueTicket->increment('delay_minutes', $addedMinutes);
             }
+
+            // Template 8: Notify patient of doctor delay and newly expected appointment time
+            $gupshup->notifyAppointmentDelayed($subAppt, $addedMinutes);
+        }
+
+        // If the current appointment itself is still waiting/confirmed/booked (prior to consultation), notify them as well
+        if (in_array($appointment->status, ['waiting', 'confirmed', 'booked'], true)) {
+            $gupshup->notifyAppointmentDelayed($appointment, $addedMinutes);
         }
 
         $appointment->loadMissing(['doctor.user', 'doctor.specialty', 'patient']);

@@ -329,4 +329,95 @@ class GupshupWhatsAppNotificationTest extends TestCase
                 && ($template['params'][1] ?? '') === 'TB-GUP7';
         });
     }
+
+    public function test_doctor_adding_delay_sends_template_appointment_delayed_to_affected_patients(): void
+    {
+        Http::fake([
+            'api.gupshup.io/*' => Http::response(['status' => 'submitted', 'messageId' => 'msg-tpl-8'], 202),
+        ]);
+
+        $doctor = DoctorProfile::with('user')->firstOrFail();
+        $doctorUser = $doctor->user;
+        $facility = Facility::firstOrFail();
+
+        $patient1 = User::create([
+            'name' => 'محمد السالم',
+            'email' => 'salem@test.com',
+            'phone' => '0501114455',
+            'role' => 'patient',
+            'password' => bcrypt('password'),
+        ]);
+
+        $patient2 = User::create([
+            'name' => 'خالد الدوسري',
+            'email' => 'dossary@test.com',
+            'phone' => '0551234567',
+            'role' => 'patient',
+            'password' => bcrypt('password'),
+        ]);
+
+        $today = Carbon::today()->toDateString();
+
+        $currentAppt = Appointment::create([
+            'booking_reference' => 'TB-DELAY-1',
+            'patient_id' => $patient1->id,
+            'doctor_id' => $doctor->id,
+            'facility_id' => $facility->id,
+            'appointment_date' => $today,
+            'appointment_time' => '16:00:00',
+            'status' => 'in_consultation',
+            'payment_status' => 'paid',
+            'payment_method' => 'cash',
+            'consultation_fee' => 200,
+            'total_amount' => 200,
+            'notify_whatsapp' => true,
+        ]);
+
+        $subsequentAppt = Appointment::create([
+            'booking_reference' => 'TB-DELAY-2',
+            'patient_id' => $patient2->id,
+            'doctor_id' => $doctor->id,
+            'facility_id' => $facility->id,
+            'appointment_date' => $today,
+            'appointment_time' => '16:30:00',
+            'status' => 'waiting',
+            'payment_status' => 'paid',
+            'payment_method' => 'cash',
+            'consultation_fee' => 200,
+            'total_amount' => 200,
+            'notify_whatsapp' => true,
+        ]);
+
+        QueueTicket::create([
+            'appointment_id' => $subsequentAppt->id,
+            'ticket_number' => 2,
+            'status' => 'waiting',
+            'queue_date' => $today,
+            'estimated_wait_minutes' => 30,
+        ]);
+
+        $this->actingAs($doctorUser)
+            ->post("/doctor/appointments/{$currentAppt->id}/delay", [
+                'delay_minutes' => 25,
+                'delay_reason' => 'الحالة السريرية استدعت وقتاً إضافياً',
+            ])
+            ->assertSessionHas('success');
+
+        // Check DB updates
+        $this->assertEquals(25, $subsequentAppt->fresh()->delay_minutes);
+        $this->assertEquals(55, $subsequentAppt->fresh()->queueTicket->estimated_wait_minutes);
+
+        // Check WhatsApp message sent to subsequent patient
+        Http::assertSent(function (HttpClientRequest $request) use ($subsequentAppt) {
+            $data = $request->data();
+            $template = json_decode($data['template'] ?? '{}', true);
+
+            return ($data['destination'] ?? '') === '966551234567'
+                && ($template['id'] ?? '') === config('gupshup.templates.appointment_delayed.id')
+                && ($template['params'][0] ?? '') === 'خالد الدوسري'
+                && ($template['params'][3] ?? '') === '25'
+                && str_contains($template['params'][4] ?? '', '04:55') // 16:30 + 25 mins = 16:55 (04:55 م)
+                && str_contains($template['params'][5] ?? '', $subsequentAppt->booking_reference);
+        });
+    }
 }
