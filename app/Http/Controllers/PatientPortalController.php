@@ -161,6 +161,9 @@ class PatientPortalController extends Controller
         // Confirm Arrival: sets status to 'waiting', confirms stage 2 & stage 1, generates/updates queue ticket
         $appointment->confirmArrival($user->id);
 
+        // Send WhatsApp notification (Template 3: Arrival Confirmed & Ticket)
+        app(\App\Services\GupshupWhatsAppService::class)->notifyArrivalConfirmed($appointment);
+
         if ($request->wantsJson()) {
             return response()->json([
                 'success' => true,

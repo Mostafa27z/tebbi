@@ -143,6 +143,7 @@ Route::middleware(['auth', 'role:doctor'])->group(function () {
     Route::post('/doctor/queue/call-next', [DoctorDashboardController::class, 'callNext'])->name('doctor.call-next');
     Route::post('/doctor/appointments/{appointment}/start', [DoctorDashboardController::class, 'startConsultation'])->name('doctor.appointments.start');
     Route::post('/doctor/appointments/{appointment}/complete', [DoctorDashboardController::class, 'completeConsultation'])->name('doctor.appointments.complete');
+    Route::post('/doctor/appointments/{appointment}/consultation', [DoctorDashboardController::class, 'saveConsultation'])->name('doctor.appointments.consultation');
     Route::post('/doctor/appointments/{appointment}/delay', [DoctorDashboardController::class, 'addDelay'])->name('doctor.appointments.delay');
     Route::post('/doctor/toggle-availability', [DoctorDashboardController::class, 'toggleAvailability'])->name('doctor.toggle-availability');
 });

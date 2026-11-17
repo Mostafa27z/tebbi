@@ -129,6 +129,8 @@ class DoctorDashboardController extends Controller
         $doctorId = $doctor->id;
         $today = Carbon::today();
 
+        $gupshup = app(\App\Services\GupshupWhatsAppService::class);
+
         // 1. Complete any currently active consultation for this doctor today
         $activeAppts = Appointment::with('queueTicket')
             ->where('doctor_id', $doctorId)
@@ -138,6 +140,7 @@ class DoctorDashboardController extends Controller
 
         foreach ($activeAppts as $activeAppt) {
             $activeAppt->confirmFinishConsultation($user->id);
+            $gupshup->notifyConsultationCompleted($activeAppt);
         }
 
         QueueTicket::whereHas('appointment', function ($q) use ($doctorId, $today) {
@@ -211,10 +214,11 @@ class DoctorDashboardController extends Controller
 
         // Update current_serving_number on all remaining tickets for this doctor today
         $slotMinutes = $doctor->waiting_time_minutes ?: 15;
-        $remainingTickets = QueueTicket::whereHas('appointment', function ($q) use ($doctorId, $today) {
-            $q->where('doctor_id', $doctorId)
-              ->whereDate('appointment_date', $today);
-        })->where('status', 'waiting')->get();
+        $remainingTickets = QueueTicket::with('appointment.patient')
+            ->whereHas('appointment', function ($q) use ($doctorId, $today) {
+                $q->where('doctor_id', $doctorId)
+                  ->whereDate('appointment_date', $today);
+            })->where('status', 'waiting')->get();
 
         foreach ($remainingTickets as $remTicket) {
             $ahead = max(0, $remTicket->ticket_number - $ticket->ticket_number);
@@ -222,7 +226,15 @@ class DoctorDashboardController extends Controller
                 'current_serving_number' => $ticket->ticket_number,
                 'estimated_wait_minutes' => ($ahead * $slotMinutes) + (int) ($remTicket->delay_minutes ?? 0),
             ]);
+
+            // Template 4: Notify the next patient in line that only 1 patient is ahead of them
+            if ($ahead === 1 && $remTicket->appointment) {
+                $gupshup->notifyTurnApproaching($remTicket->appointment);
+            }
         }
+
+        // Template 5: Notify the called patient to enter the consultation room now
+        $gupshup->notifyPatientCalled($nextAppt);
 
         $facilityId = (int) ($nextAppt->facility_id ?: $doctor->clinic_id ?: 0);
         $doctorName = $doctor->user?->name ?? 'الطبيب';
@@ -359,6 +371,9 @@ class DoctorDashboardController extends Controller
             'message' => "🔔 نداء عيادة فوري: استدعى {$doctorName} المريض ({$patientName}) - تذكرة رقم #{$ticketNum} للدخول إلى غرفة الفحص الآن!",
         ]);
 
+        // Send WhatsApp notification (Template 5: Patient Called)
+        app(\App\Services\GupshupWhatsAppService::class)->notifyPatientCalled($appointment);
+
         return back()->with('success', 'تم بدء الكشف الطبي للمريض وإشعار الاستقبال وشاشة المريض.');
     }
 
@@ -373,8 +388,9 @@ class DoctorDashboardController extends Controller
 
         $appointment->confirmFinishConsultation($user->id);
 
+        $prescription = null;
         if ($request->filled('diagnosis')) {
-            Prescription::create([
+            $prescription = Prescription::create([
                 'appointment_id' => $appointment->id,
                 'patient_id' => $appointment->patient_id,
                 'doctor_id' => $appointment->doctor_id,
@@ -385,6 +401,9 @@ class DoctorDashboardController extends Controller
                 'is_dispensed' => false,
             ]);
         }
+
+        // Send WhatsApp notification (Template 6: Stage 3 Consultation Completed & Prescription)
+        app(\App\Services\GupshupWhatsAppService::class)->notifyConsultationCompleted($appointment, $prescription);
 
         return back()->with('success', 'تم إنهاء الكشف الطبي واعتماده بنجاح (المرحلة 3: تأكيد إنهاء الكشف من الطبيب).');
     }
@@ -425,7 +444,7 @@ class DoctorDashboardController extends Controller
         
         $appointment->confirmFinishConsultation($user->id);
 
-        Prescription::create([
+        $prescription = Prescription::create([
             'appointment_id' => $appointment->id,
             'patient_id' => $appointment->patient_id,
             'doctor_id' => $appointment->doctor_id,
@@ -435,6 +454,9 @@ class DoctorDashboardController extends Controller
             'medications' => $validated['medications'] ?? [],
             'is_dispensed' => false,
         ]);
+
+        // Send WhatsApp notification (Template 6: Stage 3 Consultation Completed & Prescription)
+        app(\App\Services\GupshupWhatsAppService::class)->notifyConsultationCompleted($appointment, $prescription);
 
         return back()->with('success', 'تم إنهاء الكشف وإصدار الوصفة الطبية بنجاح.');
     }

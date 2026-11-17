@@ -745,6 +745,9 @@ class AdminDashboardController extends Controller
 
         $appointment->confirmBooking($user->id);
 
+        // Send WhatsApp notification (Template 2: Stage 1 Booking Confirmed)
+        app(\App\Services\GupshupWhatsAppService::class)->notifyBookingConfirmed($appointment);
+
         return back()->with('success', "تم تأكيد الحجز للمريض ({$appointment->patient?->name}) بنجاح (المرحلة 1: تأكيد الإدارة).");
     }
 
@@ -757,16 +760,21 @@ class AdminDashboardController extends Controller
         ]);
 
         $status = $validated['status'];
+        $gupshup = app(\App\Services\GupshupWhatsAppService::class);
+
         $appointment->update([
             'payment_status' => $validated['payment_status'],
         ]);
 
         if ($status === 'confirmed') {
             $appointment->confirmBooking($user?->id);
+            $gupshup->notifyBookingConfirmed($appointment);
         } elseif ($status === 'waiting') {
             $appointment->confirmArrival($user?->id);
+            $gupshup->notifyArrivalConfirmed($appointment);
         } elseif ($status === 'completed') {
             $appointment->confirmFinishConsultation($user?->id);
+            $gupshup->notifyConsultationCompleted($appointment);
         } else {
             $appointment->update(['status' => $status]);
             if ($appointment->queueTicket) {
@@ -777,6 +785,12 @@ class AdminDashboardController extends Controller
                         default => 'waiting',
                     },
                 ]);
+            }
+
+            if ($status === 'in_consultation') {
+                $gupshup->notifyPatientCalled($appointment);
+            } elseif ($status === 'cancelled') {
+                $gupshup->notifyAppointmentCancelled($appointment);
             }
         }
 

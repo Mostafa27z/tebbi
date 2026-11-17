@@ -113,6 +113,9 @@ class BookingController extends Controller
                 'status' => 'waiting',
             ]);
 
+            // Send WhatsApp notification (Template 1: Booking Received)
+            app(\App\Services\GupshupWhatsAppService::class)->notifyBookingReceived($appointment);
+
             if (! $request->user() && ! $wasNewUser) {
                 return redirect()->route('login')
                     ->with('success', 'تم تأكيد حجزك بنجاح! رقم الجوال مسجل مسبقاً، يرجى تسجيل الدخول للاطلاع على التذكرة ومتابعة دورك الحي.');

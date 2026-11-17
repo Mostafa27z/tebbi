@@ -679,6 +679,9 @@ class FacilityDashboardController extends Controller
 
         $appointment->confirmBooking($user->id);
 
+        // Send WhatsApp notification (Template 2: Stage 1 Booking Confirmed)
+        app(\App\Services\GupshupWhatsAppService::class)->notifyBookingConfirmed($appointment);
+
         return back()->with('success', "تم تأكيد الحجز للمريض ({$appointment->patient?->name}) بنجاح.");
     }
 
@@ -693,6 +696,7 @@ class FacilityDashboardController extends Controller
         ]);
 
         $status = $validated['status'];
+        $gupshup = app(\App\Services\GupshupWhatsAppService::class);
 
         if ($status === 'confirmed') {
             $canConfirm = $user->role === 'admin'
@@ -703,6 +707,7 @@ class FacilityDashboardController extends Controller
                 abort(403, 'تأكيد الحجز من صلاحيات موظفي الاستقبال وإدارة المنشأة.');
             }
             $appointment->confirmBooking($user->id);
+            $gupshup->notifyBookingConfirmed($appointment);
         } elseif ($status === 'waiting') {
             $canCheckIn = $user->role === 'admin'
                 || $resolver->canManageFacility($user, $facilityId)
@@ -711,15 +716,17 @@ class FacilityDashboardController extends Controller
                 abort(403, 'تأكيد الحضور (المرحلة 2) من صلاحيات موظف الاستقبال أو الإدارة.');
             }
             $appointment->confirmArrival($user->id);
+            $gupshup->notifyArrivalConfirmed($appointment);
         } elseif ($status === 'completed') {
             $canComplete = $user->role === 'admin'
                 || $resolver->canManageFacility($user, $facilityId)
                 || ($user->doctorProfile && $user->doctorProfile->id === $appointment->doctor_id);
 
             if (!$canComplete) {
-                abort(403, 'إنهاء الكشف الطبي خاص بالطبيب المعالج أو إدارة المنشأة.');
+                abort(403, 'إنهاء الكشف الطبي (المرحلة 3) خاص بالطبيب المعالج فقط.');
             }
             $appointment->confirmFinishConsultation($user->id);
+            $gupshup->notifyConsultationCompleted($appointment);
         } else {
             $appointment->update(['status' => $status]);
             $ticket = $appointment->queueTicket;
@@ -729,6 +736,12 @@ class FacilityDashboardController extends Controller
                 } elseif ($status === 'cancelled') {
                     $ticket->update(['status' => 'cancelled']);
                 }
+            }
+
+            if ($status === 'in_consultation') {
+                $gupshup->notifyPatientCalled($appointment);
+            } elseif ($status === 'cancelled') {
+                $gupshup->notifyAppointmentCancelled($appointment);
             }
         }
 
@@ -799,6 +812,9 @@ class FacilityDashboardController extends Controller
 
         $appointment->confirmArrival($user->id);
 
+        // Send WhatsApp notification (Template 3: Stage 2 Arrival Confirmed & Ticket)
+        app(\App\Services\GupshupWhatsAppService::class)->notifyArrivalConfirmed($appointment);
+
         return back()->with('success', "تم تأكيد وصول المريض ({$appointment->patient?->name}) بالاستقبال وإدراجه في قائمة الانتظار (المرحلة 2: تأكيد الاستقبال).");
     }
 
@@ -808,6 +824,10 @@ class FacilityDashboardController extends Controller
         if ($appointment->queueTicket) {
             $appointment->queueTicket->update(['status' => 'cancelled']);
         }
+
+        // Send WhatsApp notification (Template 7: Appointment Cancelled / No-show)
+        app(\App\Services\GupshupWhatsAppService::class)->notifyAppointmentCancelled($appointment);
+
         return back()->with('success', "تم تسجيل عدم حضور الحالة ({$appointment->patient->name}).");
     }
 
@@ -884,6 +904,9 @@ class FacilityDashboardController extends Controller
             'queue_date' => $today->toDateString(),
             'estimated_wait_minutes' => 15,
         ]);
+
+        // Send WhatsApp notification (Template 3: Arrival Confirmed & Ticket Issued)
+        app(\App\Services\GupshupWhatsAppService::class)->notifyArrivalConfirmed($appointment);
 
         return back()->with('success', "تم قطع التذكرة الفورية بنجاح برقم #{$newTicketNumber} للمريض ({$patient->name}).");
     }
