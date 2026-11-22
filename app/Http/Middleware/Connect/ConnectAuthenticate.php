@@ -46,6 +46,14 @@ class ConnectAuthenticate
             ->orWhere('pk_hash', $hash)
             ->first();
 
+        if (! $credential && (str_starts_with($rawKey, 'bit_') || str_starts_with($rawKey, 'int_'))) {
+            $intent = \App\Models\ConnectBookingIntent::where('intent_token', $rawKey)->first();
+            if ($intent) {
+                $credential = $intent->credential;
+                $request->attributes->set('connect_booking_intent', $intent);
+            }
+        }
+
         if (! $credential || ! $credential->isActive()) {
             throw new UnauthorizedException('مفتاح API غير صالح، منتهي الصلاحية، أو تم إيقافه.');
         }

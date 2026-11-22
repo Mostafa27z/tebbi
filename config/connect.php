@@ -5,4 +5,5 @@ return [
     'audit_salt' => env('CONNECT_AUDIT_SALT', 'tebiby-connect-salt-fixed'),
     'audit_retention_days' => env('CONNECT_AUDIT_RETENTION_DAYS', 90),
     'rate_limit_per_minute' => env('CONNECT_RATE_LIMIT_PER_MINUTE', 120),
+    'gate_1b_enabled' => env('CONNECT_GATE_1B_ENABLED', false),
 ];

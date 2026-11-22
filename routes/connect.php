@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Connect\BookingController;
 use App\Http\Controllers\Connect\CatalogController;
 use App\Http\Controllers\Connect\QueueController;
 use App\Http\Controllers\Connect\SandboxController;
@@ -54,22 +55,37 @@ Route::middleware([
         ]);
     })->middleware(CheckConnectScope::class . ':read')->name('doctors.index');
 
-    Route::post('/facilities/{facility_id}/appointments', function (Request $request, $facilityId) {
-        if (app()->isProduction()) {
-            abort(501, 'Booking endpoint is pending Gate 1B activation.');
-        }
+    // Gate 1B: Availability Engine
+    Route::get('/doctors/{doctor_id}/availability', [BookingController::class, 'availability'])
+        ->middleware(CheckConnectScope::class . ':read')
+        ->name('doctors.availability');
 
-        $validated = $request->validate([
-            'patient_name' => 'required|string|max:100',
-            'appointment_date' => 'required|date|after_or_equal:today',
-        ]);
+    // Gate 1B: Booking Intents (Signed 15-minute intent)
+    Route::post('/booking-intents', [BookingController::class, 'createIntent'])
+        ->middleware(CheckConnectScope::class . ':book')
+        ->name('booking-intents.create');
 
-        return response()->json([
-            'message' => 'Appointment test endpoint reached.',
-            'facility_id' => (int) $facilityId,
-            'data' => $validated,
-        ]);
-    })->middleware(CheckConnectScope::class . ':book')->name('appointments.create');
+    // Gate 1B: Appointments Booking
+    Route::post('/facilities/{facility_id}/appointments', [BookingController::class, 'createAppointment'])
+        ->middleware(CheckConnectScope::class . ':book')
+        ->name('appointments.create');
+    Route::post('/appointments', [BookingController::class, 'createAppointment'])
+        ->middleware(CheckConnectScope::class . ':book')
+        ->name('appointments.create.direct');
+
+    // Gate 1B: Cancellation State Machine
+    Route::post('/facilities/{facility_id}/appointments/{booking_reference}/cancel', [BookingController::class, 'cancelAppointment'])
+        ->middleware(CheckConnectScope::class . ':cancel')
+        ->name('appointments.cancel');
+    Route::post('/appointments/{booking_reference}/cancel', [BookingController::class, 'cancelAppointment'])
+        ->middleware(CheckConnectScope::class . ':cancel')
+        ->name('appointments.cancel.direct');
+
+    // Gate 1B: Reserved Reschedule (RFC 7807 501 Not Implemented)
+    Route::patch('/facilities/{facility_id}/appointments/{booking_reference}/reschedule', [BookingController::class, 'rescheduleAppointment'])
+        ->name('appointments.reschedule');
+    Route::patch('/appointments/{booking_reference}/reschedule', [BookingController::class, 'rescheduleAppointment'])
+        ->name('appointments.reschedule.direct');
 
     // Test endpoint to trigger DB QueryException
     Route::post('/test/trigger-db-error', function () {

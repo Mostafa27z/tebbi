@@ -25,7 +25,12 @@ class CheckConnectScope
         $facilityId = $request->route('facility_id')
             ?? $request->route('facility')?->id
             ?? $request->route('facility')
-            ?? $request->input('facility_id');
+            ?? $request->input('facility_id')
+            ?? $request->attributes->get('connect_booking_intent')?->facility_id;
+
+        if ($facilityId === null && ($bookingRef = ($request->route('booking_reference') ?? $request->input('booking_reference')))) {
+            $facilityId = \App\Models\Appointment::where('booking_reference', $bookingRef)->value('facility_id');
+        }
 
         if ($facilityId !== null) {
             $facility = Facility::find($facilityId);
