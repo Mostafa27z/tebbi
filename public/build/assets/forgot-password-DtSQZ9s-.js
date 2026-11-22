@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:public/build/assets/forgot-password-DtSQZ9s-.js
 import{c,m as u,j as e,z as d}from"./app-8AeIlc8x.js";import{A as p}from"./auth-layout-xuuUGMF-.js";import{F as x}from"./form-input-BO-g95WT.js";import{L as f}from"./loading-button-BkhetefQ.js";import{M as h}from"./mail-BVcoTx9q.js";import"./shield-check-C2-T0cOQ.js";/**
+========
+import{c,m as u,j as e,z as d}from"./app-C875t3q-.js";import{A as p}from"./auth-layout-e8snunzm.js";import{F as x}from"./form-input-mZsqZ2en.js";import{L as f}from"./loading-button-B2QTCmlp.js";import{M as h}from"./mail-BMdrkqbm.js";import"./shield-check-b07Sk30p.js";/**
+>>>>>>>> 710fc548cc65f68bd254281e30aa2633a29be0ef:public/build/assets/forgot-password-U33n6b3o.js
  * @license lucide-react v0.475.0 - ISC
  *
  * This source code is licensed under the ISC license.

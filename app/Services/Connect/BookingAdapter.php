@@ -373,7 +373,7 @@ class BookingAdapter
                 'payment_status' => $paymentStatus,
                 'consultation_fee' => $basePrice,
                 'total_amount' => $totalPrice,
-                'notify_whatsapp' => false,
+                'notify_whatsapp' => isset($payload['notify_whatsapp']) ? (bool) $payload['notify_whatsapp'] : true,
             ]);
 
             // Queue Ticket generation
@@ -391,6 +391,20 @@ class BookingAdapter
                 'status' => 'waiting',
                 'estimated_wait_minutes' => (int) ($doctor->waiting_time_minutes ?? 15),
             ]);
+
+            // Dispatch WhatsApp notification (Template 2 if auto-confirmed, Template 1 if waitlist)
+            if ($appointment->notify_whatsapp) {
+                try {
+                    $gupshup = app(\App\Services\GupshupWhatsAppService::class);
+                    if ($isAutoConfirmed) {
+                        $gupshup->notifyBookingConfirmed($appointment);
+                    } else {
+                        $gupshup->notifyBookingReceived($appointment);
+                    }
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('Connect WhatsApp notification failed: ' . $e->getMessage());
+                }
+            }
 
             // Connect Appointment Link & Public Token
             $publicToken = 'ptk_' . Str::random(40);

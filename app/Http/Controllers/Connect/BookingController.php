@@ -369,6 +369,7 @@ class BookingController extends Controller
                 'appointment_time' => 'required|string',
                 'expected_fee' => 'nullable|numeric|min:0',
                 'payment_method' => 'nullable|string|in:cash,online,at_clinic',
+                'notify_whatsapp' => 'nullable|boolean',
                 'intent_token' => 'nullable|string',
             ]);
 

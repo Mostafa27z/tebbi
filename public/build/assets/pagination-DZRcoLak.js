@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:public/build/assets/pagination-DZRcoLak.js
 import{c,j as t,b as d}from"./app-8AeIlc8x.js";import{C as f}from"./custom-select-wv4qJSgj.js";import{C as u}from"./chevron-right-DTwM5mIC.js";import{C as j}from"./chevron-left-CWpvr-JX.js";/**
+========
+import{c,j as t,b as d}from"./app-C875t3q-.js";import{C as f}from"./custom-select-BQ8LrTO0.js";import{C as u}from"./chevron-right-D6f8s5GA.js";import{C as j}from"./chevron-left-By6xlfOn.js";/**
+>>>>>>>> 710fc548cc65f68bd254281e30aa2633a29be0ef:public/build/assets/pagination-HMoTEYPq.js
  * @license lucide-react v0.475.0 - ISC
  *
  * This source code is licensed under the ISC license.
