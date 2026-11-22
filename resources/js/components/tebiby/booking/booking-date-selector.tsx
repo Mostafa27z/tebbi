@@ -4,6 +4,8 @@ import { cn } from '@/lib/utils';
 import { PresetDay, PRESET_DAYS } from './types';
 
 interface BookingDateSelectorProps {
+    stepNumber?: number;
+    badgeIcon?: React.ReactNode;
     selectedDayIso: string;
     onSelectDay: (iso: string, formattedLabel: string) => void;
     showCustomDatePicker: boolean;
@@ -12,6 +14,8 @@ interface BookingDateSelectorProps {
 }
 
 export const BookingDateSelector: React.FC<BookingDateSelectorProps> = React.memo(({
+    stepNumber = 2,
+    badgeIcon,
     selectedDayIso,
     onSelectDay,
     showCustomDatePicker,
@@ -23,7 +27,7 @@ export const BookingDateSelector: React.FC<BookingDateSelectorProps> = React.mem
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-xl bg-blue-100 text-[#005ab5] flex items-center justify-center font-black text-xs font-['Cairo'] shadow-xs">
-                        1
+                        {badgeIcon ?? stepNumber}
                     </div>
                     <div>
                         <h4 className="text-xs sm:text-sm font-black text-gray-900 font-['Cairo']">

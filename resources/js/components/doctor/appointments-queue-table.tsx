@@ -14,7 +14,7 @@ import {
     Filter
 } from 'lucide-react';
 import { CustomSelect, CustomSelectOption } from '@/components/common/custom-select';
-import { format12HourTime } from '@/lib/utils';
+import { format12HourTime, formatDurationArabic } from '@/lib/utils';
 
 interface AppointmentsQueueTableProps {
     appointments: any[];
@@ -176,6 +176,16 @@ export const AppointmentsQueueTable: React.FC<AppointmentsQueueTableProps> = ({
                                             <span className="px-2.5 py-1 rounded-lg bg-gray-100/70 text-gray-700 font-bold inline-block text-[11px]">
                                                 {format12HourTime(appt.appointment_time)}
                                             </span>
+                                            {appt.service_name && (
+                                                <div className="mt-1 text-[10.5px] font-bold text-teal-700 flex items-center gap-1">
+                                                    <span className="truncate max-w-[140px]">{appt.service_name}</span>
+                                                    {appt.duration_minutes && (
+                                                        <span className="text-gray-400 shrink-0">
+                                                            ({formatDurationArabic(appt.duration_minutes, true)})
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="py-3.5 px-3">
                                             {isWaiting && (

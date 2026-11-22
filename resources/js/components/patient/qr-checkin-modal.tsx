@@ -10,7 +10,8 @@ import {
     Sparkles, 
     Building2, 
     ScanLine,
-    ArrowRight
+    ArrowRight,
+    Lightbulb
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -309,8 +310,11 @@ export const QrCheckinModal: React.FC<QrCheckinModalProps> = ({
                                 </div>
                             )}
 
-                            <div className="p-3 rounded-2xl bg-blue-50/70 border border-blue-100 text-[11px] text-blue-900 leading-relaxed">
-                                💡 بمجرد تسجيل الوصول، تُعتبر المرحلة 2 (تأكيد الاستقبال) معتمدة فوراً ويظهر اسمك مباشرة على شاشة الطبيب والاستقبال للبدء في المناداة.
+                            <div className="p-3 rounded-2xl bg-blue-50/70 border border-blue-100 text-[11px] text-blue-900 leading-relaxed flex items-start gap-2">
+                                <Lightbulb className="w-4 h-4 text-[#005ab5] shrink-0 mt-0.5" />
+                                <span>
+                                    بمجرد تسجيل الوصول، تُعتبر المرحلة 2 (تأكيد الاستقبال) معتمدة فوراً ويظهر اسمك مباشرة على شاشة الطبيب والاستقبال للبدء في المناداة.
+                                </span>
                             </div>
                         </div>
                     )}

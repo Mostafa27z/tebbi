@@ -15,9 +15,12 @@ import {
     X, 
     ChevronLeft,
     PanelRightClose,
-    PanelRightOpen
+    PanelRightOpen,
+    Settings
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LiveSyncIndicator } from '@/components/common/live-sync-indicator';
+import { LiveSyncController, useInertiaLiveSync } from '@/hooks/use-live-sync';
 
 export type AdminTab = 
     | 'analytics' 
@@ -40,6 +43,9 @@ interface AdminDashboardLayoutProps {
         specialties?: number;
         appointments?: number;
     };
+    liveSync?: LiveSyncController;
+    liveSyncIntervalMs?: number;
+    liveSyncPaused?: boolean;
 }
 
 export const AdminDashboardLayout: React.FC<AdminDashboardLayoutProps> = ({
@@ -47,6 +53,9 @@ export const AdminDashboardLayout: React.FC<AdminDashboardLayoutProps> = ({
     activeTab: explicitActiveTab,
     setActiveTab,
     counts: explicitCounts,
+    liveSync: externalLiveSync,
+    liveSyncIntervalMs,
+    liveSyncPaused,
 }) => {
     const { url, props } = usePage();
     const sharedCounts = (props as any).adminCounts || {};
@@ -73,6 +82,15 @@ export const AdminDashboardLayout: React.FC<AdminDashboardLayoutProps> = ({
     };
 
     const activeTab = detectActiveTab();
+
+    const internalLiveSync = useInertiaLiveSync({
+        enabled: !externalLiveSync,
+        paused: liveSyncPaused,
+        intervalMs:
+            liveSyncIntervalMs ??
+            (activeTab === 'appointments' || activeTab === 'analytics' ? 3500 : 5000),
+    });
+    const activeLiveSync = externalLiveSync ?? internalLiveSync;
 
     const [mobileOpen, setMobileOpen] = useState(false);
     const [desktopCollapsed, setDesktopCollapsed] = useState(false);
@@ -286,14 +304,24 @@ export const AdminDashboardLayout: React.FC<AdminDashboardLayoutProps> = ({
                             </div>
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={handleLogout}
-                            className={cn('p-2 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer shrink-0', desktopCollapsed && 'lg:hidden')}
-                            title="تسجيل الخروج"
-                        >
-                            <LogOut className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                            <Link
+                                href="/settings/profile"
+                                className={cn('p-2 rounded-xl text-gray-400 hover:text-[#005ab5] hover:bg-blue-50 transition-colors cursor-pointer shrink-0', desktopCollapsed && 'lg:hidden')}
+                                title="إعدادات الحساب والملف الشخصي"
+                            >
+                                <Settings className="w-4 h-4" />
+                            </Link>
+
+                            <button
+                                type="button"
+                                onClick={handleLogout}
+                                className={cn('p-2 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer shrink-0', desktopCollapsed && 'lg:hidden')}
+                                title="تسجيل الخروج"
+                            >
+                                <LogOut className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                 </div>
             </aside>
@@ -340,13 +368,9 @@ export const AdminDashboardLayout: React.FC<AdminDashboardLayoutProps> = ({
                         </div>
                     </div>
 
-                    {/* Actions & Health Status */}
+                    {/* Actions & Live Sync Status */}
                     <div className="flex items-center gap-3">
-                        {/* System Health Badge */}
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-[11px] font-bold text-emerald-800">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <span>النظام متصل • 100% جهوزية</span>
-                        </div>
+                        <LiveSyncIndicator sync={activeLiveSync} />
                     </div>
                 </header>
 

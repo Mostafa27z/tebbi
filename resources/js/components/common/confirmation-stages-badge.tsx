@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, Clock, ShieldCheck, UserCheck, Stethoscope } from 'lucide-react';
+import { Check, CheckCircle2, Clock, ShieldCheck, UserCheck, Stethoscope } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface ConfirmationStageInfo {
@@ -46,7 +46,7 @@ export const ConfirmationStagesBadge: React.FC<ConfirmationStagesBadgeProps> = (
     const s3 = stages?.stage3_kashf;
 
     const formatStageTooltip = (stageNum: number, name: string, actor: string, confirmed: boolean, byName?: string | null, at?: string | null) => {
-        let tooltip = `المرحلة ${stageNum}: ${name} (${actor})\nالحالة: ${confirmed ? 'مؤكد ومكتمل ✓' : 'بانتظار الإجراء ⌛'}`;
+        let tooltip = `المرحلة ${stageNum}: ${name} (${actor})\nالحالة: ${confirmed ? 'مؤكد ومكتمل' : 'بانتظار الإجراء'}`;
         if (byName) tooltip += `\nبواسطة: ${byName}`;
         if (at) {
             try {
@@ -79,7 +79,7 @@ export const ConfirmationStagesBadge: React.FC<ConfirmationStagesBadgeProps> = (
                             ? 'bg-emerald-600 text-white shadow-2xs'
                             : 'bg-purple-100 text-purple-700 animate-pulse'
                     )}>
-                        {isStage1 ? '✓' : '١'}
+                        {isStage1 ? <Check className="w-2.5 h-2.5 stroke-[3]" /> : '١'}
                     </span>
                     <span className={cn(
                         'text-[11px] font-bold transition-colors',
@@ -108,7 +108,7 @@ export const ConfirmationStagesBadge: React.FC<ConfirmationStagesBadgeProps> = (
                             ? 'bg-amber-500 text-white animate-pulse'
                             : 'bg-gray-100 text-gray-400'
                     )}>
-                        {isStage2 ? '✓' : '٢'}
+                        {isStage2 ? <Check className="w-2.5 h-2.5 stroke-[3]" /> : '٢'}
                     </span>
                     <span className={cn(
                         'text-[11px] font-bold transition-colors',
@@ -137,7 +137,7 @@ export const ConfirmationStagesBadge: React.FC<ConfirmationStagesBadgeProps> = (
                             ? 'bg-blue-600 text-white animate-pulse'
                             : 'bg-gray-100 text-gray-400'
                     )}>
-                        {isStage3 ? '✓' : '٣'}
+                        {isStage3 ? <Check className="w-2.5 h-2.5 stroke-[3]" /> : '٣'}
                     </span>
                     <span className={cn(
                         'text-[11px] font-bold transition-colors',
@@ -163,7 +163,10 @@ export const ConfirmationStagesBadge: React.FC<ConfirmationStagesBadgeProps> = (
                         <span>المرحلة ١: تأكيد الحجز</span>
                     </span>
                     {isStage1 ? (
-                        <span className="bg-purple-200 text-purple-800 text-[9px] px-1.5 py-0.5 rounded-md font-extrabold">مؤكد ✓</span>
+                        <span className="inline-flex items-center gap-0.5 bg-purple-200 text-purple-800 text-[9px] px-1.5 py-0.5 rounded-md font-extrabold">
+                            <span>مؤكد</span>
+                            <Check className="w-2.5 h-2.5 stroke-[3]" />
+                        </span>
                     ) : (
                         <span className="bg-gray-200 text-gray-600 text-[9px] px-1.5 py-0.5 rounded-md">معلق</span>
                     )}
@@ -184,7 +187,10 @@ export const ConfirmationStagesBadge: React.FC<ConfirmationStagesBadgeProps> = (
                         <span>المرحلة ٢: تأكيد الحضور</span>
                     </span>
                     {isStage2 ? (
-                        <span className="bg-amber-200 text-amber-800 text-[9px] px-1.5 py-0.5 rounded-md font-extrabold">حضر ✓</span>
+                        <span className="inline-flex items-center gap-0.5 bg-amber-200 text-amber-800 text-[9px] px-1.5 py-0.5 rounded-md font-extrabold">
+                            <span>حضر</span>
+                            <Check className="w-2.5 h-2.5 stroke-[3]" />
+                        </span>
                     ) : (
                         <span className="bg-gray-200 text-gray-600 text-[9px] px-1.5 py-0.5 rounded-md">لم يحضر</span>
                     )}
@@ -205,7 +211,10 @@ export const ConfirmationStagesBadge: React.FC<ConfirmationStagesBadgeProps> = (
                         <span>المرحلة ٣: إنهاء الكشف</span>
                     </span>
                     {isStage3 ? (
-                        <span className="bg-emerald-200 text-emerald-800 text-[9px] px-1.5 py-0.5 rounded-md font-extrabold">اكتمل ✓</span>
+                        <span className="inline-flex items-center gap-0.5 bg-emerald-200 text-emerald-800 text-[9px] px-1.5 py-0.5 rounded-md font-extrabold">
+                            <span>اكتمل</span>
+                            <Check className="w-2.5 h-2.5 stroke-[3]" />
+                        </span>
                     ) : (
                         <span className="bg-gray-200 text-gray-600 text-[9px] px-1.5 py-0.5 rounded-md">بانتظار الكشف</span>
                     )}

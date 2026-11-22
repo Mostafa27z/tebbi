@@ -17,9 +17,12 @@ import {
     Activity,
     ShieldCheck,
     UserCheck,
-    QrCode
+    QrCode,
+    Settings
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LiveSyncIndicator } from '@/components/common/live-sync-indicator';
+import { LiveSyncController, useInertiaLiveSync } from '@/hooks/use-live-sync';
 
 export type FacilityTab = 'queue' | 'doctors' | 'specialties' | 'appointments' | 'receptionists';
 
@@ -38,6 +41,9 @@ interface FacilityDashboardLayoutProps {
     };
     onOpenWalkInModal?: () => void;
     onOpenQrModal?: () => void;
+    liveSync?: LiveSyncController;
+    liveSyncIntervalMs?: number;
+    liveSyncPaused?: boolean;
 }
 
 export const FacilityDashboardLayout: React.FC<FacilityDashboardLayoutProps> = ({
@@ -49,6 +55,9 @@ export const FacilityDashboardLayout: React.FC<FacilityDashboardLayoutProps> = (
     counts,
     onOpenWalkInModal,
     onOpenQrModal,
+    liveSync: externalLiveSync,
+    liveSyncIntervalMs,
+    liveSyncPaused,
 }) => {
     const { url, props } = usePage();
     const user = (props as any).auth?.user || {};
@@ -59,6 +68,13 @@ export const FacilityDashboardLayout: React.FC<FacilityDashboardLayoutProps> = (
         url.startsWith('/facility/appointments') ? 'appointments' :
         url.startsWith('/facility/receptionists') ? 'receptionists' : 'queue'
     );
+
+    const internalLiveSync = useInertiaLiveSync({
+        enabled: !externalLiveSync,
+        paused: liveSyncPaused,
+        intervalMs: liveSyncIntervalMs ?? 4000,
+    });
+    const activeLiveSync = externalLiveSync ?? internalLiveSync;
 
     const [mobileOpen, setMobileOpen] = useState(false);
     const [desktopCollapsed, setDesktopCollapsed] = useState(false);
@@ -274,6 +290,18 @@ export const FacilityDashboardLayout: React.FC<FacilityDashboardLayoutProps> = (
                         </div>
                     </div>
 
+                    <Link
+                        href="/settings/profile"
+                        className={cn(
+                            'w-full flex items-center gap-2.5 px-3 py-2 rounded-2xl text-xs font-bold text-gray-700 hover:text-[#005ab5] hover:bg-blue-50 transition-colors mb-1',
+                            desktopCollapsed && 'lg:justify-center lg:px-0'
+                        )}
+                        title="إعدادات الحساب والملف الشخصي"
+                    >
+                        <Settings className="w-4 h-4 shrink-0 text-gray-400" />
+                        <span className={cn(desktopCollapsed && 'lg:hidden')}>إعدادات الحساب</span>
+                    </Link>
+
                     <button
                         type="button"
                         onClick={handleLogout}
@@ -336,6 +364,8 @@ export const FacilityDashboardLayout: React.FC<FacilityDashboardLayoutProps> = (
 
                     {/* Top Actions */}
                     <div className="flex items-center gap-2.5">
+                        <LiveSyncIndicator sync={activeLiveSync} />
+
                         {onOpenQrModal && (
                             <button
                                 type="button"

@@ -60,6 +60,9 @@ export const ConfirmStatusModal: React.FC<ConfirmStatusModalProps> = ({
 
     return (
         <div
+            role="dialog"
+            aria-modal="true"
+            data-live-sync-pause="true"
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
             dir="rtl"
         >

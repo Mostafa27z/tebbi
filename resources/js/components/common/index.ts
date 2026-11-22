@@ -16,3 +16,4 @@ export * from './confirm-status-modal';
 export * from './confirmation-stages-badge';
 export * from './qr-code';
 export * from './toast';
+export * from './live-sync-indicator';

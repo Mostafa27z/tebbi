@@ -46,6 +46,7 @@ interface DoctorHistoryProps {
         notArrivedCount: number;
         insuranceCount: number;
         currentTicketNum: number | null;
+        servicesCount?: number;
     };
 }
 
@@ -94,6 +95,7 @@ export default function DoctorHistory({
                 waiting: stats?.waitingCount,
                 inConsultation: stats?.inConsultationCount,
                 completed: stats?.completedCount,
+                services: stats?.servicesCount,
             }}
         >
             <Head title={`سجل الكشوفات والروشتات - د. ${doctor.user.name}`} />

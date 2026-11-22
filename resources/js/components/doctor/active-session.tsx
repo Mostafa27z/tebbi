@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Volume2, Pill, Clock, AlertCircle, X, Check, Plus, Minus } from 'lucide-react';
 import { router } from '@inertiajs/react';
+import { formatDurationArabic } from '@/lib/utils';
 
 interface ActiveSessionProps {
     session: any;
@@ -51,9 +52,21 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({
                             <span className="w-2 h-2 rounded-full bg-[#005ab5] animate-pulse"></span>
                             الحالة الحالية داخل غرفة الفحص السريري
                         </span>
+                        {session.service_name && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 text-teal-800 border border-teal-200 text-xs font-bold">
+                                <span>{session.service_name}</span>
+                                {session.duration_minutes && (
+                                    <span>• {formatDurationArabic(session.duration_minutes, true)}</span>
+                                )}
+                                {session.consultation_fee && (
+                                    <span>• {Number(session.consultation_fee)} ر.س</span>
+                                )}
+                            </span>
+                        )}
                         {session.delay_minutes > 0 && (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold font-mono">
-                                ⏱️ تم التمديد (+{session.delay_minutes} د)
+                                <Clock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                                <span>تم التمديد (+{session.delay_minutes} د)</span>
                             </span>
                         )}
                     </div>
@@ -130,7 +143,13 @@ export const ActiveSession: React.FC<ActiveSessionProps> = ({
 
             {/* Delay Extension Modal */}
             {delayModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs font-['Cairo'] animate-in fade-in" dir="rtl">
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    data-live-sync-pause="true"
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs font-['Cairo'] animate-in fade-in"
+                    dir="rtl"
+                >
                     <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
                         <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-amber-50/50">
                             <div className="flex items-center gap-2.5">

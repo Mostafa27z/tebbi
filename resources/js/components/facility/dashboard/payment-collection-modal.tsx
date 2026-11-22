@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { router } from '@inertiajs/react';
-import { Receipt } from 'lucide-react';
+import { Receipt, CreditCard, Banknote, Globe, ShieldCheck } from 'lucide-react';
 import {
     Modal,
     FormInput,
@@ -18,22 +18,26 @@ interface PaymentCollectionModalProps {
 const PAYMENT_METHOD_OPTIONS = [
     {
         value: 'pos' as const,
-        label: '💳 مدى (Mada / POS)',
+        label: 'مدى (Mada / POS)',
+        icon: <CreditCard className="w-4 h-4" />,
         activeTone: 'blue' as const,
     },
     {
         value: 'cash' as const,
-        label: '💵 نقداً (كاش بالاستقبال)',
+        label: 'نقداً (كاش بالاستقبال)',
+        icon: <Banknote className="w-4 h-4" />,
         activeTone: 'emerald' as const,
     },
     {
         value: 'card' as const,
-        label: '🌐 بطاقة ائتمانية (Visa / MC)',
+        label: 'بطاقة ائتمانية (Visa / MC)',
+        icon: <Globe className="w-4 h-4" />,
         activeTone: 'indigo' as const,
     },
     {
         value: 'insurance' as const,
-        label: '🛡️ تأمين طبي معتمد',
+        label: 'تأمين طبي معتمد',
+        icon: <ShieldCheck className="w-4 h-4" />,
         activeTone: 'teal' as const,
     },
 ];

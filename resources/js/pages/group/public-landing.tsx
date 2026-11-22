@@ -44,6 +44,7 @@ export default function GroupPublicLanding({
 
     const [bookingDoctor, setBookingDoctor] = useState<any | null>(null);
     const [preferredSlot, setPreferredSlot] = useState<string | null>(null);
+    const [initialServiceId, setInitialServiceId] = useState<number | null>(null);
     const [isBookingOpen, setIsBookingOpen] = useState(false);
     const [isQrModalOpen, setIsQrModalOpen] = useState(false);
 
@@ -61,7 +62,8 @@ export default function GroupPublicLanding({
                 doc.title_ar.toLowerCase().includes(q) ||
                 (doc.subspecialty && doc.subspecialty.toLowerCase().includes(q)) ||
                 (doc.specialty && doc.specialty.name_ar.toLowerCase().includes(q)) ||
-                (doc.clinic && doc.clinic.name.toLowerCase().includes(q));
+                (doc.clinic && doc.clinic.name.toLowerCase().includes(q)) ||
+                (doc.active_services && doc.active_services.some((s) => s.name.toLowerCase().includes(q)));
 
             const matchesBranch =
                 selectedBranchId === 'all' ||
@@ -81,11 +83,15 @@ export default function GroupPublicLanding({
     }, [doctors, searchQuery, selectedBranchId, selectedSpecialtyId, selectedSpecialtyObj, todayOnly, insuranceOnly]);
 
     const handleOpenBooking = useCallback(
-        (doc: DoctorItem, slot?: string) => {
+        (doc: DoctorItem, slot?: string, serviceId?: number) => {
             setBookingDoctor({
                 id: doc.id,
                 title_ar: doc.title_ar,
                 consultation_fee: doc.consultation_fee,
+                waiting_time_minutes: doc.waiting_time_minutes,
+                slot_auto_confirm_limit: doc.slot_auto_confirm_limit,
+                slot_waitlist_limit: doc.slot_waitlist_limit,
+                active_services: doc.active_services || [],
                 user: {
                     name: doc.user.name,
                     avatar: doc.user.avatar || '/images/default-avatar.png',
@@ -100,6 +106,7 @@ export default function GroupPublicLanding({
                 },
             });
             setPreferredSlot(slot || null);
+            setInitialServiceId(serviceId ?? null);
             setIsBookingOpen(true);
         },
         [group.name_ar]
@@ -286,11 +293,13 @@ export default function GroupPublicLanding({
                 <BookingModal
                     doctor={bookingDoctor}
                     selectedSlot={preferredSlot}
+                    initialServiceId={initialServiceId}
                     isOpen={isBookingOpen}
                     onClose={() => {
                         setIsBookingOpen(false);
                         setBookingDoctor(null);
                         setPreferredSlot(null);
+                        setInitialServiceId(null);
                     }}
                 />
             )}

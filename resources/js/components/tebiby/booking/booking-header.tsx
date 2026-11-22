@@ -1,11 +1,14 @@
 import React, { memo } from 'react';
 import { X, Building2, CalendarDays } from 'lucide-react';
+import { formatDurationArabic } from '@/lib/utils';
 import { Doctor } from './types';
 
 interface BookingHeaderProps {
     doctor: Doctor;
     selectedDayLabel: string;
     selectedTimeSlot: string;
+    selectedServiceName?: string;
+    selectedDurationMinutes?: number;
     onClose: () => void;
 }
 
@@ -13,6 +16,8 @@ export const BookingHeader: React.FC<BookingHeaderProps> = memo(function Booking
     doctor,
     selectedDayLabel,
     selectedTimeSlot,
+    selectedServiceName,
+    selectedDurationMinutes,
     onClose,
 }) {
     return (
@@ -32,10 +37,18 @@ export const BookingHeader: React.FC<BookingHeaderProps> = memo(function Booking
                     </div>
 
                     <div className="min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
                             <span className="bg-white/15 text-blue-100 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-white/20">
                                 حجز وتتبع فوري
                             </span>
+                            {selectedServiceName && (
+                                <span className="bg-emerald-400/20 text-emerald-100 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-300/30 truncate max-w-[220px]">
+                                    {selectedServiceName}
+                                    {selectedDurationMinutes
+                                        ? ` • ${formatDurationArabic(selectedDurationMinutes, true)}`
+                                        : ''}
+                                </span>
+                            )}
                         </div>
                         <h3 className="font-black text-base sm:text-lg text-white font-['Cairo'] truncate">
                             {doctor.user.name}

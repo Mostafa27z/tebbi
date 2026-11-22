@@ -119,3 +119,19 @@
     --ring: hsl(212, 100%, 35%);
     --radius: 0.75rem;
 }
+
+@keyframes toast-progress {
+    from {
+        transform: scaleX(1);
+    }
+    to {
+        transform: scaleX(0);
+    }
+}
+
+.animate-toast-progress {
+    transform-origin: right center;
+    animation-name: toast-progress;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+}

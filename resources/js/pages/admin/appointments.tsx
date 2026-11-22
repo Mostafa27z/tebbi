@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Head } from '@inertiajs/react';
 import { AdminDashboardLayout } from '@/layouts/admin-dashboard-layout';
 import { MetricCard } from '@/components/common/metric-card';
 import { Calendar, Clock, CheckCircle2, Stethoscope } from 'lucide-react';
 import { Appointment } from '@/components/admin/types';
 import { AppointmentsTab } from '@/components/admin/tabs/appointments-tab';
+import { notify } from '@/components/common/toast';
 
 interface AppointmentsPageProps {
     appointments: Appointment[];
@@ -22,6 +23,33 @@ export default function AppointmentsPage({
 }: AppointmentsPageProps) {
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+
+    const prevIdsRef = useRef<Set<number>>(new Set(appointments.map((a) => a.id)));
+    const hasMountedRef = useRef(false);
+
+    useEffect(() => {
+        if (!hasMountedRef.current) {
+            hasMountedRef.current = true;
+            prevIdsRef.current = new Set(appointments.map((a) => a.id));
+            return;
+        }
+
+        const newItems = appointments.filter((a) => !prevIdsRef.current.has(a.id));
+        if (newItems.length === 1) {
+            const appt = newItems[0];
+            notify.info(
+                `حجز جديد: ${appt.patient.name} لدى ${appt.doctor.user.name} (${appt.booking_reference})`,
+                'حجز جديد بالمنصة'
+            );
+        } else if (newItems.length > 1) {
+            notify.info(
+                `تم تسجيل ${newItems.length} حجوزات جديدة على المنصة`,
+                'تحديث مباشر للحجوزات'
+            );
+        }
+
+        prevIdsRef.current = new Set(appointments.map((a) => a.id));
+    }, [appointments]);
 
     return (
         <AdminDashboardLayout activeTab="appointments">

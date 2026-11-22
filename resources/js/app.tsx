@@ -5,7 +5,8 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import { route as routeFn } from 'ziggy-js';
 import { initializeTheme } from './hooks/use-appearance';
-import toast, { Toaster } from 'react-hot-toast';
+import { AppToaster, ToastContainer, notify } from './components/common/toast';
+import { hasActiveLiveSync, isLiveSyncVisit } from './hooks/use-live-sync';
 
 declare global {
     const route: typeof routeFn;
@@ -31,18 +32,21 @@ function showToast(type: 'success' | 'error' | 'info' | 'warning', msg?: string 
     lastToastTime = now;
 
     if (type === 'success') {
-        toast.success(trimmed);
+        notify.success(trimmed);
     } else if (type === 'error') {
-        toast.error(trimmed);
+        notify.error(trimmed);
     } else if (type === 'warning') {
-        toast(trimmed, { icon: '⚠️' });
+        notify.warning(trimmed);
     } else {
-        toast(trimmed, { icon: 'ℹ️' });
+        notify.info(trimmed);
     }
 }
 
 // Track request methods to know when a mutating operation (POST/PUT/PATCH/DELETE) succeeds
 router.on('start', (event) => {
+    if (isLiveSyncVisit(event.detail.visit)) {
+        return;
+    }
     activeVisitMethod = (event.detail.visit.method || 'get').toLowerCase();
 });
 
@@ -94,8 +98,19 @@ router.on('error', (event) => {
     activeVisitMethod = 'get';
 });
 
+// Suppress non-Inertia response alerts on silent background GET live-sync polls
+router.on('invalid', (event) => {
+    if (hasActiveLiveSync() && activeVisitMethod === 'get') {
+        event.preventDefault();
+    }
+});
+
 // Automatically show server exception errors
-router.on('exception', () => {
+router.on('exception', (event) => {
+    if (hasActiveLiveSync() && activeVisitMethod === 'get') {
+        event.preventDefault();
+        return;
+    }
     showToast('error', 'حدث خطأ في الخادم أثناء تنفيذ العملية');
     activeVisitMethod = 'get';
 });
@@ -121,47 +136,8 @@ createInertiaApp({
         root.render(
             <>
                 <App {...props} />
-                <Toaster
-                    position="top-center"
-                    reverseOrder={false}
-                    toastOptions={{
-                        duration: 4000,
-                        style: {
-                            fontFamily: 'Tajawal, Cairo, sans-serif',
-                            fontSize: '13px',
-                            fontWeight: 700,
-                            borderRadius: '16px',
-                            padding: '12px 20px',
-                            color: '#0f172a',
-                            background: '#ffffff',
-                            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-                            border: '1px solid rgba(226, 232, 240, 0.8)',
-                            direction: 'rtl',
-                        },
-                        error: {
-                            iconTheme: {
-                                primary: '#ef4444',
-                                secondary: '#ffffff',
-                            },
-                            style: {
-                                border: '1px solid #fecaca',
-                                background: '#fef2f2',
-                                color: '#991b1b',
-                            },
-                        },
-                        success: {
-                            iconTheme: {
-                                primary: '#10b981',
-                                secondary: '#ffffff',
-                            },
-                            style: {
-                                border: '1px solid #a7f3d0',
-                                background: '#f0fdf4',
-                                color: '#065f46',
-                            },
-                        },
-                    }}
-                />
+                <AppToaster />
+                <ToastContainer />
             </>
         );
     },

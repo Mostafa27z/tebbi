@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { DoctorDashboardLayout } from '@/layouts/doctor-dashboard-layout';
 import { AvailabilityDialog } from '@/components/doctor/availability-dialog';
+import { SlotCapacityCard } from '@/components/doctor/slot-capacity-card';
 import { 
     Clock, 
     Building2, 
@@ -24,6 +25,8 @@ interface DoctorScheduleProps {
         is_available_today: boolean;
         consultation_fee: number;
         waiting_time_minutes: number;
+        slot_auto_confirm_limit?: number;
+        slot_waitlist_limit?: number;
         user: {
             name: string;
             email: string;
@@ -46,6 +49,7 @@ interface DoctorScheduleProps {
         notArrivedCount: number;
         insuranceCount: number;
         currentTicketNum: number | null;
+        servicesCount?: number;
     };
 }
 
@@ -72,6 +76,7 @@ export default function DoctorSchedule({
                 waiting: stats?.waitingCount,
                 inConsultation: stats?.inConsultationCount,
                 completed: stats?.completedCount,
+                services: stats?.servicesCount,
             }}
             onToggleAvailability={() => setAvailabilityModalOpen(true)}
         >
@@ -127,6 +132,12 @@ export default function DoctorSchedule({
                         </div>
                     </div>
                 </div>
+
+                {/* Slot Concurrency & Auto-Confirm Settings */}
+                <SlotCapacityCard
+                    autoConfirmLimit={doctor.slot_auto_confirm_limit ?? 1}
+                    waitlistLimit={doctor.slot_waitlist_limit ?? 1}
+                />
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Weekly Schedule Table (Left 2 cols) */}
@@ -215,6 +226,13 @@ export default function DoctorSchedule({
                                     </span>
                                 </div>
                             </div>
+
+                            <Link
+                                href="/doctor/services"
+                                className="mt-4 w-full py-2.5 px-4 rounded-2xl bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200/80 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                            >
+                                <span>إدارة أنواع الكشوفات والأسعار</span>
+                            </Link>
                         </div>
 
                         {/* Associated Facilities Card */}

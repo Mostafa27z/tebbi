@@ -3,6 +3,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import TebibyHeader from '@/components/tebiby/header';
 import TebibyFooter from '@/components/tebiby/footer';
 import BookingModal from '@/components/tebiby/booking-modal';
+import { PRESET_DAYS, type DoctorServiceItem } from '@/components/tebiby/booking/types';
 import { DoctorCard } from '@/components/tebiby/doctor-card';
 import { CustomSelect } from '@/components/common/custom-select';
 import { LoadingButton } from '@/components/common/loading-button';
@@ -42,8 +43,11 @@ interface Doctor {
     rating: number;
     review_count: number;
     waiting_time_minutes: number;
+    slot_auto_confirm_limit?: number;
+    slot_waitlist_limit?: number;
     accepts_insurance: boolean;
     accepted_insurances: string[] | null;
+    active_services?: DoctorServiceItem[];
     user: {
         name: string;
         avatar: string;
@@ -73,7 +77,8 @@ interface HomeProps {
 export default function Home({ specialties, clinics, doctors, filters, stats }: HomeProps) {
     const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
     const [bookingModalOpen, setBookingModalOpen] = useState(false);
-    const [selectedSlot, setSelectedSlot] = useState<{ date: string; time: string } | null>(null);
+    const [selectedSlot, setSelectedSlot] = useState<{ iso?: string; date: string; time: string } | null>(null);
+    const [initialServiceId, setInitialServiceId] = useState<number | null>(null);
 
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [selectedSpecialty, setSelectedSpecialty] = useState<string | number>(filters.specialty_id || '');
@@ -95,9 +100,20 @@ export default function Home({ specialties, clinics, doctors, filters, stats }: 
         });
     };
 
-    const handleOpenBooking = (doctor: Doctor, slot?: { date: string; time: string }) => {
+    const handleOpenBooking = (
+        doctor: Doctor,
+        slot?: { iso?: string; date: string; time: string },
+        serviceId?: number
+    ) => {
         setSelectedDoctor(doctor);
-        setSelectedSlot(slot || { date: 'اليوم - الجمعة 6 نوفمبر', time: '05:40 م' });
+        setSelectedSlot(
+            slot || {
+                iso: PRESET_DAYS[0].iso,
+                date: PRESET_DAYS[0].fullFormatted,
+                time: '05:30 م',
+            }
+        );
+        setInitialServiceId(serviceId ?? null);
         setBookingModalOpen(true);
     };
 
@@ -310,7 +326,7 @@ export default function Home({ specialties, clinics, doctors, filters, stats }: 
                                 key={doctor.id}
                                 doctor={doctor}
                                 onBookSlot={(doc, slot) => handleOpenBooking(doc, slot)}
-                                onBookDirect={(doc) => handleOpenBooking(doc)}
+                                onBookDirect={(doc, serviceId) => handleOpenBooking(doc, undefined, serviceId)}
                             />
                         ))}
                     </div>
@@ -323,6 +339,7 @@ export default function Home({ specialties, clinics, doctors, filters, stats }: 
             <BookingModal
                 doctor={selectedDoctor}
                 selectedSlot={selectedSlot}
+                initialServiceId={initialServiceId}
                 isOpen={bookingModalOpen}
                 onClose={() => setBookingModalOpen(false)}
             />

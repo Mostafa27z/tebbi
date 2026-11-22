@@ -1,5 +1,7 @@
 export * from './types';
 export * from './booking-header';
+export * from './booking-stepper';
+export * from './booking-service-selector';
 export * from './booking-date-selector';
 export * from './booking-time-selector';
 export * from './booking-patient-form';

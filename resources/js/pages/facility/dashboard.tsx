@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
-import toast from 'react-hot-toast';
+import { notify } from '@/components/common/toast';
 import { Volume2, Clock, BellRing, X, Stethoscope } from 'lucide-react';
 import { FacilityDashboardLayout } from '@/layouts/facility-dashboard-layout';
 import { FacilityQrModal } from '@/components/facility/facility-qr-modal';
 import { playCallChime } from '@/lib/chime';
+import { usePollingLiveSync } from '@/hooks/use-live-sync';
 import {
     ReceptionDoctor,
     ReceptionAppointment,
@@ -59,6 +60,9 @@ interface Props {
     initialLiveEvents?: LiveClinicEvent[];
 }
 
+const stripLeadingIcons = (text: string): string =>
+    text.replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\s]+/gu, '').trim();
+
 export default function FacilityDashboard({
     facility,
     metrics: initialMetrics,
@@ -91,135 +95,136 @@ export default function FacilityDashboard({
     }, [initialMetrics, initialAppointments]);
 
     // Real-time background sync every 3 seconds so Reception sees Doctor calls & delays immediately without refresh
-    useEffect(() => {
-        const pollLiveSync = async () => {
-            try {
-                const params = new URLSearchParams({
-                    facility_id: String(facility.id),
-                    date: selectedDateFilter || todayDate || 'today',
-                });
-                const res = await fetch(`/api/facility/live-sync?${params.toString()}`, {
-                    headers: { Accept: 'application/json' },
-                });
-                if (!res.ok) return;
+    const pollLiveSync = useCallback(async (): Promise<boolean> => {
+        try {
+            const params = new URLSearchParams({
+                facility_id: String(facility.id),
+                date: selectedDateFilter || todayDate || 'today',
+            });
+            const res = await fetch(`/api/facility/live-sync?${params.toString()}`, {
+                headers: { Accept: 'application/json' },
+            });
+            if (!res.ok) return false;
 
-                const data = await res.json();
-                const incomingEvents: LiveClinicEvent[] = Array.isArray(data.events) ? data.events : [];
-                const incomingAppointments: ReceptionAppointment[] = Array.isArray(data.todayAppointments)
-                    ? data.todayAppointments
-                    : [];
+            const data = await res.json();
+            const incomingEvents: LiveClinicEvent[] = Array.isArray(data.events) ? data.events : [];
+            const incomingAppointments: ReceptionAppointment[] = Array.isArray(data.todayAppointments)
+                ? data.todayAppointments
+                : [];
 
-                let triggeredSound = false;
-                const newlyArrivedEvents: LiveClinicEvent[] = [];
+            let triggeredSound = false;
+            const newlyArrivedEvents: LiveClinicEvent[] = [];
 
-                // 1. Check explicit broadcast events from Doctor actions
-                for (const evt of incomingEvents) {
-                    if (!seenEventIdsRef.current.has(evt.id)) {
-                        seenEventIdsRef.current.add(evt.id);
-                        newlyArrivedEvents.push(evt);
+            // 1. Check explicit broadcast events from Doctor actions
+            for (const evt of incomingEvents) {
+                if (!seenEventIdsRef.current.has(evt.id)) {
+                    seenEventIdsRef.current.add(evt.id);
+                    newlyArrivedEvents.push(evt);
+                    if (!triggeredSound) {
+                        triggeredSound = true;
+                        playCallChime();
+                    }
+                    const cleanMsg = stripLeadingIcons(evt.message);
+                    if (evt.type === 'call_next') {
+                        notify.clinicCall({
+                            title: 'نداء عيادة فوري',
+                            message: cleanMsg,
+                            badge: evt.doctor_name,
+                            onReplaySound: playCallChime,
+                        });
+                    } else if (evt.type === 'delay_added') {
+                        notify.clinicDelay({
+                            title: 'تمديد وقت كشف',
+                            message: cleanMsg,
+                            badge: evt.added_minutes ? `+${evt.added_minutes} دقيقة` : undefined,
+                        });
+                    }
+                }
+            }
+
+            // 2. Also detect any direct appointment state transitions (fallback if cache driver is array/reset)
+            for (const appt of incomingAppointments) {
+                const prev = prevApptMapRef.current.get(appt.id);
+                const curDelay = Number(appt.delay_minutes || 0);
+
+                if (prev) {
+                    if (prev.status !== 'in_consultation' && appt.status === 'in_consultation' && newlyArrivedEvents.length === 0) {
                         if (!triggeredSound) {
                             triggeredSound = true;
                             playCallChime();
                         }
-                        if (evt.type === 'call_next') {
-                            toast.success(evt.message, { duration: 9000 });
-                        } else if (evt.type === 'delay_added') {
-                            toast(evt.message, {
-                                icon: '⏰',
-                                duration: 9000,
-                                style: {
-                                    background: '#fffbeb',
-                                    color: '#78350f',
-                                    border: '2px solid #f59e0b',
-                                    fontWeight: 'bold',
-                                },
-                            });
+                        const ticketNum = appt.queueTicket?.ticket_number || 1;
+                        const fallbackCallEvt: LiveClinicEvent = {
+                            id: `auto_call_${appt.id}_${Date.now()}`,
+                            type: 'call_next',
+                            doctor_id: appt.doctor.id,
+                            doctor_name: appt.doctor.user.name,
+                            specialty_name: appt.doctor.specialty?.name_ar,
+                            patient_name: appt.patient.name,
+                            ticket_number: ticketNum,
+                            booking_reference: appt.booking_reference,
+                            appointment_id: appt.id,
+                            message: `استدعى ${appt.doctor.user.name} المريض التالي (${appt.patient.name}) - تذكرة رقم #${ticketNum} للدخول إلى غرفة الفحص الآن.`,
+                            created_at: new Date().toISOString(),
+                            timestamp_ms: Date.now(),
+                        };
+                        newlyArrivedEvents.push(fallbackCallEvt);
+                        notify.clinicCall({
+                            title: 'نداء عيادة فوري',
+                            message: fallbackCallEvt.message,
+                            badge: appt.doctor.user.name,
+                            onReplaySound: playCallChime,
+                        });
+                    } else if (curDelay > prev.delay && newlyArrivedEvents.length === 0) {
+                        const diff = curDelay - prev.delay;
+                        if (!triggeredSound) {
+                            triggeredSound = true;
+                            playCallChime();
                         }
+                        const fallbackDelayEvt: LiveClinicEvent = {
+                            id: `auto_delay_${appt.id}_${curDelay}_${Date.now()}`,
+                            type: 'delay_added',
+                            doctor_id: appt.doctor.id,
+                            doctor_name: appt.doctor.user.name,
+                            specialty_name: appt.doctor.specialty?.name_ar,
+                            patient_name: appt.patient.name,
+                            added_minutes: diff,
+                            total_delay_minutes: curDelay,
+                            delay_reason: appt.delay_reason || undefined,
+                            appointment_id: appt.id,
+                            message: `قام ${appt.doctor.user.name} بتمديد الكشف بمقدار (+${diff} دقيقة) وتم تحديث مواعيد الانتظار بالجدول تلقائياً.`,
+                            created_at: new Date().toISOString(),
+                            timestamp_ms: Date.now(),
+                        };
+                        newlyArrivedEvents.push(fallbackDelayEvt);
+                        notify.clinicDelay({
+                            title: 'تمديد وقت كشف',
+                            message: fallbackDelayEvt.message,
+                            badge: `+${diff} دقيقة`,
+                        });
                     }
                 }
 
-                // 2. Also detect any direct appointment state transitions (fallback if cache driver is array/reset)
-                for (const appt of incomingAppointments) {
-                    const prev = prevApptMapRef.current.get(appt.id);
-                    const curDelay = Number(appt.delay_minutes || 0);
-
-                    if (prev) {
-                        if (prev.status !== 'in_consultation' && appt.status === 'in_consultation' && newlyArrivedEvents.length === 0) {
-                            if (!triggeredSound) {
-                                triggeredSound = true;
-                                playCallChime();
-                            }
-                            const ticketNum = appt.queueTicket?.ticket_number || 1;
-                            const fallbackCallEvt: LiveClinicEvent = {
-                                id: `auto_call_${appt.id}_${Date.now()}`,
-                                type: 'call_next',
-                                doctor_id: appt.doctor.id,
-                                doctor_name: appt.doctor.user.name,
-                                specialty_name: appt.doctor.specialty?.name_ar,
-                                patient_name: appt.patient.name,
-                                ticket_number: ticketNum,
-                                booking_reference: appt.booking_reference,
-                                appointment_id: appt.id,
-                                message: `🔔 نداء عيادة فوري: استدعى ${appt.doctor.user.name} المريض التالي (${appt.patient.name}) - تذكرة رقم #${ticketNum} للدخول إلى غرفة الفحص الآن!`,
-                                created_at: new Date().toISOString(),
-                                timestamp_ms: Date.now(),
-                            };
-                            newlyArrivedEvents.push(fallbackCallEvt);
-                            toast.success(fallbackCallEvt.message, { duration: 9000 });
-                        } else if (curDelay > prev.delay && newlyArrivedEvents.length === 0) {
-                            const diff = curDelay - prev.delay;
-                            if (!triggeredSound) {
-                                triggeredSound = true;
-                                playCallChime();
-                            }
-                            const fallbackDelayEvt: LiveClinicEvent = {
-                                id: `auto_delay_${appt.id}_${curDelay}_${Date.now()}`,
-                                type: 'delay_added',
-                                doctor_id: appt.doctor.id,
-                                doctor_name: appt.doctor.user.name,
-                                specialty_name: appt.doctor.specialty?.name_ar,
-                                patient_name: appt.patient.name,
-                                added_minutes: diff,
-                                total_delay_minutes: curDelay,
-                                delay_reason: appt.delay_reason || undefined,
-                                appointment_id: appt.id,
-                                message: `⏰ تمديد وقت كشف: قام ${appt.doctor.user.name} بتمديد الكشف بمقدار (+${diff} دقيقة) وتم تحديث مواعيد الانتظار بالجدول تلقائياً.`,
-                                created_at: new Date().toISOString(),
-                                timestamp_ms: Date.now(),
-                            };
-                            newlyArrivedEvents.push(fallbackDelayEvt);
-                            toast(fallbackDelayEvt.message, {
-                                icon: '⏰',
-                                duration: 9000,
-                                style: {
-                                    background: '#fffbeb',
-                                    color: '#78350f',
-                                    border: '2px solid #f59e0b',
-                                    fontWeight: 'bold',
-                                },
-                            });
-                        }
-                    }
-
-                    prevApptMapRef.current.set(appt.id, { status: appt.status, delay: curDelay });
-                }
-
-                if (newlyArrivedEvents.length > 0) {
-                    setActiveAlerts((prev) => [...newlyArrivedEvents, ...prev].slice(0, 4));
-                }
-
-                if (data.metrics) {
-                    setLiveMetrics(data.metrics);
-                }
-                setLiveAppointments(incomingAppointments);
-            } catch {
-                // ignore transient network errors
+                prevApptMapRef.current.set(appt.id, { status: appt.status, delay: curDelay });
             }
-        };
 
-        const timer = setInterval(pollLiveSync, 3000);
-        return () => clearInterval(timer);
+            if (newlyArrivedEvents.length > 0) {
+                setActiveAlerts((prev) => [...newlyArrivedEvents, ...prev].slice(0, 4));
+            }
+
+            if (data.metrics) {
+                setLiveMetrics(data.metrics);
+            }
+            setLiveAppointments(incomingAppointments);
+            return true;
+        } catch {
+            return false;
+        }
     }, [facility.id, selectedDateFilter, todayDate]);
+
+    const liveSync = usePollingLiveSync(pollLiveSync, {
+        intervalMs: 3000,
+    });
 
     const [ticketModalOpen, setTicketModalOpen] = useState(false);
     const [qrModalOpen, setQrModalOpen] = useState(false);
@@ -322,6 +327,7 @@ export default function FacilityDashboard({
             }}
             onOpenWalkInModal={handleOpenWalkIn}
             onOpenQrModal={handleOpenQr}
+            liveSync={liveSync}
         >
             <Head title={`استقبال وطابور الحضور - ${facility.name}`} />
 
@@ -329,58 +335,81 @@ export default function FacilityDashboard({
                 {/* Real-Time Clinic Alerts (Doctor Call Next / Doctor Time Extension) */}
                 {activeAlerts.length > 0 && (
                     <div className="space-y-3">
-                        {activeAlerts.map((alert) => (
-                            <div
-                                key={alert.id}
-                                className={`p-4 sm:p-5 rounded-3xl shadow-lg border-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 ${
-                                    alert.type === 'call_next'
-                                        ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white border-emerald-300'
-                                        : 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white border-amber-300'
-                                }`}
-                            >
-                                <div className="flex items-start sm:items-center gap-3.5">
-                                    <div className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
-                                        {alert.type === 'call_next' ? (
-                                            <Volume2 className="w-6 h-6 text-white animate-bounce" />
-                                        ) : (
-                                            <Clock className="w-6 h-6 text-white animate-pulse" />
-                                        )}
-                                    </div>
-                                    <div>
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-[11px] font-black">
-                                                {alert.type === 'call_next' ? 'نداء عيادة مباشر' : 'تمديد وقت كشف'}
-                                            </span>
-                                            <span className="text-xs font-bold text-white/90">
-                                                {alert.doctor_name} {alert.specialty_name ? `(${alert.specialty_name})` : ''}
-                                            </span>
+                        {activeAlerts.map((alert) => {
+                            const isCall = alert.type === 'call_next';
+                            return (
+                                <div
+                                    key={alert.id}
+                                    className={`p-4 sm:p-5 rounded-3xl bg-white shadow-md border border-slate-200/80 border-r-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 ${
+                                        isCall ? 'border-r-emerald-500' : 'border-r-amber-500'
+                                    }`}
+                                >
+                                    <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                                        <div
+                                            className={`relative w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ring-1 ${
+                                                isCall
+                                                    ? 'bg-emerald-50 text-emerald-600 ring-emerald-200/80'
+                                                    : 'bg-amber-50 text-amber-600 ring-amber-200/80'
+                                            }`}
+                                        >
+                                            {isCall ? (
+                                                <>
+                                                    <BellRing className="w-5 h-5" />
+                                                    <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 ring-2 ring-white" />
+                                                    </span>
+                                                </>
+                                            ) : (
+                                                <Clock className="w-5 h-5" />
+                                            )}
                                         </div>
-                                        <p className="text-sm sm:text-base font-black font-['Cairo'] mt-1">
-                                            {alert.message}
-                                        </p>
+                                        <div className="min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span
+                                                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-black border ${
+                                                        isCall
+                                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                            : 'bg-amber-50 text-amber-800 border-amber-200'
+                                                    }`}
+                                                >
+                                                    {isCall ? 'نداء عيادة مباشر' : 'تمديد وقت كشف'}
+                                                </span>
+                                                <span className="text-xs font-bold text-slate-600">
+                                                    {alert.doctor_name} {alert.specialty_name ? `(${alert.specialty_name})` : ''}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs sm:text-sm font-bold text-slate-900 font-['Cairo'] mt-1 leading-relaxed">
+                                                {stripLeadingIcons(alert.message)}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                                        <button
+                                            type="button"
+                                            onClick={playCallChime}
+                                            className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border ${
+                                                isCall
+                                                    ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'
+                                                    : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200'
+                                            }`}
+                                        >
+                                            <Volume2 className="w-3.5 h-3.5" />
+                                            <span>جرس النداء</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => dismissAlert(alert.id)}
+                                            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
+                                            title="إغلاق التنبيه"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
                                     </div>
                                 </div>
-
-                                <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-                                    <button
-                                        type="button"
-                                        onClick={playCallChime}
-                                        className="px-3 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                                    >
-                                        <BellRing className="w-3.5 h-3.5" />
-                                        <span>جرس النداء</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => dismissAlert(alert.id)}
-                                        className="p-2 rounded-xl bg-white/15 hover:bg-white/25 text-white cursor-pointer"
-                                        title="إغلاق التنبيه"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
 

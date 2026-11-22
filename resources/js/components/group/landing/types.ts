@@ -1,3 +1,5 @@
+import type { DoctorServiceItem } from '@/components/tebiby/booking/types';
+
 export interface FacilitySpecialtyTag {
     id: number;
     name_ar: string;
@@ -51,8 +53,11 @@ export interface DoctorItem {
     rating: number;
     review_count: number;
     waiting_time_minutes: number;
+    slot_auto_confirm_limit?: number;
+    slot_waitlist_limit?: number;
     accepts_insurance: boolean;
     is_available_today: boolean;
+    active_services?: DoctorServiceItem[];
     specialty?: {
         id: number;
         name_ar: string;

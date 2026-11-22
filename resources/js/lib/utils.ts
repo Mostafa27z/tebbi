@@ -58,3 +58,50 @@ export function parseTimeTo24Hour(timeStr?: string | null): string {
     if (isAm && hours === 12) hours = 0;
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
 }
+
+export function formatDurationArabic(minutes?: number | null, compact = false): string {
+    const mins = Math.max(1, Math.round(Number(minutes) || 20));
+    if (mins < 60) {
+        return compact ? `${mins} د` : `${mins} دقيقة`;
+    }
+
+    const hours = Math.floor(mins / 60);
+    const rem = mins % 60;
+
+    if (compact) {
+        if (rem === 0) {
+            if (hours === 1) return 'ساعة';
+            if (hours === 2) return 'ساعتان';
+            if (hours <= 10) return `${hours} ساعات`;
+            return `${hours} س`;
+        }
+        return `${hours} س ${rem} د`;
+    }
+
+    let hoursText = '';
+    if (hours === 1) hoursText = 'ساعة واحدة';
+    else if (hours === 2) hoursText = 'ساعتان';
+    else if (hours >= 3 && hours <= 10) hoursText = `${hours} ساعات`;
+    else hoursText = `${hours} ساعة`;
+
+    if (rem === 0) {
+        return `${hoursText} (${mins} دقيقة)`;
+    }
+    return `${hoursText} و${rem} دقيقة`;
+}
+
+export function timeToMinutes(timeStr: string): number {
+    const t24 = parseTimeTo24Hour(timeStr);
+    const [hStr, mStr] = t24.split(':');
+    return parseInt(hStr || '0', 10) * 60 + parseInt(mStr || '0', 10);
+}
+
+export function minutesToArabicTime(totalMinutes: number): string {
+    const normalized = ((totalMinutes % 1440) + 1440) % 1440;
+    const h24 = Math.floor(normalized / 60);
+    const mins = normalized % 60;
+    const period = h24 >= 12 ? 'م' : 'ص';
+    let h12 = h24 % 12;
+    if (h12 === 0) h12 = 12;
+    return `${String(h12).padStart(2, '0')}:${String(mins).padStart(2, '0')} ${period}`;
+}

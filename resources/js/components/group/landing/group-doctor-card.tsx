@@ -1,17 +1,18 @@
 import React, { memo } from 'react';
-import { Star, Hospital, Clock, Calendar, Share2, ShieldCheck, Sparkles } from 'lucide-react';
+import { Star, Hospital, Clock, Calendar, Share2, ShieldCheck, Sparkles, ClipboardList } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { SurfaceCard, AppButton } from '@/components/common';
+import { formatDurationArabic } from '@/lib/utils';
 import { DoctorItem } from './types';
 
 interface GroupDoctorCardProps {
     doctor: DoctorItem;
     groupName: string;
     groupSlug: string;
-    onBook: (doctor: DoctorItem, preferredSlot?: string) => void;
+    onBook: (doctor: DoctorItem, preferredSlot?: string, serviceId?: number) => void;
 }
 
-const QUICK_SLOTS = ['04:30 م', '05:20 م', '06:00 م', '07:30 م'];
+const QUICK_SLOTS = ['04:30 م', '05:00 م', '05:30 م', '06:00 م'];
 
 export const GroupDoctorCard = memo(function GroupDoctorCard({
     doctor: doc,
@@ -19,6 +20,13 @@ export const GroupDoctorCard = memo(function GroupDoctorCard({
     groupSlug,
     onBook,
 }: GroupDoctorCardProps) {
+    const services = doc.active_services || [];
+    const hasMultipleServices = services.length > 1;
+    const minPrice =
+        services.length > 0
+            ? Math.min(...services.map((s) => Number(s.price)))
+            : doc.consultation_fee;
+
     const primaryFacility = doc.clinic || (doc.facilities && doc.facilities[0]);
     const allBranchNames = doc.facilities && doc.facilities.length > 1
         ? doc.facilities.map((f) => f.name)
@@ -117,13 +125,50 @@ export const GroupDoctorCard = memo(function GroupDoctorCard({
                         </span>
 
                         <span className="flex items-center gap-1">
-                            <span className="text-slate-500">الكشفية:</span>
+                            <span className="text-slate-500">
+                                {hasMultipleServices ? 'تبدأ من:' : 'الكشفية:'}
+                            </span>
                             <strong className="font-black text-emerald-700 text-sm font-mono">
-                                {doc.consultation_fee} ر.س
+                                {minPrice} ر.س
                             </strong>
                         </span>
                     </div>
                 </div>
+
+                {/* Doctor Custom Services Preview */}
+                {services.length > 0 && (
+                    <div className="p-2.5 rounded-2xl bg-blue-50/45 border border-blue-100 space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px] font-bold text-[#005ab5]">
+                            <span className="flex items-center gap-1">
+                                <ClipboardList className="w-3.5 h-3.5 shrink-0" />
+                                <span>الكشوفات والخدمات المتاحة</span>
+                            </span>
+                            <span className="text-[10px] text-slate-400">اختر للحجز</span>
+                        </div>
+                        <div className="space-y-1">
+                            {services.slice(0, 3).map((srv) => (
+                                <button
+                                    key={srv.id}
+                                    type="button"
+                                    onClick={() => onBook(doc, undefined, srv.id)}
+                                    className="w-full px-2.5 py-1.5 rounded-xl bg-white hover:bg-[#005ab5] border border-blue-100 hover:border-[#005ab5] flex items-center justify-between gap-2 text-right transition-colors cursor-pointer group/gsrv"
+                                >
+                                    <span className="text-[11px] font-bold text-slate-800 group-hover/gsrv:text-white truncate">
+                                        {srv.name}
+                                    </span>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-lg bg-blue-50 text-[#005ab5] group-hover/gsrv:bg-white/15 group-hover/gsrv:text-blue-100">
+                                            {formatDurationArabic(srv.duration_minutes, true)}
+                                        </span>
+                                        <span className="text-[11px] font-black text-emerald-700 group-hover/gsrv:text-white font-['Cairo']">
+                                            {Number(srv.price)} ر.س
+                                        </span>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Quick Available Slots Today */}
                 <div className="space-y-1.5">
@@ -132,7 +177,9 @@ export const GroupDoctorCard = memo(function GroupDoctorCard({
                             <Sparkles className="w-3 h-3 text-amber-500" />
                             <span>أقرب المواعيد المتاحة للحجز الفوري:</span>
                         </span>
-                        <span className="text-emerald-600 font-bold">تأكيد فوري</span>
+                        <span className="text-emerald-600 font-bold">
+                            {(doc.slot_auto_confirm_limit ?? 1) > 0 ? 'تأكيد فوري' : 'حجز بالتأكيد المسبق'}
+                        </span>
                     </div>
                     <div className="grid grid-cols-4 gap-1.5">
                         {QUICK_SLOTS.map((slot) => (

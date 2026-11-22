@@ -35,6 +35,9 @@ export const Modal: React.FC<ModalProps> = React.memo(({
 
     return (
         <div
+            role="dialog"
+            aria-modal="true"
+            data-live-sync-pause="true"
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 overflow-y-auto font-['Tajawal']"
             dir="rtl"
         >

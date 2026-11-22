@@ -21,6 +21,10 @@ export interface ReceptionAppointment {
     payment_status: 'paid' | 'pending' | 'refunded' | 'pending_verification';
     payment_method?: 'cash' | 'pos' | 'card' | 'insurance' | string;
     payment_notes?: string;
+    service_name?: string | null;
+    duration_minutes?: number | null;
+    delay_minutes?: number;
+    delay_reason?: string | null;
     total_amount: number;
     fee_amount?: number;
     patient: { name: string; phone: string; national_id?: string };

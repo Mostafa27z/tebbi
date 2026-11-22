@@ -7,8 +7,9 @@ import {
     UserCheck,
     ExternalLink,
     Calendar,
+    FileText,
 } from 'lucide-react';
-import { cn, format12HourTime } from '@/lib/utils';
+import { cn, format12HourTime, formatDurationArabic } from '@/lib/utils';
 import { StatusSelect } from '@/components/common/status-select';
 import { ConfirmationStagesBadge } from '@/components/common/confirmation-stages-badge';
 import { ReceptionAppointment } from './types';
@@ -88,6 +89,12 @@ const ReceptionQueueRow: React.FC<ReceptionQueueRowProps> = React.memo(({
                     <div className="text-[11px] text-purple-700 font-medium truncate max-w-[140px] mt-0.5">
                         {appt.doctor.specialty?.name_ar || appt.doctor.title_ar}
                     </div>
+                    {appt.service_name && (
+                        <div className="text-[10px] font-bold text-teal-700 truncate max-w-[160px] mt-0.5">
+                            {appt.service_name}
+                            {appt.duration_minutes ? ` • ${formatDurationArabic(appt.duration_minutes, true)}` : ''}
+                        </div>
+                    )}
                 </div>
             </td>
 
@@ -134,10 +141,11 @@ const ReceptionQueueRow: React.FC<ReceptionQueueRowProps> = React.memo(({
                         </button>
                         {appt.payment_notes && (
                             <p
-                                className="text-[10px] text-gray-500 font-medium truncate max-w-[140px]"
+                                className="text-[10px] text-gray-500 font-medium flex items-center gap-1 max-w-[150px]"
                                 title={appt.payment_notes}
                             >
-                                📝 {appt.payment_notes}
+                                <FileText className="w-3 h-3 text-gray-400 shrink-0" />
+                                <span className="truncate">{appt.payment_notes}</span>
                             </p>
                         )}
                     </div>

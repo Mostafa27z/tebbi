@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from '@inertiajs/react';
-import { CheckCircle2, User, Phone, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, User, Phone, ShieldCheck, Settings } from 'lucide-react';
 import { LiveClockBadge } from './live-clock-badge';
 
 interface PatientWelcomeBannerProps {
@@ -20,20 +20,23 @@ export const PatientWelcomeBanner: React.FC<PatientWelcomeBannerProps> = React.m
         <div className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-200/80 shadow-xs mb-6">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="relative shrink-0">
-                        <img
-                            src={
-                                patient.avatar ||
-                                'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=faces'
-                            }
-                            alt={patient.name}
-                            className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover ring-2 ring-[#005ab5]/20 shadow-xs"
-                        />
+                    <Link href="/settings/profile" className="relative shrink-0 group" title="تعديل الصورة الشخصية وإعدادات الحساب">
+                        {patient.avatar ? (
+                            <img
+                                src={patient.avatar}
+                                alt={patient.name}
+                                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover ring-2 ring-[#005ab5]/20 shadow-xs group-hover:opacity-90 transition-opacity"
+                            />
+                        ) : (
+                            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-[#005ab5] to-blue-400 flex items-center justify-center text-white font-black text-lg font-['Cairo'] ring-2 ring-[#005ab5]/20 shadow-xs group-hover:opacity-90 transition-opacity">
+                                {patient.name ? patient.name.slice(0, 2) : 'ط'}
+                            </div>
+                        )}
                         <span
                             className="absolute -bottom-1 -left-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white"
                             title="حساب نشط"
                         />
-                    </div>
+                    </Link>
                     <div>
                         <div className="flex flex-wrap items-center gap-2 mb-1">
                             <h1 className="text-xl sm:text-2xl font-black text-gray-900 font-['Cairo']">
@@ -72,6 +75,14 @@ export const PatientWelcomeBanner: React.FC<PatientWelcomeBannerProps> = React.m
 
                 <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end pt-3 md:pt-0 border-t md:border-t-0 border-gray-100">
                     <LiveClockBadge />
+
+                    <Link
+                        href="/settings/profile"
+                        className="px-4 py-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                    >
+                        <Settings className="w-3.5 h-3.5 text-gray-500" />
+                        <span>إعدادات الحساب</span>
+                    </Link>
 
                     <Link
                         href="/"

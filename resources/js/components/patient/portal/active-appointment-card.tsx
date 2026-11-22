@@ -8,8 +8,9 @@ import {
     FileText,
     QrCode,
     ArrowUpRight,
+    BellRing,
 } from 'lucide-react';
-import { cn, format12HourTime } from '@/lib/utils';
+import { cn, format12HourTime, formatDurationArabic } from '@/lib/utils';
 import { formatRemainingArabic } from '@/components/queue/queue-hero-banner';
 
 interface ActiveAppointmentCardProps {
@@ -82,6 +83,16 @@ export const ActiveAppointmentCard: React.FC<ActiveAppointmentCardProps> = React
                             <p className="text-xs text-[#005ab5] font-semibold mt-0.5">
                                 {activeAppt.doctor.specialty?.name_ar} • {activeAppt.doctor.title_ar}
                             </p>
+                            {activeAppt.service_name && (
+                                <p className="text-[11px] text-teal-800 font-bold mt-1 inline-flex items-center gap-1.5 bg-white/80 px-2.5 py-0.5 rounded-lg border border-teal-200/80">
+                                    <span>{activeAppt.service_name}</span>
+                                    {activeAppt.duration_minutes && (
+                                        <span className="text-teal-600">
+                                            • {formatDurationArabic(activeAppt.duration_minutes)}
+                                        </span>
+                                    )}
+                                </p>
+                            )}
                             {clinicLoc.name && (
                                 <p className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-1">
                                     <Building2 className="w-3.5 h-3.5 text-gray-400 shrink-0" />
@@ -127,8 +138,8 @@ export const ActiveAppointmentCard: React.FC<ActiveAppointmentCardProps> = React
                             <div className="text-xs font-bold leading-relaxed">
                                 {activeAppt.status === 'in_consultation' ? (
                                     <span className="text-emerald-300 flex items-center gap-1.5 justify-center sm:justify-start">
-                                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                                        <span>🎉 حان دورك الآن! تفضل بالدخول للطبيب</span>
+                                        <BellRing className="w-4 h-4 text-emerald-300 shrink-0" />
+                                        <span>حان دورك الآن! تفضل بالدخول للطبيب</span>
                                     </span>
                                 ) : activeAppt.status === 'waiting' ? (
                                     <span className="text-amber-200">

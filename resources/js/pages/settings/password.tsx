@@ -1,128 +1,45 @@
-import InputError from '@/components/input-error';
-import AppLayout from '@/layouts/app-layout';
-import SettingsLayout from '@/layouts/settings/layout';
-import { type BreadcrumbItem } from '@/types';
-import { Transition } from '@headlessui/react';
-import { Head, useForm } from '@inertiajs/react';
-import { FormEventHandler, useRef } from 'react';
+import React from 'react';
+import Profile from './profile';
+import { usePage } from '@inertiajs/react';
 
-import HeadingSmall from '@/components/heading-small';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+interface PasswordPageProps {
+    mustVerifyEmail?: boolean;
+    status?: string;
+}
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Password settings',
-        href: '/settings/password',
-    },
-];
+export default function Password(props: PasswordPageProps) {
+    const { auth } = usePage<any>().props;
+    const user = auth?.user || {};
 
-export default function Password() {
-    const passwordInput = useRef<HTMLInputElement>(null);
-    const currentPasswordInput = useRef<HTMLInputElement>(null);
-
-    const { data, setData, errors, put, reset, processing, recentlySuccessful } = useForm({
-        current_password: '',
-        password: '',
-        password_confirmation: '',
-    });
-
-    const updatePassword: FormEventHandler = (e) => {
-        e.preventDefault();
-
-        put(route('password.update'), {
-            preserveScroll: true,
-            onSuccess: () => reset(),
-            onError: (errors) => {
-                if (errors.password) {
-                    reset('password', 'password_confirmation');
-                    passwordInput.current?.focus();
-                }
-
-                if (errors.current_password) {
-                    reset('current_password');
-                    currentPasswordInput.current?.focus();
-                }
-            },
-        });
-    };
+    const returnUrl = matchRoleUrl(user);
+    const returnLabel = matchRoleLabel(user);
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Profile settings" />
-
-            <SettingsLayout>
-                <div className="space-y-6">
-                    <HeadingSmall title="Update password" description="Ensure your account is using a long, random password to stay secure" />
-
-                    <form onSubmit={updatePassword} className="space-y-6">
-                        <div className="grid gap-2">
-                            <Label htmlFor="current_password">Current password</Label>
-
-                            <Input
-                                id="current_password"
-                                ref={currentPasswordInput}
-                                value={data.current_password}
-                                onChange={(e) => setData('current_password', e.target.value)}
-                                type="password"
-                                className="mt-1 block w-full"
-                                autoComplete="current-password"
-                                placeholder="Current password"
-                            />
-
-                            <InputError message={errors.current_password} />
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="password">New password</Label>
-
-                            <Input
-                                id="password"
-                                ref={passwordInput}
-                                value={data.password}
-                                onChange={(e) => setData('password', e.target.value)}
-                                type="password"
-                                className="mt-1 block w-full"
-                                autoComplete="new-password"
-                                placeholder="New password"
-                            />
-
-                            <InputError message={errors.password} />
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="password_confirmation">Confirm password</Label>
-
-                            <Input
-                                id="password_confirmation"
-                                value={data.password_confirmation}
-                                onChange={(e) => setData('password_confirmation', e.target.value)}
-                                type="password"
-                                className="mt-1 block w-full"
-                                autoComplete="new-password"
-                                placeholder="Confirm password"
-                            />
-
-                            <InputError message={errors.password_confirmation} />
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                            <Button disabled={processing}>Save password</Button>
-
-                            <Transition
-                                show={recentlySuccessful}
-                                enter="transition ease-in-out"
-                                enterFrom="opacity-0"
-                                leave="transition ease-in-out"
-                                leaveTo="opacity-0"
-                            >
-                                <p className="text-sm text-neutral-600">Saved</p>
-                            </Transition>
-                        </div>
-                    </form>
-                </div>
-            </SettingsLayout>
-        </AppLayout>
+        <Profile
+            profileUser={user}
+            doctorProfile={user.doctor_profile}
+            returnUrl={returnUrl}
+            returnLabel={returnLabel}
+            mustVerifyEmail={props.mustVerifyEmail}
+            status={props.status}
+            initialTab="security"
+        />
     );
+}
+
+function matchRoleUrl(user: any): string {
+    if (user.role === 'admin') return '/admin/analytics';
+    if (user.is_group_admin) return '/group/dashboard';
+    if (user.is_facility_admin || user.is_receptionist || user.role === 'receptionist') return '/facility/dashboard';
+    if (user.role === 'doctor') return '/doctor/dashboard';
+    return '/patient/portal';
+}
+
+function matchRoleLabel(user: any): string {
+    if (user.role === 'admin') return 'لوحة إدارة المنصة';
+    if (user.is_group_admin) return 'لوحة إدارة المجمع الطبي';
+    if (user.is_facility_admin) return 'لوحة إدارة المنشأة الطبية';
+    if (user.is_receptionist || user.role === 'receptionist') return 'لوحة الاستقبال والعيادات';
+    if (user.role === 'doctor') return 'لوحة تحكم الطبيب';
+    return 'بوابة المريض والملف الطبي';
 }

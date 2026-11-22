@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Head, router } from '@inertiajs/react';
 import toast from 'react-hot-toast';
-import { RefreshCw, Volume2, Clock, BellRing } from 'lucide-react';
+import { notify } from '@/components/common/toast';
+import { LiveSyncIndicator } from '@/components/common/live-sync-indicator';
+import { usePollingLiveSync } from '@/hooks/use-live-sync';
+import { Volume2, Clock, BellRing, X } from 'lucide-react';
 import TebibyHeader from '@/components/tebiby/header';
 import TebibyFooter from '@/components/tebiby/footer';
 import { playCallChime } from '@/lib/chime';
@@ -20,6 +23,8 @@ interface LiveQueueProps {
         booking_reference: string;
         appointment_date: string;
         appointment_time: string;
+        service_name?: string | null;
+        duration_minutes?: number | null;
         delay_minutes?: number;
         delay_reason?: string | null;
         status: string;
@@ -99,8 +104,6 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 
 export default function LiveQueue({ appointment, queueData: initialQueueData, clinicLocation }: LiveQueueProps) {
     const [queueData, setQueueData] = useState<any>(initialQueueData);
-    const [lastUpdated, setLastUpdated] = useState<string>('الآن');
-    const [isPolling, setIsPolling] = useState(false);
     const [liveAlertBanner, setLiveAlertBanner] = useState<{
         type: 'call' | 'delay';
         title: string;
@@ -174,90 +177,85 @@ export default function LiveQueue({ appointment, queueData: initialQueueData, cl
     const googleMapsNavUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLocation.lat},${userLocation.lng}&destination=${clinicLat},${clinicLng}`;
     const displayDocName = formatDoctorName(appointment.doctor?.user?.name);
 
-    const fetchLatestStatus = useCallback(async () => {
+    const fetchLatestStatus = useCallback(async (): Promise<boolean> => {
         try {
-            setIsPolling(true);
             const res = await fetch(`/api/queue/${appointment.booking_reference}/status`, {
                 headers: { Accept: 'application/json' },
             });
-            if (res.ok) {
-                const data = await res.json();
-                const newDelayMinutes = Number(data.delayMinutes || 0);
-                const newCallCount = Number(data.callCount || 0);
+            if (!res.ok) return false;
 
-                if (
-                    (data.isCalled && !wasCalledRef.current) ||
-                    (data.isCalled && newCallCount > prevCallCountRef.current)
-                ) {
-                    wasCalledRef.current = true;
-                    prevCallCountRef.current = newCallCount;
-                    playCallChime();
-                    const callMsg = `قام ${displayDocName} باستدعائك الآن! تفضل بالدخول فوراً إلى غرفة الفحص (تذكرة #${data.ticketNumber}).`;
-                    setLiveAlertBanner({
-                        type: 'call',
-                        title: '🔔 دورك الآن! تفضل بالدخول إلى غرفة الفحص 🩺',
-                        message: callMsg,
-                    });
-                    toast.success(`🔔 دورك الآن! ${callMsg}`, { duration: 10000 });
-                }
+            const data = await res.json();
+            const newDelayMinutes = Number(data.delayMinutes || 0);
+            const newCallCount = Number(data.callCount || 0);
 
-                if (newDelayMinutes > prevDelayMinutesRef.current) {
-                    const addedDiff = newDelayMinutes - prevDelayMinutesRef.current;
-                    prevDelayMinutesRef.current = newDelayMinutes;
-                    playCallChime();
-                    const remainingText = formatRemainingArabic(data.minutesRemaining ?? 15, Boolean(data.isCalled));
-                    const delayMsg = `قام ${displayDocName} بتمديد وقت الكشف الحالي بمقدار (+${addedDiff} دقيقة). تم تعديل وقت موعدك المتوقع تلقائياً إلى الساعة ${data.expectedTime} (${remainingText}).`;
-                    setLiveAlertBanner({
-                        type: 'delay',
-                        title: `⏰ تنبيه فوري من العيادة: تم تمديد الوقت (+${addedDiff} دقيقة)`,
-                        message: delayMsg,
-                    });
-                    toast(delayMsg, {
-                        icon: '⏰',
-                        duration: 10000,
-                        style: {
-                            background: '#fffbeb',
-                            color: '#78350f',
-                            border: '2px solid #f59e0b',
-                            fontWeight: 'bold',
-                        },
-                    });
-                }
-
-                setQueueData((prev: any) => ({
-                    ...prev,
-                    ticketNumber: data.ticketNumber,
-                    currentServingNumber: data.currentServingNumber,
-                    patientsAhead: data.patientsAhead,
-                    estimatedWaitMinutes: data.estimatedWaitMinutes,
-                    queueStatus: data.status,
-                    appointmentStatus: data.appointmentStatus || prev.appointmentStatus,
-                    isYourTurn: Boolean(data.isYourTurn || data.isCalled),
-                    isCalled: Boolean(data.isCalled),
-                    delayMinutes: newDelayMinutes,
-                    delayReason: data.delayReason,
-                    scheduledTime: data.scheduledTime || prev.scheduledTime,
-                    expectedTime: data.expectedTime || prev.expectedTime,
-                    minutesRemaining: data.minutesRemaining,
-                    targetTimestampMs: data.targetTimestampMs,
-                }));
-
-                const d = new Date();
-                setLastUpdated(
-                    `${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`
-                );
+            if (
+                (data.isCalled && !wasCalledRef.current) ||
+                (data.isCalled && newCallCount > prevCallCountRef.current)
+            ) {
+                wasCalledRef.current = true;
+                prevCallCountRef.current = newCallCount;
+                playCallChime();
+                const callMsg = `قام ${displayDocName} باستدعائك الآن! تفضل بالدخول فوراً إلى غرفة الفحص (تذكرة #${data.ticketNumber}).`;
+                setLiveAlertBanner({
+                    type: 'call',
+                    title: 'دورك الآن — تفضل بالدخول إلى غرفة الفحص',
+                    message: callMsg,
+                });
+                notify.clinicCall({
+                    title: 'حان دورك الآن',
+                    message: callMsg,
+                    badge: `تذكرة #${data.ticketNumber}`,
+                    onReplaySound: playCallChime,
+                    duration: 10000,
+                });
             }
+
+            if (newDelayMinutes > prevDelayMinutesRef.current) {
+                const addedDiff = newDelayMinutes - prevDelayMinutesRef.current;
+                prevDelayMinutesRef.current = newDelayMinutes;
+                playCallChime();
+                const remainingText = formatRemainingArabic(data.minutesRemaining ?? 15, Boolean(data.isCalled));
+                const delayMsg = `قام ${displayDocName} بتمديد وقت الكشف الحالي بمقدار (+${addedDiff} دقيقة). تم تعديل وقت موعدك المتوقع تلقائياً إلى الساعة ${data.expectedTime} (${remainingText}).`;
+                setLiveAlertBanner({
+                    type: 'delay',
+                    title: `تنبيه فوري من العيادة: تم تمديد الوقت (+${addedDiff} دقيقة)`,
+                    message: delayMsg,
+                });
+                notify.clinicDelay({
+                    title: 'تمديد وقت الكشف',
+                    message: delayMsg,
+                    badge: `+${addedDiff} دقيقة`,
+                    duration: 10000,
+                });
+            }
+
+            setQueueData((prev: any) => ({
+                ...prev,
+                ticketNumber: data.ticketNumber,
+                currentServingNumber: data.currentServingNumber,
+                patientsAhead: data.patientsAhead,
+                estimatedWaitMinutes: data.estimatedWaitMinutes,
+                queueStatus: data.status,
+                appointmentStatus: data.appointmentStatus || prev.appointmentStatus,
+                isYourTurn: Boolean(data.isYourTurn || data.isCalled),
+                isCalled: Boolean(data.isCalled),
+                delayMinutes: newDelayMinutes,
+                delayReason: data.delayReason,
+                scheduledTime: data.scheduledTime || prev.scheduledTime,
+                expectedTime: data.expectedTime || prev.expectedTime,
+                minutesRemaining: data.minutesRemaining,
+                targetTimestampMs: data.targetTimestampMs,
+            }));
+
+            return true;
         } catch {
-            // ignore transient errors
-        } finally {
-            setIsPolling(false);
+            return false;
         }
     }, [appointment.booking_reference, displayDocName]);
 
-    useEffect(() => {
-        const interval = setInterval(fetchLatestStatus, 3000);
-        return () => clearInterval(interval);
-    }, [fetchLatestStatus]);
+    const liveSync = usePollingLiveSync(fetchLatestStatus, {
+        intervalMs: 3000,
+    });
 
     const currentApptStatus = queueData.appointmentStatus || appointment.status;
     const isYourTurn = Boolean(queueData.isCalled || queueData.isYourTurn || currentApptStatus === 'in_consultation');
@@ -304,7 +302,7 @@ export default function LiveQueue({ appointment, queueData: initialQueueData, cl
                 desc: isStage3Done
                     ? 'تم إنهاء الكشف الطبي واعتماده'
                     : isYourTurn
-                      ? '🔔 دورك الآن داخل العيادة مع الطبيب'
+                      ? 'دورك الآن داخل العيادة مع الطبيب'
                       : `كشف ${displayDocName}`,
             },
             {
@@ -336,54 +334,44 @@ export default function LiveQueue({ appointment, queueData: initialQueueData, cl
 
             <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 w-full space-y-6">
                 {/* 1. Top Compact Live Sync Header Bar */}
-                <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
-                    <div className="flex items-center gap-3">
-                        <span className="relative flex h-3 w-3">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
-                        </span>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs sm:text-sm font-black text-slate-900 font-['Cairo']">
-                                مرحباً {appointment.patient.name} — شاشة التتبع المباشر للدور والمسار
-                            </span>
-                            <span className="text-[11px] text-slate-400 font-medium">
-                                (مزامنة تلقائية كل 3 ثوانٍ • آخر فحص: {lastUpdated})
-                            </span>
-                        </div>
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={fetchLatestStatus}
-                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 transition-colors cursor-pointer"
-                    >
-                        <RefreshCw className={`w-3.5 h-3.5 ${isPolling ? 'animate-spin text-[#005ab5]' : ''}`} />
-                        <span>تحديث فوري</span>
-                    </button>
-                </div>
+                <LiveSyncIndicator
+                    variant="bar"
+                    sync={liveSync}
+                    title={`مرحباً ${appointment.patient.name} — شاشة التتبع المباشر للدور والمسار`}
+                />
 
                 {/* 2. Real-Time Alert Popup Banner (When Doctor Calls or Extends Time) */}
                 {liveAlertBanner && (
                     <div
-                        className={`p-5 rounded-3xl shadow-lg border-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
-                            liveAlertBanner.type === 'call'
-                                ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white border-emerald-300'
-                                : 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white border-amber-300'
+                        className={`p-5 rounded-3xl bg-white shadow-md border border-slate-200/80 border-r-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 ${
+                            liveAlertBanner.type === 'call' ? 'border-r-emerald-500' : 'border-r-amber-500'
                         }`}
                     >
                         <div className="flex items-start sm:items-center gap-3.5">
-                            <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+                            <div
+                                className={`relative w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ring-1 ${
+                                    liveAlertBanner.type === 'call'
+                                        ? 'bg-emerald-50 text-emerald-600 ring-emerald-200/80'
+                                        : 'bg-amber-50 text-amber-600 ring-amber-200/80'
+                                }`}
+                            >
                                 {liveAlertBanner.type === 'call' ? (
-                                    <Volume2 className="w-6 h-6 text-white animate-bounce" />
+                                    <>
+                                        <Volume2 className="w-6 h-6" />
+                                        <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 ring-2 ring-white" />
+                                        </span>
+                                    </>
                                 ) : (
-                                    <Clock className="w-6 h-6 text-white animate-pulse" />
+                                    <Clock className="w-6 h-6" />
                                 )}
                             </div>
                             <div>
-                                <h3 className="text-base sm:text-lg font-black font-['Cairo']">
+                                <h3 className="text-sm sm:text-base font-black text-slate-900 font-['Cairo']">
                                     {liveAlertBanner.title}
                                 </h3>
-                                <p className="text-xs sm:text-sm text-white/95 mt-0.5 leading-relaxed">
+                                <p className="text-xs sm:text-sm text-slate-600 mt-0.5 leading-relaxed">
                                     {liveAlertBanner.message}
                                 </p>
                             </div>
@@ -393,7 +381,11 @@ export default function LiveQueue({ appointment, queueData: initialQueueData, cl
                             <button
                                 type="button"
                                 onClick={playCallChime}
-                                className="px-3.5 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                                className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer border transition-colors ${
+                                    liveAlertBanner.type === 'call'
+                                        ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'
+                                        : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200'
+                                }`}
                             >
                                 <BellRing className="w-4 h-4" />
                                 <span>إعادة التنبيه</span>
@@ -401,9 +393,10 @@ export default function LiveQueue({ appointment, queueData: initialQueueData, cl
                             <button
                                 type="button"
                                 onClick={handleDismissAlert}
-                                className="px-3.5 py-2 rounded-xl bg-white text-slate-900 hover:bg-slate-100 text-xs font-bold cursor-pointer"
+                                className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
                             >
-                                حسناً
+                                <X className="w-3.5 h-3.5" />
+                                <span>إغلاق</span>
                             </button>
                         </div>
                     </div>
@@ -427,6 +420,8 @@ export default function LiveQueue({ appointment, queueData: initialQueueData, cl
                             expectedTime={queueData.expectedTime}
                             delayMinutes={queueData.delayMinutes}
                             delayReason={queueData.delayReason}
+                            serviceName={appointment.service_name}
+                            durationMinutes={appointment.duration_minutes}
                             isYourTurn={isYourTurn}
                             isStage2Done={isStage2Done}
                             onOpenCheckin={handleOpenCheckin}

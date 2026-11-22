@@ -1,28 +1,62 @@
 import React from 'react';
-import { Calendar, Clock, Building2, MessageCircle, FileText, Info, ShieldCheck, CheckCircle2 } from 'lucide-react';
-import { Doctor } from './types';
+import {
+    Calendar,
+    Clock,
+    Building2,
+    MessageCircle,
+    FileText,
+    Info,
+    ShieldCheck,
+    CheckCircle2,
+    ClipboardList,
+    Hourglass,
+    AlertTriangle,
+    Pencil,
+} from 'lucide-react';
+import { cn, formatDurationArabic, minutesToArabicTime, timeToMinutes } from '@/lib/utils';
+import { Doctor, type SlotAvailabilityStatus } from './types';
+import type { BookingStep } from './booking-stepper';
 
 interface BookingSummarySidebarProps {
     doctor: Doctor;
     selectedDayLabel: string;
     selectedTimeSlot: string;
+    selectedServiceName: string;
+    selectedDurationMinutes: number;
+    slotStatus?: SlotAvailabilityStatus;
+    slotBookedCount?: number;
     fee: number;
     vat: number;
     totalAmount: number;
     isInsurance: boolean;
+    currentStep?: BookingStep;
+    onJumpToStep?: (step: BookingStep) => void;
+    className?: string;
 }
 
 export const BookingSummarySidebar: React.FC<BookingSummarySidebarProps> = React.memo(({
     doctor,
     selectedDayLabel,
     selectedTimeSlot,
+    selectedServiceName,
+    selectedDurationMinutes,
+    slotStatus = 'available',
+    slotBookedCount = 0,
     fee,
     vat,
     totalAmount,
     isInsurance,
+    currentStep,
+    onJumpToStep,
+    className,
 }) => {
+    const endTimeSlot = selectedTimeSlot
+        ? minutesToArabicTime(timeToMinutes(selectedTimeSlot) + selectedDurationMinutes)
+        : null;
+    const isWaitlist = slotStatus === 'waitlist';
+
     return (
-        <div className="lg:col-span-4 lg:sticky lg:top-4 space-y-4">
+        <div className={cn('lg:col-span-4 lg:sticky lg:top-4 space-y-4', className)}>
             <div className="p-5 rounded-3xl bg-gradient-to-b from-blue-50/50 via-white to-gray-50/50 border border-blue-100/90 shadow-sm space-y-4">
                 {/* Header */}
                 <div className="flex items-center justify-between pb-3 border-b border-gray-150">
@@ -30,10 +64,17 @@ export const BookingSummarySidebar: React.FC<BookingSummarySidebarProps> = React
                         <FileText className="w-4 h-4 text-[#005ab5]" />
                         <span>ملخص تفاصيل الحجز</span>
                     </span>
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                        <span>تأكيد فوري</span>
-                    </span>
+                    {isWaitlist ? (
+                        <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-amber-600" />
+                            <span>قائمة انتظار - بانتظار التأكيد</span>
+                        </span>
+                    ) : (
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <span>تأكيد فوري</span>
+                        </span>
+                    )}
                 </div>
 
                 {/* Doctor Brief in Summary */}
@@ -57,15 +98,59 @@ export const BookingSummarySidebar: React.FC<BookingSummarySidebarProps> = React
                 </div>
 
                 {/* Appointment Schedule Highlight Card */}
-                <div className="p-3.5 rounded-2xl bg-[#005ab5]/5 border border-[#005ab5]/15 space-y-2">
+                <div className="p-3.5 rounded-2xl bg-[#005ab5]/5 border border-[#005ab5]/15 space-y-2.5">
+                    <div className="flex items-start justify-between gap-2 text-xs pb-2 border-b border-blue-100/80">
+                        <span className="text-gray-500 flex items-center gap-1.5 font-medium shrink-0">
+                            <ClipboardList className="w-3.5 h-3.5 text-[#005ab5]" />
+                            <span>نوع الكشف:</span>
+                        </span>
+                        <div className="flex flex-col items-end gap-0.5 min-w-0">
+                            <span className="font-black text-gray-900 font-['Cairo'] text-left leading-snug">
+                                {selectedServiceName}
+                            </span>
+                            {onJumpToStep && currentStep !== 1 && (
+                                <button
+                                    type="button"
+                                    onClick={() => onJumpToStep(1)}
+                                    className="text-[10px] font-bold text-[#005ab5] hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                                >
+                                    <Pencil className="w-2.5 h-2.5" />
+                                    <span>تعديل</span>
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
                     <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-500 flex items-center gap-1.5 font-medium">
+                            <Hourglass className="w-3.5 h-3.5 text-[#005ab5]" />
+                            <span>مدة الجلسة:</span>
+                        </span>
+                        <span className="font-bold text-[#005ab5] bg-white px-2 py-0.5 rounded-lg border border-blue-200/80 shadow-xs">
+                            {formatDurationArabic(selectedDurationMinutes)}
+                        </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 text-xs">
                         <span className="text-gray-500 flex items-center gap-1.5 font-medium">
                             <Calendar className="w-3.5 h-3.5 text-[#005ab5]" />
                             <span>اليوم المحدد:</span>
                         </span>
-                        <span className="font-bold text-gray-900 font-['Cairo']">
-                            {selectedDayLabel}
-                        </span>
+                        <div className="flex items-center gap-2 min-w-0">
+                            {onJumpToStep && currentStep !== 2 && (
+                                <button
+                                    type="button"
+                                    onClick={() => onJumpToStep(2)}
+                                    className="text-[10px] font-bold text-[#005ab5] hover:underline inline-flex items-center gap-0.5 cursor-pointer shrink-0"
+                                >
+                                    <Pencil className="w-2.5 h-2.5" />
+                                    <span>تعديل</span>
+                                </button>
+                            )}
+                            <span className="font-bold text-gray-900 font-['Cairo'] truncate">
+                                {selectedDayLabel}
+                            </span>
+                        </div>
                     </div>
 
                     <div className="flex items-center justify-between text-xs">
@@ -74,7 +159,11 @@ export const BookingSummarySidebar: React.FC<BookingSummarySidebarProps> = React
                             <span>وقت الكشف:</span>
                         </span>
                         <span className="font-mono font-bold text-[#005ab5] bg-white px-2 py-0.5 rounded-lg border border-blue-200/80 shadow-xs">
-                            {selectedTimeSlot}
+                            {selectedTimeSlot
+                                ? endTimeSlot
+                                    ? `${selectedTimeSlot} ← ${endTimeSlot}`
+                                    : selectedTimeSlot
+                                : 'غير محدد'}
                         </span>
                     </div>
 
@@ -87,6 +176,15 @@ export const BookingSummarySidebar: React.FC<BookingSummarySidebarProps> = React
                             {doctor.clinic.name}
                         </span>
                     </div>
+
+                    {isWaitlist && (
+                        <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200/90 text-[11px] font-bold text-amber-900 flex items-start gap-1.5 leading-snug">
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                            <span>
+                                يوجد ({slotBookedCount}) حجز في نفس الموعد — سيتم التأكيد معك
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Live WhatsApp Queue Tracking Notice */}
@@ -102,9 +200,9 @@ export const BookingSummarySidebar: React.FC<BookingSummarySidebarProps> = React
 
                 {/* Price Breakdown */}
                 <div className="pt-3 border-t border-gray-200 space-y-2 text-xs">
-                    <div className="flex items-center justify-between text-gray-600">
-                        <span>قيمة كشفية الاستشارة:</span>
-                        <span className="font-mono font-bold text-gray-800">{fee.toFixed(2)} ر.س</span>
+                    <div className="flex items-center justify-between gap-2 text-gray-600">
+                        <span className="truncate">قيمة الكشف ({selectedServiceName}):</span>
+                        <span className="font-mono font-bold text-gray-800 shrink-0">{fee.toFixed(2)} ر.س</span>
                     </div>
 
                     {isInsurance ? (

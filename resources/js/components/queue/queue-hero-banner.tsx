@@ -12,7 +12,7 @@ import {
     CheckCircle2,
 } from 'lucide-react';
 import { playCallChime } from '@/lib/chime';
-import { format12HourTime } from '@/lib/utils';
+import { format12HourTime, formatDurationArabic } from '@/lib/utils';
 
 export function formatDoctorName(name?: string): string {
     if (!name) return 'الطبيب المعالج';
@@ -90,6 +90,8 @@ interface QueueHeroBannerProps {
     expectedTime?: string | null;
     delayMinutes?: number;
     delayReason?: string | null;
+    serviceName?: string | null;
+    durationMinutes?: number | null;
     isYourTurn: boolean;
     isStage2Done: boolean;
     onOpenCheckin: () => void;
@@ -109,6 +111,8 @@ export const QueueHeroBanner: React.FC<QueueHeroBannerProps> = memo(function Que
     expectedTime,
     delayMinutes = 0,
     delayReason,
+    serviceName,
+    durationMinutes,
     isYourTurn,
     isStage2Done,
     onOpenCheckin,
@@ -192,7 +196,11 @@ export const QueueHeroBanner: React.FC<QueueHeroBannerProps> = memo(function Que
                         </div>
                         <p className="text-xs sm:text-sm font-bold text-blue-100 font-['Cairo']">
                             {isYourTurn ? (
-                                <span className="text-white">🔔 حان دورك الآن! تفضل بالدخول لغرفة الفحص 🩺</span>
+                                <span className="text-white inline-flex items-center justify-center gap-1.5">
+                                    <BellRing className="w-4 h-4 shrink-0" />
+                                    <span>حان دورك الآن! تفضل بالدخول لغرفة الفحص</span>
+                                    <Stethoscope className="w-4 h-4 shrink-0" />
+                                </span>
                             ) : patientsAhead === 0 ? (
                                 <span className="text-sky-200">أنت المريض التالي مباشرة! استعد لمناداة الطبيب</span>
                             ) : (
@@ -272,8 +280,9 @@ export const QueueHeroBanner: React.FC<QueueHeroBannerProps> = memo(function Que
                     {/* Doctor Delay Explanation if present */}
                     {delayMinutes > 0 && (
                         <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-200 text-xs text-amber-900 space-y-1">
-                            <div className="font-black font-['Cairo'] flex items-center justify-between">
-                                <span>⏰ تم تمديد وقت الكشف (+{delayMinutes} دقيقة)</span>
+                            <div className="font-black font-['Cairo'] flex items-center gap-1.5">
+                                <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                                <span>تم تمديد وقت الكشف (+{delayMinutes} دقيقة)</span>
                             </div>
                             <p className="text-[11px] text-amber-800 leading-relaxed">
                                 {delayReason || 'تستدعي الحالة السريرية الحالية وقتاً إضافياً لتقديم الرعاية الطبية اللازمة.'}
@@ -303,6 +312,16 @@ export const QueueHeroBanner: React.FC<QueueHeroBannerProps> = memo(function Que
                             <p className="text-xs text-[#005ab5] font-bold truncate mt-0.5">
                                 {doctor.title_ar} • {doctor.specialty.name_ar}
                             </p>
+                            {serviceName && (
+                                <p className="text-[11px] font-bold text-teal-800 bg-teal-50 border border-teal-200/80 px-2 py-0.5 rounded-lg inline-flex items-center gap-1 mt-1">
+                                    <span>{serviceName}</span>
+                                    {durationMinutes && (
+                                        <span className="text-teal-600">
+                                            • {formatDurationArabic(durationMinutes)}
+                                        </span>
+                                    )}
+                                </p>
+                            )}
                             <p className="text-[11px] text-slate-500 truncate mt-1 flex items-center gap-1">
                                 <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                                 <span>{clinicName}</span>

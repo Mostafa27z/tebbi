@@ -10,20 +10,30 @@ export interface PatientFormValues {
 }
 
 interface BookingPatientFormProps {
+    stepNumber?: number;
     initialValues: PatientFormValues;
     valuesRef: React.MutableRefObject<PatientFormValues>;
     errors: { [key: string]: string };
 }
 
 export const BookingPatientForm: React.FC<BookingPatientFormProps> = memo(function BookingPatientForm({
+    stepNumber = 3,
     initialValues,
     valuesRef,
     errors,
 }) {
-    const [patientName, setPatientName] = useState(initialValues.patientName);
-    const [patientNationalId, setPatientNationalId] = useState(initialValues.patientNationalId);
-    const [patientPhone, setPatientPhone] = useState(initialValues.patientPhone);
-    const [patientNotes, setPatientNotes] = useState(initialValues.patientNotes);
+    const [patientName, setPatientName] = useState(
+        () => valuesRef.current.patientName || initialValues.patientName
+    );
+    const [patientNationalId, setPatientNationalId] = useState(
+        () => valuesRef.current.patientNationalId || initialValues.patientNationalId
+    );
+    const [patientPhone, setPatientPhone] = useState(
+        () => valuesRef.current.patientPhone || initialValues.patientPhone
+    );
+    const [patientNotes, setPatientNotes] = useState(
+        () => valuesRef.current.patientNotes || initialValues.patientNotes
+    );
 
     const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const val = e.target.value;
@@ -52,7 +62,7 @@ export const BookingPatientForm: React.FC<BookingPatientFormProps> = memo(functi
         <div className="bg-gray-50/70 p-4 sm:p-5 rounded-3xl border border-gray-200/80 space-y-4">
             <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-blue-100 text-[#005ab5] flex items-center justify-center font-black text-xs font-['Cairo']">
-                    3
+                    {stepNumber}
                 </div>
                 <div>
                     <h4 className="text-xs sm:text-sm font-black text-gray-900 font-['Cairo']">

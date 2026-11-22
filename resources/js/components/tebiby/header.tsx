@@ -15,7 +15,8 @@ import {
     LogIn,
     UserPlus,
     ChevronDown,
-    Building2
+    Building2,
+    Settings
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -267,6 +268,15 @@ export default function TebibyHeader() {
                                                 <span>تتبع الدور الحي (رقم {activeTicket.ticket_number})</span>
                                             </Link>
                                         )}
+
+                                        <Link
+                                            href="/settings/profile"
+                                            onClick={() => setUserDropdownOpen(false)}
+                                            className="flex items-center gap-2.5 px-4 py-2.5 text-gray-700 hover:bg-blue-50 hover:text-[#005ab5] font-bold whitespace-nowrap transition-colors"
+                                        >
+                                            <Settings className="w-4 h-4 text-gray-400" />
+                                            <span>إعدادات الحساب والملف الشخصي</span>
+                                        </Link>
 
                                         <div className="border-t border-gray-100 my-1"></div>
 

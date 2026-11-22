@@ -15,12 +15,16 @@ import {
     ToggleLeft,
     ToggleRight,
     UserCheck,
-    CheckCircle2
+    CheckCircle2,
+    ClipboardList,
+    Settings
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AvailabilityDialog } from '@/components/doctor/availability-dialog';
+import { LiveSyncIndicator } from '@/components/common/live-sync-indicator';
+import { LiveSyncController, useInertiaLiveSync } from '@/hooks/use-live-sync';
 
-export type DoctorTab = 'consultation' | 'history' | 'schedule';
+export type DoctorTab = 'consultation' | 'services' | 'history' | 'schedule';
 
 interface DoctorDashboardLayoutProps {
     children: React.ReactNode;
@@ -38,10 +42,14 @@ interface DoctorDashboardLayoutProps {
         waiting?: number;
         inConsultation?: number;
         completed?: number;
+        services?: number;
     };
     onToggleAvailability?: () => void;
     onCallNext?: () => void;
     callingNext?: boolean;
+    liveSync?: LiveSyncController;
+    liveSyncIntervalMs?: number;
+    liveSyncPaused?: boolean;
 }
 
 export const DoctorDashboardLayout: React.FC<DoctorDashboardLayoutProps> = ({
@@ -53,11 +61,21 @@ export const DoctorDashboardLayout: React.FC<DoctorDashboardLayoutProps> = ({
     onToggleAvailability,
     onCallNext,
     callingNext,
+    liveSync: externalLiveSync,
+    liveSyncIntervalMs,
+    liveSyncPaused,
 }) => {
     const { url } = usePage();
     const [mobileOpen, setMobileOpen] = useState(false);
     const [desktopCollapsed, setDesktopCollapsed] = useState(false);
     const [availabilityDialogOpen, setAvailabilityDialogOpen] = useState(false);
+
+    const internalLiveSync = useInertiaLiveSync({
+        enabled: !externalLiveSync,
+        paused: liveSyncPaused,
+        intervalMs: liveSyncIntervalMs ?? 5000,
+    });
+    const activeLiveSync = externalLiveSync ?? internalLiveSync;
 
     const handleToggleClick = () => {
         if (onToggleAvailability) {
@@ -68,6 +86,7 @@ export const DoctorDashboardLayout: React.FC<DoctorDashboardLayoutProps> = ({
     };
 
     const resolvedTab: DoctorTab = activeTab || (
+        url.startsWith('/doctor/services') ? 'services' :
         url.startsWith('/doctor/history') ? 'history' :
         url.startsWith('/doctor/schedule') ? 'schedule' : 'consultation'
     );
@@ -83,6 +102,17 @@ export const DoctorDashboardLayout: React.FC<DoctorDashboardLayoutProps> = ({
             bg: 'bg-blue-50',
             count: counts?.waiting,
             countColor: 'bg-amber-100 text-amber-800',
+        },
+        {
+            id: 'services' as DoctorTab,
+            href: '/doctor/services',
+            label: 'أنواع الكشوفات والأسعار',
+            description: 'إدارة الكشوفات، الأسعار والمدة بالدقائق',
+            icon: ClipboardList,
+            color: 'text-teal-600',
+            bg: 'bg-teal-50',
+            count: counts?.services,
+            countColor: 'bg-teal-100 text-teal-800',
         },
         {
             id: 'history' as DoctorTab,
@@ -134,17 +164,24 @@ export const DoctorDashboardLayout: React.FC<DoctorDashboardLayoutProps> = ({
                 <div>
                     {/* Doctor Header in Sidebar */}
                     <div className="min-h-[5.5rem] px-4.5 py-3.5 flex items-center justify-between border-b border-gray-100">
-                        <div className={cn('flex items-center gap-3 min-w-0 flex-1', desktopCollapsed && 'lg:hidden')}>
-                            <img
-                                src={
-                                    doctor.user.avatar ||
-                                    'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=100&h=100&fit=crop&crop=faces'
-                                }
-                                alt={doctor.user.name}
-                                className="w-12 h-12 rounded-2xl object-cover ring-2 ring-[#005ab5]/20 shrink-0"
-                            />
+                        <Link
+                            href="/settings/profile"
+                            className={cn('flex items-center gap-3 min-w-0 flex-1 hover:opacity-90 transition-opacity group cursor-pointer', desktopCollapsed && 'lg:hidden')}
+                            title="عرض وإعدادات الملف الشخصي"
+                        >
+                            {doctor.user.avatar ? (
+                                <img
+                                    src={doctor.user.avatar}
+                                    alt={doctor.user.name}
+                                    className="w-12 h-12 rounded-2xl object-cover ring-2 ring-[#005ab5]/20 shrink-0"
+                                />
+                            ) : (
+                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#005ab5] to-blue-400 flex items-center justify-center text-white font-black text-sm font-['Cairo'] ring-2 ring-[#005ab5]/20 shrink-0">
+                                    {doctor.user.name ? doctor.user.name.slice(0, 2) : 'د'}
+                                </div>
+                            )}
                             <div className="min-w-0 flex-1">
-                                <span className="font-black text-[13.5px] text-gray-900 font-['Cairo'] block leading-snug truncate" title={doctor.user.name}>
+                                <span className="font-black text-[13.5px] text-gray-900 group-hover:text-[#005ab5] font-['Cairo'] block leading-snug truncate transition-colors" title={doctor.user.name}>
                                     {doctor.user.name}
                                 </span>
                                 <span className="text-[11px] text-[#005ab5] font-bold block truncate">
@@ -154,20 +191,23 @@ export const DoctorDashboardLayout: React.FC<DoctorDashboardLayoutProps> = ({
                                     {doctor.clinic?.name || 'المنشأة الطبية'}
                                 </span>
                             </div>
-                        </div>
+                        </Link>
 
                         {/* Collapsed Icon */}
                         {desktopCollapsed && (
-                            <div className="hidden lg:flex w-full justify-center">
-                                <img
-                                    src={
-                                        doctor.user.avatar ||
-                                        'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=100&h=100&fit=crop&crop=faces'
-                                    }
-                                    alt={doctor.user.name}
-                                    className="w-10 h-10 rounded-2xl object-cover ring-2 ring-[#005ab5]/20"
-                                />
-                            </div>
+                            <Link href="/settings/profile" className="hidden lg:flex w-full justify-center" title="إعدادات الملف الشخصي">
+                                {doctor.user.avatar ? (
+                                    <img
+                                        src={doctor.user.avatar}
+                                        alt={doctor.user.name}
+                                        className="w-10 h-10 rounded-2xl object-cover ring-2 ring-[#005ab5]/20"
+                                    />
+                                ) : (
+                                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#005ab5] to-blue-400 flex items-center justify-center text-white font-black text-xs font-['Cairo'] ring-2 ring-[#005ab5]/20">
+                                        {doctor.user.name ? doctor.user.name.slice(0, 2) : 'د'}
+                                    </div>
+                                )}
+                            </Link>
                         )}
 
                         <button
@@ -243,7 +283,19 @@ export const DoctorDashboardLayout: React.FC<DoctorDashboardLayoutProps> = ({
                 </div>
 
                 {/* Footer User & Logout */}
-                <div className="p-3 border-t border-gray-100">
+                <div className="p-3 border-t border-gray-100 space-y-1">
+                    <Link
+                        href="/settings/profile"
+                        className={cn(
+                            'w-full flex items-center gap-2.5 px-3 py-2 rounded-2xl text-xs font-bold text-gray-700 hover:text-[#005ab5] hover:bg-blue-50 transition-colors',
+                            desktopCollapsed && 'lg:justify-center lg:px-0'
+                        )}
+                        title="إعدادات الحساب والملف الطبي"
+                    >
+                        <Settings className="w-4 h-4 shrink-0 text-gray-400" />
+                        <span className={cn(desktopCollapsed && 'lg:hidden')}>إعدادات الحساب</span>
+                    </Link>
+
                     <button
                         type="button"
                         onClick={handleLogout}
@@ -299,8 +351,10 @@ export const DoctorDashboardLayout: React.FC<DoctorDashboardLayoutProps> = ({
                         </div>
                     </div>
 
-                    {/* Top Actions: Availability & Call Next */}
-                    <div className="flex items-center gap-3">
+                    {/* Top Actions: Live Sync, Availability & Call Next */}
+                    <div className="flex items-center gap-2.5 sm:gap-3">
+                        <LiveSyncIndicator sync={activeLiveSync} />
+
                         <button
                             type="button"
                             onClick={handleToggleClick}
