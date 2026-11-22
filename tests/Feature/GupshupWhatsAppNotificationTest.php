@@ -50,6 +50,10 @@ class GupshupWhatsAppNotificationTest extends TestCase
         ]);
 
         $doctor = DoctorProfile::firstOrFail();
+        $doctor->update([
+            'slot_auto_confirm_limit' => 0,
+            'slot_waitlist_limit' => 2,
+        ]);
 
         $response = $this->post('/appointments/book', [
             'doctor_id' => $doctor->id,

@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Appointment;
 use App\Models\DoctorProfile;
+use App\Models\DoctorService;
 use App\Models\Prescription;
 use App\Models\QueueTicket;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -41,7 +43,7 @@ class DoctorDashboardController extends Controller
         Cache::put($cacheKey, $events, now()->addMinutes(30));
     }
 
-    private function getDoctorData(Request $request): array
+    private function getDoctorData(Request $request, bool $includeHistory = false): array
     {
         $user = $request->user();
         $doctor = $user ? $user->doctorProfile : null;
@@ -50,24 +52,26 @@ class DoctorDashboardController extends Controller
             abort(403, 'لا يوجد ملف طبيب مرتبط بهذا الحساب.');
         }
 
-        $doctor->loadMissing(['user', 'specialty', 'clinic', 'doctorFacilities.facility']);
+        $doctor->loadMissing(['user', 'specialty', 'clinic', 'doctorFacilities.facility', 'services']);
 
         $today = Carbon::today();
 
-        $todayAppointments = Appointment::with(['patient', 'queueTicket', 'prescription', 'facility'])
+        $todayAppointments = Appointment::with(['patient', 'queueTicket', 'prescription', 'facility', 'doctorService'])
             ->where('doctor_id', $doctor->id)
             ->whereDate('appointment_date', $today)
             ->orderBy('appointment_time')
             ->get();
 
-        // Past completed consultations (last 100)
-        $historyAppointments = Appointment::with(['patient', 'queueTicket', 'prescription', 'facility'])
-            ->where('doctor_id', $doctor->id)
-            ->where('status', 'completed')
-            ->orderByDesc('appointment_date')
-            ->orderByDesc('appointment_time')
-            ->take(100)
-            ->get();
+        // Past completed consultations (last 100) loaded on history view only
+        $historyAppointments = $includeHistory
+            ? Appointment::with(['patient', 'queueTicket', 'prescription', 'facility', 'doctorService'])
+                ->where('doctor_id', $doctor->id)
+                ->where('status', 'completed')
+                ->orderByDesc('appointment_date')
+                ->orderByDesc('appointment_time')
+                ->take(100)
+                ->get()
+            : collect();
 
         // Current patient in examination
         $currentSession = $todayAppointments->firstWhere('status', 'in_consultation')
@@ -83,6 +87,7 @@ class DoctorDashboardController extends Controller
 
         return [
             'doctor' => $doctor,
+            'services' => $doctor->services,
             'todayAppointments' => $todayAppointments,
             'historyAppointments' => $historyAppointments,
             'currentSession' => $currentSession,
@@ -94,6 +99,7 @@ class DoctorDashboardController extends Controller
                 'notArrivedCount' => $notArrivedToday,
                 'insuranceCount' => $insuranceCount,
                 'currentTicketNum' => $currentSession ? ($currentSession->queueTicket?->ticket_number ?? null) : null,
+                'servicesCount' => $doctor->services->where('is_active', true)->count(),
             ]
         ];
     }
@@ -104,9 +110,125 @@ class DoctorDashboardController extends Controller
         return Inertia::render('doctor/dashboard', $data);
     }
 
-    public function history(Request $request): Response
+    public function services(Request $request): Response
     {
         $data = $this->getDoctorData($request);
+        return Inertia::render('doctor/services', $data);
+    }
+
+    public function storeService(Request $request)
+    {
+        $doctor = $request->user()?->doctorProfile;
+        if (! $doctor) {
+            abort(403, 'لا يوجد ملف طبيب مرتبط بهذا الحساب.');
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:160',
+            'description' => 'nullable|string|max:500',
+            'price' => 'required|numeric|min:0|max:100000',
+            'duration_minutes' => 'required|integer|min:5|max:720',
+            'is_active' => 'sometimes|boolean',
+        ]);
+
+        DoctorService::create([
+            'doctor_profile_id' => $doctor->id,
+            'name' => trim($validated['name']),
+            'description' => isset($validated['description']) ? trim((string) $validated['description']) ?: null : null,
+            'price' => $validated['price'],
+            'duration_minutes' => $validated['duration_minutes'],
+            'is_active' => $validated['is_active'] ?? true,
+            'sort_order' => ($doctor->services()->max('sort_order') ?? 0) + 1,
+        ]);
+
+        return back()->with('success', 'تم إضافة نوع الكشف بنجاح وسيظهر للمرضى في صفحة الحجز.');
+    }
+
+    public function updateService(Request $request, DoctorService $doctorService)
+    {
+        $doctor = $request->user()?->doctorProfile;
+        if (! $doctor || (int) $doctorService->doctor_profile_id !== (int) $doctor->id) {
+            abort(403, 'غير مصرح لك بتعديل خدمات طبيب آخر.');
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:160',
+            'description' => 'nullable|string|max:500',
+            'price' => 'required|numeric|min:0|max:100000',
+            'duration_minutes' => 'required|integer|min:5|max:720',
+            'is_active' => 'sometimes|boolean',
+        ]);
+
+        $doctorService->update([
+            'name' => trim($validated['name']),
+            'description' => isset($validated['description']) ? trim((string) $validated['description']) ?: null : null,
+            'price' => $validated['price'],
+            'duration_minutes' => $validated['duration_minutes'],
+            'is_active' => $validated['is_active'] ?? $doctorService->is_active,
+        ]);
+
+        return back()->with('success', 'تم تحديث بيانات نوع الكشف بنجاح.');
+    }
+
+    public function toggleService(Request $request, DoctorService $doctorService)
+    {
+        $doctor = $request->user()?->doctorProfile;
+        if (! $doctor || (int) $doctorService->doctor_profile_id !== (int) $doctor->id) {
+            abort(403, 'غير مصرح لك بتعديل خدمات طبيب آخر.');
+        }
+
+        $doctorService->update([
+            'is_active' => ! $doctorService->is_active,
+        ]);
+
+        $msg = $doctorService->is_active
+            ? 'تم تفعيل نوع الكشف وإظهاره للمرضى عند الحجز.'
+            : 'تم إخفاء نوع الكشف مؤقتاً من قائمة الحجز.';
+
+        return back()->with('success', $msg);
+    }
+
+    public function destroyService(Request $request, DoctorService $doctorService)
+    {
+        $doctor = $request->user()?->doctorProfile;
+        if (! $doctor || (int) $doctorService->doctor_profile_id !== (int) $doctor->id) {
+            abort(403, 'غير مصرح لك بحذف خدمات طبيب آخر.');
+        }
+
+        $doctorService->delete();
+
+        return back()->with('success', 'تم حذف نوع الكشف بنجاح.');
+    }
+
+    public function updateSlotCapacity(Request $request)
+    {
+        $doctor = $request->user()?->doctorProfile;
+        if (! $doctor) {
+            abort(403, 'لا يوجد ملف طبيب مرتبط بهذا الحساب.');
+        }
+
+        $validated = $request->validate([
+            'slot_auto_confirm_limit' => 'required|integer|min:0|max:20',
+            'slot_waitlist_limit' => 'required|integer|min:0|max:20',
+        ]);
+
+        if (((int) $validated['slot_auto_confirm_limit'] + (int) $validated['slot_waitlist_limit']) < 1) {
+            throw ValidationException::withMessages([
+                'slot_auto_confirm_limit' => 'يجب أن يكون إجمالي السعة (التأكيد الفوري + الانتظار) مريضاً واحداً على الأقل.',
+            ]);
+        }
+
+        $doctor->update([
+            'slot_auto_confirm_limit' => (int) $validated['slot_auto_confirm_limit'],
+            'slot_waitlist_limit' => (int) $validated['slot_waitlist_limit'],
+        ]);
+
+        return back()->with('success', 'تم حفظ إعدادات سعة المواعيد والتأكيد التلقائي بنجاح.');
+    }
+
+    public function history(Request $request): Response
+    {
+        $data = $this->getDoctorData($request, true);
         return Inertia::render('doctor/history', $data);
     }
 
@@ -250,7 +372,7 @@ class DoctorDashboardController extends Controller
             'ticket_number' => $ticket->ticket_number,
             'booking_reference' => $nextAppt->booking_reference,
             'appointment_id' => $nextAppt->id,
-            'message' => "🔔 نداء عيادة فوري: استدعى {$doctorName} المريض التالي ({$patientName}) - تذكرة رقم #{$ticket->ticket_number} للدخول إلى غرفة الفحص الآن!",
+            'message' => "استدعى {$doctorName} المريض التالي ({$patientName}) - تذكرة رقم #{$ticket->ticket_number} للدخول إلى غرفة الفحص الآن.",
         ]);
 
         return back()->with('success', "تم استدعاء المريض ({$patientName} - تذكرة #{$ticket->ticket_number}) وإرسال تنبيه فوري لشاشة الاستقبال وشاشة المريض.");
@@ -326,7 +448,7 @@ class DoctorDashboardController extends Controller
             'delay_reason' => $reason,
             'affected_count' => $subsequentAppts->count(),
             'appointment_id' => $appointment->id,
-            'message' => "⏰ تمديد وقت كشف: قام {$doctorName} بتمديد الكشف الحالي بمقدار (+{$addedMinutes} دقيقة) وتم تحديث أوقات انتظار المرضى تلقائياً.",
+            'message' => "قام {$doctorName} بتمديد الكشف الحالي بمقدار (+{$addedMinutes} دقيقة) وتم تحديث أوقات انتظار المرضى تلقائياً.",
         ]);
 
         return back()->with('success', "تم تمديد وقت الكشف (+{$addedMinutes} دقيقة) بنجاح، وتحديث مواعيد كافة المرضى وإرسال تنبيه فوري للاستقبال والمرضى.");
@@ -378,7 +500,7 @@ class DoctorDashboardController extends Controller
             'ticket_number' => $ticketNum,
             'booking_reference' => $appointment->booking_reference,
             'appointment_id' => $appointment->id,
-            'message' => "🔔 نداء عيادة فوري: استدعى {$doctorName} المريض ({$patientName}) - تذكرة رقم #{$ticketNum} للدخول إلى غرفة الفحص الآن!",
+            'message' => "استدعى {$doctorName} المريض ({$patientName}) - تذكرة رقم #{$ticketNum} للدخول إلى غرفة الفحص الآن.",
         ]);
 
         // Send WhatsApp notification (Template 5: Patient Called)

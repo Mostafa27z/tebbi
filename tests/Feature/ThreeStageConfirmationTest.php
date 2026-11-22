@@ -23,6 +23,10 @@ class ThreeStageConfirmationTest extends TestCase
     public function test_online_booking_creates_appointment_in_booked_status_awaiting_stage1(): void
     {
         $doctor = DoctorProfile::firstOrFail();
+        $doctor->update([
+            'slot_auto_confirm_limit' => 0,
+            'slot_waitlist_limit' => 2,
+        ]);
 
         $response = $this->post('/appointments/book', [
             'doctor_id' => $doctor->id,

@@ -22,6 +22,9 @@ Route::post('/appointments/book', [BookingController::class, 'store'])
     ->middleware('throttle:10,1')
     ->name('appointments.book');
 
+Route::get('/api/doctors/{doctor}/booked-slots', [BookingController::class, 'bookedSlots'])
+    ->name('doctors.booked-slots');
+
 // Authenticated Live Queue Tracker (Strict Auth: Patient owner, Doctor, or Admin)
 Route::middleware(['auth'])->group(function () {
     Route::get('/queue/{bookingReference}', [LiveQueueController::class, 'show'])->name('queue.show');
@@ -138,6 +141,12 @@ Route::middleware(['auth'])->group(function () {
 // Doctor Operational Dashboard & Live Consultation Routes (لوحة الطبيب وإدارة الكشوفات)
 Route::middleware(['auth', 'role:doctor'])->group(function () {
     Route::get('/doctor/dashboard', [DoctorDashboardController::class, 'index'])->name('doctor.dashboard');
+    Route::get('/doctor/services', [DoctorDashboardController::class, 'services'])->name('doctor.services');
+    Route::post('/doctor/services', [DoctorDashboardController::class, 'storeService'])->name('doctor.services.store');
+    Route::put('/doctor/services/{doctorService}', [DoctorDashboardController::class, 'updateService'])->name('doctor.services.update');
+    Route::post('/doctor/services/{doctorService}/toggle', [DoctorDashboardController::class, 'toggleService'])->name('doctor.services.toggle');
+    Route::delete('/doctor/services/{doctorService}', [DoctorDashboardController::class, 'destroyService'])->name('doctor.services.destroy');
+    Route::put('/doctor/slot-capacity', [DoctorDashboardController::class, 'updateSlotCapacity'])->name('doctor.slot-capacity.update');
     Route::get('/doctor/history', [DoctorDashboardController::class, 'history'])->name('doctor.history');
     Route::get('/doctor/schedule', [DoctorDashboardController::class, 'schedule'])->name('doctor.schedule');
     Route::post('/doctor/queue/call-next', [DoctorDashboardController::class, 'callNext'])->name('doctor.call-next');

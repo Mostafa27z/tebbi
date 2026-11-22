@@ -22,10 +22,13 @@ class Appointment extends Model
         'booking_reference',
         'patient_id',
         'doctor_id',
+        'doctor_service_id',
+        'service_name',
         'doctor_facility_id',
         'facility_id',
         'appointment_date',
         'appointment_time',
+        'duration_minutes',
         'delay_minutes',
         'delay_reason',
         'status',
@@ -53,6 +56,7 @@ class Appointment extends Model
     {
         return [
             'appointment_date' => 'date',
+            'duration_minutes' => 'integer',
             'delay_minutes' => 'integer',
             'consultation_fee' => 'decimal:2',
             'discount' => 'decimal:2',
@@ -155,6 +159,11 @@ class Appointment extends Model
     public function doctor(): BelongsTo
     {
         return $this->belongsTo(DoctorProfile::class, 'doctor_id');
+    }
+
+    public function doctorService(): BelongsTo
+    {
+        return $this->belongsTo(DoctorService::class, 'doctor_service_id');
     }
 
     public function doctorFacility(): BelongsTo
@@ -282,7 +291,8 @@ class Appointment extends Model
                 'actor_label' => 'إدارة المنشأة',
                 'is_confirmed' => $isStage1,
                 'confirmed_at' => $this->booking_confirmed_at?->toIso8601String(),
-                'confirmed_by_name' => $this->bookingConfirmedBy?->name,
+                'confirmed_by_name' => $this->bookingConfirmedBy?->name
+                    ?? ($isStage1 && $this->booking_confirmed_at ? 'تأكيد تلقائي فوري' : null),
                 'status_label' => $isStage1 ? 'تم تأكيد الحجز' : 'بانتظار تأكيد الإدارة',
             ],
             'stage2_arrival' => [

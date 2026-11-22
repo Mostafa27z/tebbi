@@ -24,6 +24,8 @@ class DoctorProfile extends Model
         'rating',
         'review_count',
         'waiting_time_minutes',
+        'slot_auto_confirm_limit',
+        'slot_waitlist_limit',
         'accepts_insurance',
         'accepted_insurances',
         'is_available_today',
@@ -41,6 +43,8 @@ class DoctorProfile extends Model
             'consultation_fee' => 'decimal:2',
             'rating' => 'decimal:1',
             'license_expires_at' => 'date',
+            'slot_auto_confirm_limit' => 'integer',
+            'slot_waitlist_limit' => 'integer',
         ];
     }
 
@@ -113,6 +117,21 @@ class DoctorProfile extends Model
     public function prescriptions(): HasMany
     {
         return $this->hasMany(Prescription::class, 'doctor_id');
+    }
+
+    public function services(): HasMany
+    {
+        return $this->hasMany(DoctorService::class, 'doctor_profile_id')
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
+    public function activeServices(): HasMany
+    {
+        return $this->hasMany(DoctorService::class, 'doctor_profile_id')
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id');
     }
 
     public function isVerifiedAndLicensed(): bool

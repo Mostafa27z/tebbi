@@ -1490,5 +1490,7 @@ class TebibySeeder extends Seeder
                 ]);
             }
         }
+
+        $this->call(DoctorServiceSeeder::class);
     }
 }
