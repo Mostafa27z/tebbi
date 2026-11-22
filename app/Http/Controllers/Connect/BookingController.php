@@ -66,11 +66,27 @@ class BookingController extends Controller
 
     /**
      * GET /connect/v1/doctors/{doctor_id}/availability?facility_id=10&date=2026-11-25
+     * OR /connect/v1/facilities/{facility_id}/doctors/{doctor_id}/availability?date=2026-11-25
      */
-    public function availability(Request $request, int|string $doctorId): JsonResponse
+    public function availability(Request $request, int|string $firstParam, int|string $secondParam = null): JsonResponse
     {
         /** @var ConnectCredential $credential */
         $credential = $request->attributes->get('connect_credential');
+
+        if ($secondParam !== null) {
+            $facilityId = (int) $firstParam;
+            $doctorId = (int) $secondParam;
+            $request->merge(['facility_id' => $facilityId]);
+        } else {
+            $doctorId = (int) $firstParam;
+            if (! $request->has('facility_id')) {
+                if ($request->route('facility_id')) {
+                    $request->merge(['facility_id' => (int) $request->route('facility_id')]);
+                } elseif ($credential && $credential->owner_type === 'App\Models\Facility') {
+                    $request->merge(['facility_id' => (int) $credential->owner_id]);
+                }
+            }
+        }
 
         $validated = $request->validate([
             'facility_id' => 'required|integer',
@@ -124,6 +140,14 @@ class BookingController extends Controller
         /** @var ConnectCredential $credential */
         $credential = $request->attributes->get('connect_credential');
 
+        if (! $request->has('facility_id')) {
+            if ($request->route('facility_id')) {
+                $request->merge(['facility_id' => (int) $request->route('facility_id')]);
+            } elseif ($credential && $credential->owner_type === 'App\Models\Facility') {
+                $request->merge(['facility_id' => (int) $credential->owner_id]);
+            }
+        }
+
         $validated = $request->validate([
             'facility_id' => 'required|integer',
             'doctor_id' => 'required|integer',
@@ -131,7 +155,7 @@ class BookingController extends Controller
             'service_id' => 'nullable|integer',
             'appointment_date' => 'required|date|after_or_equal:today',
             'appointment_time' => 'required|string',
-            'expected_fee' => 'required|numeric|min:0',
+            'expected_fee' => 'nullable|numeric|min:0',
         ]);
 
         $facility = $this->resolveAuthorizedFacility($credential, $validated['facility_id']);
@@ -150,19 +174,15 @@ class BookingController extends Controller
 
         $serviceId = $validated['service_id'] ?? $validated['doctor_service_id'] ?? null;
         if (! $serviceId) {
-            return response()->json([
-                'type' => 'https://connect.tebiby.com/errors/err-validation-failed',
-                'title' => 'Validation Failed',
-                'status' => 422,
-                'detail' => 'The doctor_service_id or service_id field is required.',
-                'code' => 'ERR_VALIDATION_FAILED',
-            ], 422, ['Content-Type' => 'application/problem+json; charset=utf-8']);
+            $service = DoctorService::where('doctor_profile_id', $doctor->id)
+                ->where('is_active', true)
+                ->first();
+        } else {
+            $service = DoctorService::where('id', $serviceId)
+                ->where('doctor_profile_id', $doctor->id)
+                ->where('is_active', true)
+                ->first();
         }
-
-        $service = DoctorService::where('id', $serviceId)
-            ->where('doctor_profile_id', $doctor->id)
-            ->where('is_active', true)
-            ->first();
 
         if (! $service) {
             return response()->json([
@@ -178,15 +198,17 @@ class BookingController extends Controller
         $vatAmount = round($basePrice * 0.15, 2);
         $totalPrice = round($basePrice + $vatAmount, 2);
 
-        $expectedFee = (float) $validated['expected_fee'];
-        if (abs($expectedFee - $totalPrice) > 0.01) {
-            return response()->json([
-                'type' => 'https://connect.tebiby.com/errors/err-price-mismatch',
-                'title' => 'Price Mismatch',
-                'status' => 422,
-                'detail' => "Expected fee [{$expectedFee}] does not match current total fee [{$totalPrice}].",
-                'code' => 'ERR_PRICE_MISMATCH',
-            ], 422, ['Content-Type' => 'application/problem+json; charset=utf-8']);
+        if (isset($validated['expected_fee'])) {
+            $expectedFee = (float) $validated['expected_fee'];
+            if (abs($expectedFee - $totalPrice) > 0.01) {
+                return response()->json([
+                    'type' => 'https://connect.tebiby.com/errors/err-price-mismatch',
+                    'title' => 'Price Mismatch',
+                    'status' => 422,
+                    'detail' => "Expected fee [{$expectedFee}] does not match current total fee [{$totalPrice}].",
+                    'code' => 'ERR_PRICE_MISMATCH',
+                ], 422, ['Content-Type' => 'application/problem+json; charset=utf-8']);
+            }
         }
 
         $date = $validated['appointment_date'];
@@ -313,6 +335,10 @@ class BookingController extends Controller
 
             // Resolve target facility ID
             $targetFacilityId = $request->route('facility_id') ?? $payload['facility_id'] ?? null;
+            if (empty($targetFacilityId) && $credential && $credential->owner_type === 'App\Models\Facility') {
+                $targetFacilityId = (int) $credential->owner_id;
+                $payload['facility_id'] = $targetFacilityId;
+            }
             if (empty($targetFacilityId)) {
                 return response()->json([
                     'type' => 'https://connect.tebiby.com/errors/err-validation-failed',
@@ -330,7 +356,11 @@ class BookingController extends Controller
             $validated = $request->validate([
                 'patient_name' => 'required|string|max:100',
                 'patient_phone' => 'required|string|max:30',
-                'external_patient_id' => 'required|string|max:100',
+                'patient_national_id' => 'nullable|string|max:30',
+                'national_id' => 'nullable|string|max:30',
+                'patient_email' => 'nullable|email|max:150',
+                'email' => 'nullable|email|max:150',
+                'external_patient_id' => 'nullable|string|max:100',
                 'external_appointment_id' => 'nullable|string|max:100',
                 'doctor_id' => 'required|integer',
                 'service_id' => 'nullable|integer',

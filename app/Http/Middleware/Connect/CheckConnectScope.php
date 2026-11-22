@@ -32,6 +32,10 @@ class CheckConnectScope
             $facilityId = \App\Models\Appointment::where('booking_reference', $bookingRef)->value('facility_id');
         }
 
+        if ($facilityId === null && $credential->owner_type === 'App\Models\Facility') {
+            $facilityId = $credential->owner_id;
+        }
+
         if ($facilityId !== null) {
             $facility = Facility::find($facilityId);
 

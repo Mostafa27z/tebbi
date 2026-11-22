@@ -112,10 +112,26 @@ class CatalogController extends Controller
     }
 
     /**
+     * GET /connect/v1/facilities/{facility_id}/doctors
+     */
+    public function doctorsByFacility(Request $request, int|string $facilityId): JsonResponse
+    {
+        $request->merge(['facility_id' => (int) $facilityId]);
+        return $this->doctors($request);
+    }
+
+    /**
      * GET /connect/v1/doctors?facility_id=10&specialty_id=4
      */
     public function doctors(Request $request): JsonResponse
     {
+        /** @var ConnectCredential $credential */
+        $credential = $request->attributes->get('connect_credential');
+
+        if (! $request->has('facility_id') && $credential && $credential->owner_type === 'App\Models\Facility') {
+            $request->merge(['facility_id' => (int) $credential->owner_id]);
+        }
+
         $validated = $request->validate([
             'facility_id' => 'required|integer',
             'specialty_id' => 'nullable|integer|exists:specialties,id',
@@ -147,7 +163,11 @@ class CatalogController extends Controller
             ];
         });
 
-        return response()->json(['data' => $doctors]);
+        return response()->json([
+            'facility_id' => $facility->id,
+            'message' => 'Doctors list retrieved successfully.',
+            'data' => $doctors,
+        ]);
     }
 
     /**

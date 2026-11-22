@@ -51,14 +51,15 @@ Route::middleware([
     Route::post('/sandbox/reset', [SandboxController::class, 'reset'])->name('sandbox.reset');
 
     // Facility-scoped doctors endpoint
-    Route::get('/facilities/{facility_id}/doctors', function (Request $request, $facilityId) {
-        return response()->json([
-            'facility_id' => (int) $facilityId,
-            'message' => 'Doctors list retrieved successfully.',
-        ]);
-    })->middleware(CheckConnectScope::class . ':read')->name('doctors.index');
+    Route::get('/facilities/{facility_id}/doctors', [CatalogController::class, 'doctorsByFacility'])
+        ->middleware(CheckConnectScope::class . ':read')
+        ->name('doctors.index');
 
-    // Gate 1B: Availability Engine
+    // Gate 1B: Availability Engine (supports /doctors/{id}/availability and /facilities/{f_id}/doctors/{id}/availability)
+    Route::get('/facilities/{facility_id}/doctors/{doctor_id}/availability', [BookingController::class, 'availability'])
+        ->middleware(CheckConnectScope::class . ':read')
+        ->name('facilities.doctors.availability');
+
     Route::get('/doctors/{doctor_id}/availability', [BookingController::class, 'availability'])
         ->middleware(CheckConnectScope::class . ':read')
         ->name('doctors.availability');

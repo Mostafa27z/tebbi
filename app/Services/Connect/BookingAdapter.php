@@ -76,10 +76,16 @@ class BookingAdapter
             }
 
             $serviceId = $payload['service_id'] ?? $payload['doctor_service_id'] ?? null;
-            $service = DoctorService::where('id', $serviceId)
-                ->where('doctor_profile_id', $doctor->id)
-                ->where('is_active', true)
-                ->first();
+            if (! $serviceId) {
+                $service = DoctorService::where('doctor_profile_id', $doctor->id)
+                    ->where('is_active', true)
+                    ->first();
+            } else {
+                $service = DoctorService::where('id', $serviceId)
+                    ->where('doctor_profile_id', $doctor->id)
+                    ->where('is_active', true)
+                    ->first();
+            }
 
             if (! $service) {
                 abort(response()->json([
@@ -178,7 +184,15 @@ class BookingAdapter
             // Patient details & phone limits
             $patientName = trim($payload['patient_name']);
             $normalizedPhone = $this->normalizePhone($payload['patient_phone']);
-            $externalPatientId = isset($payload['external_patient_id']) ? trim((string) $payload['external_patient_id']) : null;
+            $nationalId = !empty($payload['patient_national_id'])
+                ? trim((string) $payload['patient_national_id'])
+                : (!empty($payload['national_id']) ? trim((string) $payload['national_id']) : null);
+            $patientEmail = !empty($payload['patient_email'])
+                ? trim($payload['patient_email'])
+                : (!empty($payload['email']) ? trim($payload['email']) : null);
+            $externalPatientId = isset($payload['external_patient_id']) && trim((string) $payload['external_patient_id']) !== ''
+                ? trim((string) $payload['external_patient_id'])
+                : ($nationalId ?: null);
             $externalAppointmentId = isset($payload['external_appointment_id']) ? trim((string) $payload['external_appointment_id']) : null;
 
             // Short-term burst limiter (3 attempts / minute / phone)
@@ -211,33 +225,21 @@ class BookingAdapter
                 ], 422, ['Content-Type' => 'application/problem+json; charset=utf-8']));
             }
 
-            // Mandatory external_patient_id in Phase 1
-            if (empty($externalPatientId)) {
-                abort(response()->json([
-                    'type' => 'https://connect.tebiby.com/errors/err-validation-failed',
-                    'title' => 'Validation Failed',
-                    'status' => 422,
-                    'detail' => 'The external_patient_id field is required in Phase 1.',
-                    'code' => 'ERR_VALIDATION_FAILED',
-                    'invalid_params' => [
-                        ['name' => 'external_patient_id', 'reason' => 'Field is required'],
-                    ],
-                ], 422, ['Content-Type' => 'application/problem+json; charset=utf-8']));
-            }
-
             // Check patient identity conflict (same external_patient_id with different phone)
-            $existingPatientLink = ConnectAppointmentLink::where('credential_id', $credential->id)
-                ->where('external_patient_id', $externalPatientId)
-                ->first();
+            if ($externalPatientId) {
+                $existingPatientLink = ConnectAppointmentLink::where('credential_id', $credential->id)
+                    ->where('external_patient_id', $externalPatientId)
+                    ->first();
 
-            if ($existingPatientLink && $existingPatientLink->patient_phone_snapshot !== $normalizedPhone) {
-                abort(response()->json([
-                    'type' => 'https://connect.tebiby.com/errors/err-patient-identity-conflict',
-                    'title' => 'Patient Identity Conflict',
-                    'status' => 409,
-                    'detail' => 'The external_patient_id is already registered with different patient phone details.',
-                    'code' => 'ERR_PATIENT_IDENTITY_CONFLICT',
-                ], 409, ['Content-Type' => 'application/problem+json; charset=utf-8']));
+                if ($existingPatientLink && $existingPatientLink->patient_phone_snapshot !== $normalizedPhone) {
+                    abort(response()->json([
+                        'type' => 'https://connect.tebiby.com/errors/err-patient-identity-conflict',
+                        'title' => 'Patient Identity Conflict',
+                        'status' => 409,
+                        'detail' => 'The external_patient_id is already registered with different patient phone details.',
+                        'code' => 'ERR_PATIENT_IDENTITY_CONFLICT',
+                    ], 409, ['Content-Type' => 'application/problem+json; charset=utf-8']));
+                }
             }
 
             // Check duplicate external_appointment_id
@@ -257,20 +259,54 @@ class BookingAdapter
                 }
             }
 
-            // Technical patient identity derivation (no APP_KEY dependency)
-            $identityKey = $credential->id . ':' . $externalPatientId;
-            $emailHash = substr(hash('sha256', $identityKey), 0, 32);
-            $technicalEmail = "connect-patient-{$emailHash}@connect-patient.tebiby.internal";
+            // Patient User Resolution:
+            // 1. By National ID (if provided)
+            // 2. Or by real email if provided
+            // 3. Or by normalized phone
+            // 4. Fallback: create User with national_id, name, phone, auto-assigned safe email
+            $patientUser = null;
+            if ($nationalId) {
+                $patientUser = User::where('national_id', $nationalId)->where('role', 'patient')->first();
+            }
+            if (! $patientUser && $patientEmail) {
+                $patientUser = User::where('email', $patientEmail)->first();
+            }
+            if (! $patientUser) {
+                $patientUser = User::where('phone', $normalizedPhone)->where('role', 'patient')->first();
+            }
 
-            $patientUser = User::firstOrCreate(
-                ['email' => $technicalEmail],
-                [
+            if (! $patientUser) {
+                $identityKey = $nationalId ? "nid:{$nationalId}" : ($credential->id . ':' . ($externalPatientId ?? $normalizedPhone));
+                $emailHash = substr(hash('sha256', $identityKey), 0, 32);
+                $assignedEmail = $patientEmail ?? "connect-patient-{$emailHash}@connect-patient.tebiby.internal";
+
+                $patientUser = User::create([
                     'name' => $patientName,
+                    'email' => $assignedEmail,
                     'phone' => $normalizedPhone,
+                    'national_id' => $nationalId,
                     'role' => 'patient',
                     'password' => bcrypt(Str::random(32)),
-                ]
-            );
+                ]);
+            } else {
+                $updates = [];
+                if ($nationalId && empty($patientUser->national_id)) {
+                    $updates['national_id'] = $nationalId;
+                }
+                if ($patientEmail && empty($patientUser->email)) {
+                    $updates['email'] = $patientEmail;
+                }
+                if ($normalizedPhone && empty($patientUser->phone)) {
+                    $updates['phone'] = $normalizedPhone;
+                }
+                if (! empty($updates)) {
+                    $patientUser->update($updates);
+                }
+            }
+
+            if (empty($externalPatientId)) {
+                $externalPatientId = $nationalId ?: ('PAT-' . $patientUser->id);
+            }
 
             // Concurrency capacity check with lockForUpdate
             $autoConfirmLimit = (int) ($doctor->slot_auto_confirm_limit ?? 1);
@@ -383,6 +419,14 @@ class BookingAdapter
                 'external_appointment_id' => $externalAppointmentId,
                 'public_token' => $publicToken,
                 'status' => $publicStatus,
+                'patient' => [
+                    'id' => $patientUser->id,
+                    'name' => $patientUser->name,
+                    'national_id' => $patientUser->national_id,
+                    'phone' => $patientUser->phone,
+                    'email' => $patientUser->email,
+                    'external_id' => $externalPatientId,
+                ],
                 'ticket' => [
                     'ticket_number' => $ticketNumber,
                     'current_serving' => 1,

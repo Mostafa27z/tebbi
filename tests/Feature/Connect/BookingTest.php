@@ -135,6 +135,12 @@ class BookingTest extends TestCase
         $this->assertEquals('available_instant', $slots[0]['status']);
         $this->assertTrue($slots[0]['is_available']);
         $this->assertEquals(2, $slots[0]['remaining_capacity']);
+
+        // Also test the facility-prefixed route alias
+        $response2 = $this->withHeader('Authorization', 'Bearer ' . $this->secretKey)
+            ->getJson("/connect/v1/facilities/{$this->facility->id}/doctors/{$this->doctor->id}/availability?date={$this->futureDate}&service_id={$this->service->id}");
+        $response2->assertStatus(200);
+        $this->assertEquals($this->facility->id, $response2->json('facility_id'));
     }
 
     public function test_availability_returns_empty_slots_for_past_date(): void
@@ -603,5 +609,62 @@ class BookingTest extends TestCase
             'code' => 'ERR_NOT_IMPLEMENTED',
             'status' => 501,
         ]);
+    }
+
+    public function test_booking_with_national_id_and_phone_without_email(): void
+    {
+        $idempotencyKey = (string) Str::uuid();
+
+        // 1st booking: Patient not in Tebiby, enters national_id + phone + name (no email)
+        $payload = [
+            'doctor_id' => $this->doctor->id,
+            'appointment_date' => $this->futureDate,
+            'appointment_time' => '16:00',
+            'patient_name' => 'خالد العتيبي',
+            'national_id' => '1088776655',
+            'patient_phone' => '0567788990',
+        ];
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $this->secretKey,
+            'Idempotency-Key' => $idempotencyKey,
+        ])->postJson("/connect/v1/facilities/{$this->facility->id}/appointments", $payload);
+
+        $response->assertStatus(201);
+        $response->assertJson([
+            'status' => 'confirmed',
+            'patient' => [
+                'name' => 'خالد العتيبي',
+                'national_id' => '1088776655',
+                'phone' => '+966567788990',
+            ],
+            'ticket' => [
+                'ticket_number' => 1,
+            ],
+        ]);
+
+        $createdPatient = User::where('national_id', '1088776655')->first();
+        $this->assertNotNull($createdPatient);
+        $this->assertEquals('خالد العتيبي', $createdPatient->name);
+        $this->assertEquals('+966567788990', $createdPatient->phone);
+
+        // 2nd booking: Same patient books again for a different slot
+        $idempotencyKey2 = (string) Str::uuid();
+        $payload2 = [
+            'doctor_id' => $this->doctor->id,
+            'appointment_date' => $this->futureDate,
+            'appointment_time' => '16:30',
+            'patient_name' => 'خالد العتيبي',
+            'national_id' => '1088776655',
+            'patient_phone' => '0567788990',
+        ];
+
+        $response2 = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $this->secretKey,
+            'Idempotency-Key' => $idempotencyKey2,
+        ])->postJson("/connect/v1/facilities/{$this->facility->id}/appointments", $payload2);
+
+        $response2->assertStatus(201);
+        $this->assertEquals($createdPatient->id, $response2->json('patient.id'));
     }
 }
