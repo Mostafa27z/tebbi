@@ -18,7 +18,7 @@ class HomeController extends Controller
 
         $clinics = Clinic::where('is_active', true)->get();
 
-        $query = DoctorProfile::with(['user', 'specialty', 'clinic']);
+        $query = DoctorProfile::with(['user', 'specialty', 'clinic', 'activeServices']);
 
         if ($request->filled('specialty_id')) {
             $query->where('specialty_id', $request->specialty_id);
@@ -36,7 +36,10 @@ class HomeController extends Controller
                 $q->whereHas('user', function ($uq) use ($search) {
                     $uq->where('name', 'like', "%{$search}%");
                 })->orWhere('title_ar', 'like', "%{$search}%")
-                  ->orWhere('subspecialty', 'like', "%{$search}%");
+                  ->orWhere('subspecialty', 'like', "%{$search}%")
+                  ->orWhereHas('activeServices', function ($sq) use ($search) {
+                      $sq->where('name', 'like', "%{$search}%");
+                  });
             });
         }
 
@@ -103,7 +106,7 @@ class HomeController extends Controller
         $specialties = Specialty::all();
         $cities = Facility::where('is_active', true)->pluck('city')->unique()->values();
 
-        $query = DoctorProfile::with(['user', 'specialty', 'clinic']);
+        $query = DoctorProfile::with(['user', 'specialty', 'clinic', 'activeServices']);
 
         if ($request->filled('specialty_id')) {
             $query->where('specialty_id', $request->specialty_id);
@@ -121,7 +124,10 @@ class HomeController extends Controller
                 $q->whereHas('user', function ($uq) use ($search) {
                     $uq->where('name', 'like', "%{$search}%");
                 })->orWhere('title_ar', 'like', "%{$search}%")
-                  ->orWhere('subspecialty', 'like', "%{$search}%");
+                  ->orWhere('subspecialty', 'like', "%{$search}%")
+                  ->orWhereHas('activeServices', function ($sq) use ($search) {
+                      $sq->where('name', 'like', "%{$search}%");
+                  });
             });
         }
 

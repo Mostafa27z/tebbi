@@ -40,6 +40,7 @@ class GroupLandingController extends Controller
                 'user:id,name,email,phone,avatar',
                 'specialty:id,name_ar,name_en,icon_slug,badge_text,description',
                 'clinic:id,name,branch_name,type,city,district,address,phone',
+                'activeServices',
                 'facilities' => function ($q) use ($facilityIds) {
                     $q->whereIn('facilities.id', $facilityIds);
                 },

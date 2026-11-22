@@ -297,7 +297,8 @@ class AdminDashboardController extends Controller
             'doctor.specialty',
             'facility',
             'queueTicket',
-        ])->orderByDesc('appointment_date')->orderByDesc('appointment_time')->take(100)->get();
+            'doctorService',
+        ])->orderByDesc('appointment_date')->orderByDesc('appointment_time')->orderByDesc('id')->take(100)->get();
 
         $totalBookings = Appointment::count();
         $waitingAppointments = Appointment::where('status', 'waiting')->count();

@@ -57,9 +57,7 @@ class RegisteredUserController extends Controller
             'role' => $role,
             'national_id' => $request->national_id,
             'password' => Hash::make($request->password),
-            'avatar' => $role === 'doctor'
-                ? 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=300&h=300&fit=crop&crop=faces'
-                : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop&crop=faces',
+            'avatar' => null,
         ]);
 
         if ($role === 'doctor') {
