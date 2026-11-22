@@ -1,0 +1,2092 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tebiby Connect API — توثيق الربط البرمجي للشركاء والمطورين</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --font-sans: 'Plus Jakarta Sans', 'Tajawal', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'Fira Code', monospace;
+            
+            /* Dark Theme Colors (Default) */
+            --bg-page: #0b0f17;
+            --bg-sidebar: #0f172a;
+            --bg-card: #131d31;
+            --bg-card-hover: #17233c;
+            --bg-code: #070b12;
+            --bg-badge: rgba(255, 255, 255, 0.05);
+            
+            --border-subtle: #1e293b;
+            --border-hover: #334155;
+            
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            
+            --primary: #0284c7;
+            --primary-glow: rgba(2, 132, 199, 0.25);
+            --accent-green: #10b981;
+            --accent-green-bg: rgba(16, 185, 129, 0.12);
+            --accent-blue: #38bdf8;
+            --accent-blue-bg: rgba(56, 189, 248, 0.12);
+            --accent-amber: #f59e0b;
+            --accent-amber-bg: rgba(245, 158, 11, 0.12);
+            --accent-red: #ef4444;
+            --accent-red-bg: rgba(239, 68, 68, 0.12);
+            --accent-purple: #a855f7;
+            --accent-purple-bg: rgba(168, 85, 247, 0.12);
+
+            --sidebar-width: 320px;
+            --header-height: 64px;
+        }
+
+        html.light {
+            --bg-page: #f8fafc;
+            --bg-sidebar: #ffffff;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f1f5f9;
+            --bg-code: #0f172a;
+            --bg-badge: #e2e8f0;
+            
+            --border-subtle: #e2e8f0;
+            --border-hover: #cbd5e1;
+            
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            
+            --primary: #0284c7;
+            --primary-glow: rgba(2, 132, 199, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-page);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Top Header */
+        header.top-header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            height: var(--header-height);
+            background: var(--bg-sidebar);
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            backdrop-filter: blur(12px);
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .brand-logo {
+            width: 34px;
+            height: 34px;
+            background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: 800;
+            font-size: 18px;
+            box-shadow: 0 4px 12px var(--primary-glow);
+        }
+
+        .brand-title {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .brand-version {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 9999px;
+            background: var(--accent-blue-bg);
+            color: var(--accent-blue);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            text-transform: uppercase;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        /* Environment Pill Switcher */
+        .env-switcher {
+            display: flex;
+            background: var(--bg-page);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 3px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .env-btn {
+            border: none;
+            background: transparent;
+            padding: 5px 12px;
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .env-btn.active {
+            background: var(--primary);
+            color: #ffffff;
+            box-shadow: 0 2px 6px var(--primary-glow);
+        }
+
+        .theme-toggle-btn {
+            background: transparent;
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .theme-toggle-btn:hover {
+            border-color: var(--border-hover);
+            color: var(--text-primary);
+        }
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-btn {
+            display: none;
+            background: transparent;
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            width: 36px;
+            height: 36px;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        /* App Container */
+        .app-container {
+            display: flex;
+            flex: 1;
+            min-height: calc(100vh - var(--header-height));
+            position: relative;
+        }
+
+        /* Sidebar */
+        aside.sidebar {
+            width: var(--sidebar-width);
+            flex-shrink: 0;
+            background: var(--bg-sidebar);
+            border-left: 1px solid var(--border-subtle);
+            height: calc(100vh - var(--header-height));
+            position: sticky;
+            top: var(--header-height);
+            overflow-y: auto;
+            padding: 20px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 14px 10px 38px;
+            background: var(--bg-page);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-box input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+            width: 16px;
+            height: 16px;
+        }
+
+        .nav-group-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            padding: 0 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .nav-item a {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.15s ease;
+        }
+
+        .nav-item a:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+
+        .nav-item a.active {
+            background: rgba(2, 132, 199, 0.12);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .method-pill {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .method-get { background: var(--accent-green-bg); color: var(--accent-green); }
+        .method-post { background: var(--accent-blue-bg); color: var(--accent-blue); }
+        .method-patch { background: var(--accent-purple-bg); color: var(--accent-purple); }
+        .method-delete { background: var(--accent-red-bg); color: var(--accent-red); }
+
+        /* Main Content */
+        main.main-content {
+            flex: 1;
+            padding: 40px;
+            max-width: calc(100vw - var(--sidebar-width));
+            display: flex;
+            flex-direction: column;
+            gap: 64px;
+        }
+
+        .doc-section {
+            scroll-margin-top: 80px;
+        }
+
+        .section-header {
+            margin-bottom: 24px;
+        }
+
+        .section-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: var(--bg-badge);
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .section-title {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 12px;
+        }
+
+        .section-lead {
+            font-size: 15px;
+            color: var(--text-secondary);
+            max-width: 850px;
+        }
+
+        /* 2-Column Endpoint Split (Docs Left + Interactive Code Right) */
+        .endpoint-grid {
+            display: grid;
+            grid-template-columns: 1.15fr 0.95fr;
+            gap: 32px;
+            align-items: start;
+        }
+
+        .endpoint-docs {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .endpoint-bar {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .endpoint-path-wrap {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: var(--font-mono);
+            font-size: 14px;
+            font-weight: 600;
+            overflow-x: auto;
+        }
+
+        .endpoint-path {
+            direction: ltr;
+            text-align: left;
+            color: var(--text-primary);
+        }
+
+        .endpoint-meta-badges {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .auth-badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 6px;
+            background: var(--bg-badge);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-subtle);
+        }
+
+        /* Parameter Tables */
+        .params-block {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .params-header {
+            padding: 14px 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border-bottom: 1px solid var(--border-subtle);
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .param-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            text-align: right;
+        }
+
+        .param-table th {
+            padding: 10px 20px;
+            color: var(--text-muted);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-subtle);
+            font-size: 12px;
+        }
+
+        .param-table td {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border-subtle);
+            vertical-align: top;
+        }
+
+        .param-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .param-name {
+            font-family: var(--font-mono);
+            font-weight: 600;
+            color: var(--accent-blue);
+            direction: ltr;
+            text-align: right;
+        }
+
+        .param-type {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-muted);
+            direction: ltr;
+            text-align: right;
+        }
+
+        .req-pill {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 1px 5px;
+            border-radius: 4px;
+            background: var(--accent-red-bg);
+            color: var(--accent-red);
+            margin-right: 4px;
+        }
+
+        .opt-pill {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 1px 5px;
+            border-radius: 4px;
+            background: var(--bg-badge);
+            color: var(--text-muted);
+            margin-right: 4px;
+        }
+
+        /* Right Code Sandbox Panel */
+        .endpoint-code-panel {
+            background: var(--bg-code);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            position: sticky;
+            top: calc(var(--header-height) + 24px);
+            overflow: hidden;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+        }
+
+        .code-tabs-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #0f172a;
+            border-bottom: 1px solid #1e293b;
+            padding: 0 12px;
+        }
+
+        .lang-tabs {
+            display: flex;
+            gap: 4px;
+        }
+
+        .lang-tab {
+            background: transparent;
+            border: none;
+            padding: 10px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.15s ease;
+        }
+
+        .lang-tab:hover {
+            color: #f8fafc;
+        }
+
+        .lang-tab.active {
+            color: #38bdf8;
+            border-bottom-color: #38bdf8;
+        }
+
+        .copy-code-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #334155;
+            border-radius: 6px;
+            color: #cbd5e1;
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .copy-code-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: #ffffff;
+        }
+
+        .code-snippet-body {
+            padding: 16px;
+            max-height: 380px;
+            overflow-y: auto;
+            direction: ltr;
+            text-align: left;
+            font-family: var(--font-mono);
+            font-size: 12.5px;
+            line-height: 1.6;
+            color: #e2e8f0;
+        }
+
+        .code-snippet-body pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* Responses Box */
+        .response-container {
+            border-top: 1px solid #1e293b;
+            background: #090d16;
+        }
+
+        .response-tabs-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            background: #0d1320;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .response-tab-buttons {
+            display: flex;
+            gap: 6px;
+        }
+
+        .res-tab-btn {
+            background: transparent;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            color: #94a3b8;
+            transition: all 0.15s;
+        }
+
+        .res-tab-btn.active-200, .res-tab-btn.active-201 {
+            background: var(--accent-green-bg);
+            color: var(--accent-green);
+        }
+
+        .res-tab-btn.active-err {
+            background: var(--accent-red-bg);
+            color: var(--accent-red);
+        }
+
+        .response-json-box {
+            padding: 16px;
+            max-height: 320px;
+            overflow-y: auto;
+            direction: ltr;
+            text-align: left;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            line-height: 1.5;
+            color: #94a3b8;
+        }
+
+        /* Alert / Callout Boxes */
+        .callout {
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin: 16px 0;
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            font-size: 13.5px;
+        }
+
+        .callout-info {
+            background: rgba(2, 132, 199, 0.08);
+            border: 1px solid rgba(2, 132, 199, 0.25);
+            color: #bae6fd;
+        }
+
+        .callout-warning {
+            background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            color: #fde68a;
+        }
+
+        .callout-success {
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            color: #a7f3d0;
+        }
+
+        /* Syntax Highlighter Colors */
+        .token-keyword { color: #f472b6; font-weight: 600; }
+        .token-string { color: #a5f3fc; }
+        .token-number { color: #fde047; }
+        .token-bool { color: #f97316; font-weight: 600; }
+        .token-null { color: #94a3b8; font-style: italic; }
+        .token-key { color: #38bdf8; font-weight: 500; }
+        .token-comment { color: #64748b; font-style: italic; }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 1200px) {
+            .endpoint-grid {
+                grid-template-columns: 1fr;
+            }
+            .endpoint-code-panel {
+                position: static;
+                margin-top: 16px;
+            }
+        }
+
+        @media (max-width: 900px) {
+            :root {
+                --sidebar-width: 280px;
+            }
+            aside.sidebar {
+                position: fixed;
+                right: -290px;
+                top: var(--header-height);
+                z-index: 100;
+                transition: right 0.3s ease;
+                box-shadow: -10px 0 25px rgba(0, 0, 0, 0.5);
+            }
+            aside.sidebar.mobile-open {
+                right: 0;
+            }
+            main.main-content {
+                max-width: 100vw;
+                padding: 24px 16px;
+            }
+            .mobile-menu-btn {
+                display: flex;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="top-header">
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle Navigation">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"/></svg>
+            </button>
+            <a href="#" class="header-brand">
+                <div class="brand-logo">T</div>
+                <div>
+                    <span class="brand-title">طبيبي كونسكت</span>
+                    <span style="font-size: 13px; color: var(--text-muted); margin-right: 6px;">Connect API</span>
+                </div>
+                <span class="brand-version">v2.4.0 Live</span>
+            </a>
+        </div>
+
+        <div class="header-actions">
+            <!-- Environment Switcher -->
+            <div class="env-switcher">
+                <button class="env-btn active" data-env="sandbox" id="envBtnSandbox">تجريبي (Sandbox)</button>
+                <button class="env-btn" data-env="live" id="envBtnLive">الإنتاج (Live)</button>
+            </div>
+
+            <!-- Dark / Light Toggle -->
+            <button class="theme-toggle-btn" id="themeToggleBtn" title="تبديل المظهر">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" id="themeIcon"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            </button>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="search-box">
+                <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input type="text" id="endpointSearch" placeholder="بحث في المسارات والمعاملات (Ctrl+K)...">
+            </div>
+
+            <!-- Nav Group: Getting Started -->
+            <div>
+                <div class="nav-group-title">
+                    <span>البداية والمصادقة</span>
+                </div>
+                <ul class="nav-list">
+                    <li class="nav-item"><a href="#sec-overview" class="active">نظرة عامة والربط</a></li>
+                    <li class="nav-item"><a href="#sec-auth">المصادقة والمفاتيح المزدوجة</a></li>
+                    <li class="nav-item"><a href="#sec-scopes">مصفوفة الصلاحيات والحماية</a></li>
+                    <li class="nav-item"><a href="#sec-idempotency">منع التكرار (Idempotency)</a></li>
+                </ul>
+            </div>
+
+            <!-- Nav Group: Catalog -->
+            <div>
+                <div class="nav-group-title">
+                    <span>دليل المراكز والأطباء</span>
+                    <span style="font-size: 10px; color: var(--accent-blue);">5 Endpoints</span>
+                </div>
+                <ul class="nav-list">
+                    <li class="nav-item">
+                        <a href="#endpoint-branches">
+                            <span>الفروع المصرح بها</span>
+                            <span class="method-pill method-get">GET</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#endpoint-specialties">
+                            <span>التخصصات الطبية</span>
+                            <span class="method-pill method-get">GET</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#endpoint-doctors">
+                            <span>قائمة الأطباء</span>
+                            <span class="method-pill method-get">GET</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#endpoint-doctor-show">
+                            <span>تفاصيل الطبيب</span>
+                            <span class="method-pill method-get">GET</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#endpoint-doctor-services">
+                            <span>خدمات وأسعار الطبيب</span>
+                            <span class="method-pill method-get">GET</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Nav Group: Booking Engine Gate 1B -->
+            <div>
+                <div class="nav-group-title">
+                    <span>محرك الحجز الفعلي (Gate 1B)</span>
+                    <span style="font-size: 10px; color: var(--accent-green);">Core</span>
+                </div>
+                <ul class="nav-list">
+                    <li class="nav-item">
+                        <a href="#endpoint-availability">
+                            <span>المواعيد المتاحة للعيادة</span>
+                            <span class="method-pill method-get">GET</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#endpoint-booking-intent">
+                            <span>توليد نية الحجز الموقعة</span>
+                            <span class="method-pill method-post">POST</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#endpoint-create-appointment">
+                            <span>تأكيد وإنشاء الحجز النهائي</span>
+                            <span class="method-pill method-post">POST</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Nav Group: Queue & Lifecycle -->
+            <div>
+                <div class="nav-group-title">
+                    <span>إدارة المواعيد والطابور الحي</span>
+                </div>
+                <ul class="nav-list">
+                    <li class="nav-item">
+                        <a href="#endpoint-queue-token">
+                            <span>تتبع الدور والانتظار الحي</span>
+                            <span class="method-pill method-get">GET</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#endpoint-cancel-appointment">
+                            <span>إلغاء الموعد المحجوز</span>
+                            <span class="method-pill method-post">POST</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#endpoint-reschedule">
+                            <span>إعادة الجدولة (محجوز)</span>
+                            <span class="method-pill method-patch">PATCH</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Nav Group: Webhooks -->
+            <div>
+                <div class="nav-group-title">
+                    <span>الإشعارات الفورية (Webhooks)</span>
+                </div>
+                <ul class="nav-list">
+                    <li class="nav-item">
+                        <a href="#endpoint-webhooks-list">
+                            <span>عرض نقاط الإشعار</span>
+                            <span class="method-pill method-get">GET</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#endpoint-webhooks-create">
+                            <span>تسجيل رابط إشعار</span>
+                            <span class="method-pill method-post">POST</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#endpoint-webhooks-rotate">
+                            <span>تدوير سر التوقيع (HMAC)</span>
+                            <span class="method-pill method-post">POST</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#endpoint-webhooks-deliveries">
+                            <span>سجلات محاولات التسليم</span>
+                            <span class="method-pill method-get">GET</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Nav Group: Errors & RFC 7807 -->
+            <div>
+                <div class="nav-group-title">
+                    <span>كتالوج الأخطاء والمعايير</span>
+                </div>
+                <ul class="nav-list">
+                    <li class="nav-item"><a href="#sec-rfc7807">معيار RFC 7807 الموحد</a></li>
+                    <li class="nav-item"><a href="#sec-error-catalog">جدول رموز الأخطاء (Codes)</a></li>
+                    <li class="nav-item"><a href="#sec-sandbox-reset">إعادة ضبط البيئة التجريبية</a></li>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+
+            <!-- SECTION: Overview -->
+            <section class="doc-section" id="sec-overview">
+                <div class="section-header">
+                    <span class="section-badge">نظرة عامة • Overview</span>
+                    <h1 class="section-title">منصة الربط البرمجي للشركاء (Tebiby Connect API)</h1>
+                    <p class="section-lead">
+                        واجهة برمجية معيارية موجهة لربط المستشفيات والعيادات الكبرى (HIS) وتطبيقات الطرف الثالث مع منصة طبيبي للرعاية الصحية بالمملكة العربية السعودية، متوافقة كلياً مع نظام حماية البيانات الشخصية السعودي (PDPL) واللوائح الصحية المعتمدة.
+                    </p>
+                </div>
+
+                <div class="callout callout-info">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <div>
+                        <strong>الروابط الأساسية للبيئات (Base URLs):</strong>
+                        <div style="font-family: var(--font-mono); font-size: 13px; margin-top: 6px; direction: ltr; text-align: left;">
+                            <div><strong>Live (Production):</strong> <span class="active-base-url" style="color: #38bdf8;">https://api.tebiby.com/v1/connect</span></div>
+                            <div><strong>Sandbox (Testing):</strong> <span style="color: #10b981;">https://sandbox-api.tebiby.com/v1/connect</span></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: Auth -->
+            <section class="doc-section" id="sec-auth">
+                <div class="section-header">
+                    <span class="section-badge">الأمان والمصادقة • Dual-Key Auth</span>
+                    <h2 class="section-title">نظام المصادقة المزدوج (Dual-Key Authentication)</h2>
+                    <p class="section-lead">
+                        تعتمد المنصة نوعين من المفاتيح لحماية السجلات الطبية وعزل البيانات وفقاً لبيئة الاستدعاء:
+                    </p>
+                </div>
+
+                <div class="params-block">
+                    <div class="params-header">أنواع المفاتيح وترويساتها المعتمدة</div>
+                    <table class="param-table">
+                        <thead>
+                            <tr>
+                                <th>نوع المفتاح</th>
+                                <th>البادئة (Prefix)</th>
+                                <th>طريقة الإرسال (Header)</th>
+                                <th>نطاق الاستخدام المسموح</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>المفتاح العام (Publishable Key)</strong></td>
+                                <td class="param-name">tb_live_pk_... / tb_test_pk_...</td>
+                                <td class="param-name">X-Publishable-Key: &lt;key&gt;</td>
+                                <td>مخصص للمتصفحات وتطبيقات الهواتف. قراءة الدليل العام وتتبع الطابور فقط.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>المفتاح السري (Secret Key)</strong></td>
+                                <td class="param-name">tb_live_sk_... / tb_test_sk_...</td>
+                                <td class="param-name">Authorization: Bearer &lt;sk&gt;</td>
+                                <td>يُحظر كشفه في المتصفحات. يُستخدم بين الخوادم حصراً (Server-to-Server) للحجز والإلغاء والـ Webhooks.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>توكن نية الحجز (Intent Token)</strong></td>
+                                <td class="param-name">bit_live_... / bit_test_...</td>
+                                <td class="param-name">Authorization: Bearer &lt;bit&gt;</td>
+                                <td>توكن موقع صالح لـ 15 دقيقة فقط، مخصص لتأكيد وإنشاء الحجز النهائي عبر مسار الحجز.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- SECTION: Idempotency -->
+            <section class="doc-section" id="sec-idempotency">
+                <div class="section-header">
+                    <span class="section-badge">الموثوقية والشبكة • Reliability</span>
+                    <h2 class="section-title">ترويسة منع التكرار المعاملاتية (Idempotency-Key)</h2>
+                    <p class="section-lead">
+                        كافة المسارات التعديلية للمواعيد (<code style="color:#38bdf8;">POST /appointments</code> و <code style="color:#38bdf8;">POST /appointments/{ref}/cancel</code>) تتطلب إلزامياً ترويسة منع التكرار لمنع الحجوزات المزدوجة أو خصم المبالغ مرتين في حال انقطاع اتصال شبكة العميل.
+                    </p>
+                </div>
+
+                <div class="callout callout-warning">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    <div>
+                        <strong>الترويسة الإلزامية:</strong> <code style="color: #f59e0b; font-weight:700;">Idempotency-Key: &lt;UUID-v4&gt;</code><br>
+                        غياب هذه الترويسة في أي طلب حجز أو إلغاء يؤدي فوراً إلى رفض الطلب بكود <code style="color:#ef4444;">400 Bad Request</code> والرمز <code style="color:#ef4444;">ERR_IDEMPOTENCY_KEY_REQUIRED</code>. عند إعادة إرسال نفس الطلب بنفس المفتاح، تُعاد الاستجابة الأصلية فورياً مع الترويسة <code style="color:#10b981;">Idempotent-Replay: true</code>.
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================== -->
+            <!-- ENDPOINT 1: GET /branches -->
+            <!-- ============================================================== -->
+            <section class="doc-section" id="endpoint-branches">
+                <div class="section-header">
+                    <span class="section-badge">كتالوج المنشآت • Facilities</span>
+                    <h2 class="section-title">استعراض الفروع المصرح بها (List Branches)</h2>
+                    <p class="section-lead">
+                        يُرجع قائمة الفروع والمراكز الطبية المسموح لمفتاحك بالوصول إليها وفق مبدأ الحرمان الافتراضي (Default-Deny).
+                    </p>
+                </div>
+
+                <div class="endpoint-grid">
+                    <div class="endpoint-docs">
+                        <div class="endpoint-bar">
+                            <div class="endpoint-path-wrap">
+                                <span class="method-pill method-get">GET</span>
+                                <span class="endpoint-path">/branches</span>
+                            </div>
+                            <div class="endpoint-meta-badges">
+                                <span class="auth-badge">Scope: read</span>
+                                <span class="auth-badge">PK / SK</span>
+                            </div>
+                        </div>
+
+                        <div class="params-block">
+                            <div class="params-header">ترويسات الطلب (Request Headers)</div>
+                            <table class="param-table">
+                                <thead><tr><th>الترويسة</th><th>النوع</th><th>الوصف</th></tr></thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="param-name">X-Publishable-Key</td>
+                                        <td class="param-type">string</td>
+                                        <td><span class="opt-pill">أو</span> المفتاح العام للواجهات المفتوحة.</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="param-name">Authorization</td>
+                                        <td class="param-type">string</td>
+                                        <td><span class="opt-pill">أو</span> <code style="color:#38bdf8;">Bearer tb_live_sk_...</code> للخوادم.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="params-block">
+                            <div class="params-header">حقول كائن الاستجابة (Branch Schema)</div>
+                            <table class="param-table">
+                                <thead><tr><th>الحقل</th><th>النوع</th><th>الوصف</th></tr></thead>
+                                <tbody>
+                                    <tr><td class="param-name">id</td><td class="param-type">integer</td><td>المعرف الفريد للمنشأة أو الفرع الطبي.</td></tr>
+                                    <tr><td class="param-name">name_ar</td><td class="param-type">string</td><td>اسم الفرع باللغة العربية.</td></tr>
+                                    <tr><td class="param-name">city</td><td class="param-type">string</td><td>المدينة (مثل الرياض، جدة).</td></tr>
+                                    <tr><td class="param-name">district</td><td class="param-type">string</td><td>الحي السكني أو المنطقة.</td></tr>
+                                    <tr><td class="param-name">phone</td><td class="param-type">string</td><td>رقم هاتف الاستقبال بصيغة E.164.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Right Code & Response Sandbox -->
+                    <div class="endpoint-code-panel">
+                        <div class="code-tabs-header">
+                            <div class="lang-tabs">
+                                <button class="lang-tab active" data-lang="curl">cURL</button>
+                                <button class="lang-tab" data-lang="js">JavaScript</button>
+                                <button class="lang-tab" data-lang="php">PHP</button>
+                                <button class="lang-tab" data-lang="python">Python</button>
+                            </div>
+                            <button class="copy-code-btn" onclick="copySnippet(this)">نسخ الكود</button>
+                        </div>
+                        <div class="code-snippet-body">
+<pre class="snippet-code" data-endpoint="/branches" data-method="GET">curl -X GET "https://sandbox-api.tebiby.com/v1/connect/branches" \
+  -H "X-Publishable-Key: tb_test_pk_demo1234567890" \
+  -H "Accept: application/json"</pre>
+                        </div>
+
+                        <div class="response-container">
+                            <div class="response-tabs-header">
+                                <span style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">نموذج الاستجابة</span>
+                                <div class="response-tab-buttons">
+                                    <button class="res-tab-btn active-200">200 OK</button>
+                                    <button class="res-tab-btn" onclick="showMockError(this, '401')">401</button>
+                                </div>
+                            </div>
+                            <div class="response-json-box">
+<pre>{
+  <span class="token-key">"data"</span>: [
+    {
+      <span class="token-key">"id"</span>: <span class="token-number">10</span>,
+      <span class="token-key">"name_ar"</span>: <span class="token-string">"مجمع عيادات النخبة الطبي - الفرع الرئيسي"</span>,
+      <span class="token-key">"city"</span>: <span class="token-string">"الرياض"</span>,
+      <span class="token-key">"district"</span>: <span class="token-string">"حي النخيل"</span>,
+      <span class="token-key">"phone"</span>: <span class="token-string">"+966112003000"</span>,
+      <span class="token-key">"is_active"</span>: <span class="token-bool">true</span>
+    }
+  ]
+}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================== -->
+            <!-- ENDPOINT 2: GET /doctors/{id}/availability (Gate 1B) -->
+            <!-- ============================================================== -->
+            <section class="doc-section" id="endpoint-availability">
+                <div class="section-header">
+                    <span class="section-badge">فحص المواعيد • Availability Engine</span>
+                    <h2 class="section-title">فحص المواعيد المتاحة للعيادة (Check Availability)</h2>
+                    <p class="section-lead">
+                        يستعلم محرك الحجز في الزمن الحقيقي لحساب الخانات الزمنية الدقيقة للطبيب بالمنشأة، مع إرجاع حدود الطاقة الاستيعابية الفورية وقائمة الانتظار وحجب الأوقات المنقضية بتوقيت الرياض.
+                    </p>
+                </div>
+
+                <div class="endpoint-grid">
+                    <div class="endpoint-docs">
+                        <div class="endpoint-bar">
+                            <div class="endpoint-path-wrap">
+                                <span class="method-pill method-get">GET</span>
+                                <span class="endpoint-path">/doctors/{doctor_id}/availability</span>
+                            </div>
+                            <div class="endpoint-meta-badges">
+                                <span class="auth-badge">Scope: read</span>
+                                <span class="auth-badge">PK / SK</span>
+                            </div>
+                        </div>
+
+                        <div class="params-block">
+                            <div class="params-header">المعاملات المطلوبة (Query Parameters)</div>
+                            <table class="param-table">
+                                <thead><tr><th>المعامل</th><th>النوع</th><th>الوصف والقيود</th></tr></thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="param-name">doctor_id</td>
+                                        <td class="param-type">integer (path)</td>
+                                        <td><span class="req-pill">مطلوب</span> المعرف الفريد للطبيب في المنصة.</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="param-name">facility_id</td>
+                                        <td class="param-type">integer (query)</td>
+                                        <td><span class="req-pill">مطلوب</span> معرف المركز الطبي المصرح به للمفتاح.</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="param-name">date</td>
+                                        <td class="param-type">string (query)</td>
+                                        <td><span class="req-pill">مطلوب</span> تاريخ الموعد بصيغة <code style="color:#38bdf8;">YYYY-MM-DD</code> (يجب ألا يكون بالماضي).</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="param-name">service_id</td>
+                                        <td class="param-type">integer (query)</td>
+                                        <td><span class="opt-pill">اختياري</span> لحساب مدة الخانة وفق مدة الخدمة بدقة.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="params-block">
+                            <div class="params-header">دلالات حالات الخانات الزمنية (Slot Statuses)</div>
+                            <table class="param-table">
+                                <thead><tr><th>الحالة البرمجية</th><th>الدلالة التشغيلية</th></tr></thead>
+                                <tbody>
+                                    <tr>
+                                        <td><code style="color:#10b981; font-weight:700;">available_instant</code></td>
+                                        <td>متاح للحجز والتأكيد الفوري المباشر دون انتظار موافقة العيادة.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code style="color:#f59e0b; font-weight:700;">available_waitlist</code></td>
+                                        <td>اكتملت الطاقة الفورية، وتُسجل الخانة كـ (قائمة انتظار) بانتظار تأكيد العيادة.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code style="color:#ef4444; font-weight:700;">fully_booked</code></td>
+                                        <td>الخانة ممتلئة بالكامل ولا تتسع لحجوزات فورية أو قوائم انتظار.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code style="color:#94a3b8; font-weight:700;">past_time</code></td>
+                                        <td>الوقت انقضى بالفعل لليوم الحالي بحسب توقيت المملكة العربية السعودية (<code style="direction:ltr;">Asia/Riyadh</code>).</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Right Code & Response Sandbox -->
+                    <div class="endpoint-code-panel">
+                        <div class="code-tabs-header">
+                            <div class="lang-tabs">
+                                <button class="lang-tab active" data-lang="curl">cURL</button>
+                                <button class="lang-tab" data-lang="js">JavaScript</button>
+                                <button class="lang-tab" data-lang="php">PHP</button>
+                                <button class="lang-tab" data-lang="python">Python</button>
+                            </div>
+                            <button class="copy-code-btn" onclick="copySnippet(this)">نسخ الكود</button>
+                        </div>
+                        <div class="code-snippet-body">
+<pre class="snippet-code" data-endpoint="/doctors/45/availability?facility_id=10&date=2026-11-25" data-method="GET">curl -X GET "https://sandbox-api.tebiby.com/v1/connect/doctors/45/availability?facility_id=10&date=2026-11-25" \
+  -H "X-Publishable-Key: tb_test_pk_demo1234567890" \
+  -H "Accept: application/json"</pre>
+                        </div>
+
+                        <div class="response-container">
+                            <div class="response-tabs-header">
+                                <span style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">نموذج الاستجابة</span>
+                                <div class="response-tab-buttons">
+                                    <button class="res-tab-btn active-200">200 OK</button>
+                                    <button class="res-tab-btn" onclick="showMockError(this, '404')">404</button>
+                                </div>
+                            </div>
+                            <div class="response-json-box">
+<pre>{
+  <span class="token-key">"date"</span>: <span class="token-string">"2026-11-25"</span>,
+  <span class="token-key">"doctor_id"</span>: <span class="token-number">45</span>,
+  <span class="token-key">"facility_id"</span>: <span class="token-number">10</span>,
+  <span class="token-key">"slot_auto_confirm_limit"</span>: <span class="token-number">1</span>,
+  <span class="token-key">"slot_waitlist_limit"</span>: <span class="token-number">1</span>,
+  <span class="token-key">"slots"</span>: [
+    {
+      <span class="token-key">"time"</span>: <span class="token-string">"16:00"</span>,
+      <span class="token-key">"formatted_time"</span>: <span class="token-string">"04:00 PM"</span>,
+      <span class="token-key">"duration_minutes"</span>: <span class="token-number">30</span>,
+      <span class="token-key">"status"</span>: <span class="token-string">"available_instant"</span>,
+      <span class="token-key">"is_available"</span>: <span class="token-bool">true</span>,
+      <span class="token-key">"remaining_capacity"</span>: <span class="token-number">2</span>
+    },
+    {
+      <span class="token-key">"time"</span>: <span class="token-string">"16:30"</span>,
+      <span class="token-key">"formatted_time"</span>: <span class="token-string">"04:30 PM"</span>,
+      <span class="token-key">"duration_minutes"</span>: <span class="token-number">30</span>,
+      <span class="token-key">"status"</span>: <span class="token-string">"available_waitlist"</span>,
+      <span class="token-key">"is_available"</span>: <span class="token-bool">true</span>,
+      <span class="token-key">"remaining_capacity"</span>: <span class="token-number">1</span>
+    }
+  ]
+}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================== -->
+            <!-- ENDPOINT 3: POST /booking-intents (Gate 1B) -->
+            <!-- ============================================================== -->
+            <section class="doc-section" id="endpoint-booking-intent">
+                <div class="section-header">
+                    <span class="section-badge">جلسة الحجز المسبقة • Pre-Booking Intent</span>
+                    <h2 class="section-title">توليد نية الحجز الموقعة (Create Booking Intent)</h2>
+                    <p class="section-lead">
+                        إصدار توكن نية حجز مشفر وموقع صالح لمدة 15 دقيقة حصراً من لحظة إصداره، بعد التحقق الدقيق من جدول دوام الطبيب والاتساق المالي للسعر شامل ضريبة القيمة المضافة 15%.
+                    </p>
+                </div>
+
+                <div class="endpoint-grid">
+                    <div class="endpoint-docs">
+                        <div class="endpoint-bar">
+                            <div class="endpoint-path-wrap">
+                                <span class="method-pill method-post">POST</span>
+                                <span class="endpoint-path">/booking-intents</span>
+                            </div>
+                            <div class="endpoint-meta-badges">
+                                <span class="auth-badge">Scope: book</span>
+                                <span class="auth-badge" style="color:#ef4444; border-color: rgba(239,68,68,0.3);">Secret Key Only</span>
+                            </div>
+                        </div>
+
+                        <div class="params-block">
+                            <div class="params-header">حمولة الطلب (Request Payload JSON)</div>
+                            <table class="param-table">
+                                <thead><tr><th>الحقل</th><th>النوع</th><th>الوصف والتحقق</th></tr></thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="param-name">facility_id</td>
+                                        <td class="param-type">integer</td>
+                                        <td><span class="req-pill">مطلوب</span> معرف المركز الطبي المعتمد.</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="param-name">doctor_id</td>
+                                        <td class="param-type">integer</td>
+                                        <td><span class="req-pill">مطلوب</span> معرف الطبيب المعالج.</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="param-name">doctor_service_id</td>
+                                        <td class="param-type">integer</td>
+                                        <td><span class="req-pill">مطلوب</span> معرف الخدمة الطبية التابعة للطبيب.</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="param-name">appointment_date</td>
+                                        <td class="param-type">string</td>
+                                        <td><span class="req-pill">مطلوب</span> تاريخ الموعد بصيغة <code style="color:#38bdf8;">YYYY-MM-DD</code>.</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="param-name">appointment_time</td>
+                                        <td class="param-type">string</td>
+                                        <td><span class="req-pill">مطلوب</span> وقت الموعد بصيغة 24 ساعة <code style="color:#38bdf8;">17:00</code>.</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="param-name">expected_fee</td>
+                                        <td class="param-type">number</td>
+                                        <td><span class="req-pill">مطلوب</span> المبلغ الإجمالي شامل ضريبة 15% بالريال السعودي.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Right Code & Response Sandbox -->
+                    <div class="endpoint-code-panel">
+                        <div class="code-tabs-header">
+                            <div class="lang-tabs">
+                                <button class="lang-tab active" data-lang="curl">cURL</button>
+                                <button class="lang-tab" data-lang="js">JavaScript</button>
+                                <button class="lang-tab" data-lang="php">PHP</button>
+                                <button class="lang-tab" data-lang="python">Python</button>
+                            </div>
+                            <button class="copy-code-btn" onclick="copySnippet(this)">نسخ الكود</button>
+                        </div>
+                        <div class="code-snippet-body">
+<pre class="snippet-code" data-endpoint="/booking-intents" data-method="POST" data-body='{"facility_id":10,"doctor_id":45,"doctor_service_id":12,"appointment_date":"2026-11-25","appointment_time":"16:00","expected_fee":230.00}'>curl -X POST "https://sandbox-api.tebiby.com/v1/connect/booking-intents" \
+  -H "Authorization: Bearer tb_test_sk_sec9988776655" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "facility_id": 10,
+    "doctor_id": 45,
+    "doctor_service_id": 12,
+    "appointment_date": "2026-11-25",
+    "appointment_time": "16:00",
+    "expected_fee": 230.00
+  }'</pre>
+                        </div>
+
+                        <div class="response-container">
+                            <div class="response-tabs-header">
+                                <span style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">نموذج الاستجابة</span>
+                                <div class="response-tab-buttons">
+                                    <button class="res-tab-btn active-201">201 Created</button>
+                                    <button class="res-tab-btn" onclick="showMockError(this, '422_PRICE')">422 Price</button>
+                                </div>
+                            </div>
+                            <div class="response-json-box">
+<pre>{
+  <span class="token-key">"intent_token"</span>: <span class="token-string">"bit_test_7f9c2a8e4b1056d8a391efc"</span>,
+  <span class="token-key">"expires_at"</span>: <span class="token-string">"2026-11-22T18:15:00Z"</span>,
+  <span class="token-key">"facility_id"</span>: <span class="token-number">10</span>,
+  <span class="token-key">"doctor_id"</span>: <span class="token-number">45</span>,
+  <span class="token-key">"appointment_date"</span>: <span class="token-string">"2026-11-25"</span>,
+  <span class="token-key">"appointment_time"</span>: <span class="token-string">"16:00"</span>,
+  <span class="token-key">"base_fee"</span>: <span class="token-number">200.00</span>,
+  <span class="token-key">"vat_amount"</span>: <span class="token-number">30.00</span>,
+  <span class="token-key">"expected_fee"</span>: <span class="token-number">230.00</span>
+}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================== -->
+            <!-- ENDPOINT 4: POST /appointments (Gate 1B Core) -->
+            <!-- ============================================================== -->
+            <section class="doc-section" id="endpoint-create-appointment">
+                <div class="section-header">
+                    <span class="section-badge">محرك الحجز الفعلي • Atomic Booking</span>
+                    <h2 class="section-title">تأكيد وإنشاء الحجز النهائي (Create Appointment)</h2>
+                    <p class="section-lead">
+                        المسار الرئيسي لتثبيت الحجز الطبي؛ يضمن المعالجة الذرية للسعة (<code style="direction:ltr;">lockForUpdate</code>)، وتوليد مرجع الحجز العشوائي المشفر، وتذكرة الانتظار، مع حماية الهوية السريرية للمريض عبر العزل التقني المكتمل.
+                    </p>
+                </div>
+
+                <div class="endpoint-grid">
+                    <div class="endpoint-docs">
+                        <div class="endpoint-bar">
+                            <div class="endpoint-path-wrap">
+                                <span class="method-pill method-post">POST</span>
+                                <span class="endpoint-path">/facilities/{facility_id}/appointments</span>
+                            </div>
+                            <div class="endpoint-meta-badges">
+                                <span class="auth-badge">Scope: book</span>
+                                <span class="auth-badge" style="color:#f59e0b; border-color: rgba(245,158,11,0.3);">Idempotency-Key</span>
+                            </div>
+                        </div>
+
+                        <div class="params-block">
+                            <div class="params-header">الترويسات الإلزامية (Mandatory Headers)</div>
+                            <table class="param-table">
+                                <thead><tr><th>الترويسة</th><th>القيمة المطلوبة</th><th>الأثر البرمجي</th></tr></thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="param-name">Idempotency-Key</td>
+                                        <td class="param-type">UUID v4</td>
+                                        <td><span class="req-pill">إلزامي قطعي</span> يمنع الازدواجية ويعيد الرد الأصلي بحالة انقطاع الاتصال.</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="param-name">Authorization</td>
+                                        <td class="param-type">Bearer &lt;sk / bit&gt;</td>
+                                        <td><span class="req-pill">مطلوب</span> المفتاح السري للشريك أو توكن نية الحجز.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="params-block">
+                            <div class="params-header">حقول حمولة الطلب (Request Payload JSON)</div>
+                            <table class="param-table">
+                                <thead><tr><th>الحقل</th><th>النوع</th><th>الوصف والقيود الصارمة</th></tr></thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="param-name">patient_name</td>
+                                        <td class="param-type">string</td>
+                                        <td><span class="req-pill">مطلوب</span> اسم المريض الكامل (بحد أقصى 100 حرف).</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="param-name">patient_phone</td>
+                                        <td class="param-type">string</td>
+                                        <td><span class="req-pill">مطلوب</span> رقم جوال المريض بصيغة سعودية (يخضع لمحدد 5 حجوزات/يوم).</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="param-name">external_patient_id</td>
+                                        <td class="param-type">string</td>
+                                        <td><span class="req-pill">إلزامي بالمرحلة 1</span> المعرف السريري للمريض بنظام الشريك لمنع تشتت الملفات.</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="param-name">external_appointment_id</td>
+                                        <td class="param-type">string</td>
+                                        <td><span class="opt-pill">اختياري</span> رقم الموعد في نظام الشريك للمطابقة والتسوية.</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="param-name">payment_method</td>
+                                        <td class="param-type">string</td>
+                                        <td><span class="opt-pill">اختياري</span> <code style="color:#38bdf8;">at_clinic</code> (نقداً بالعيادة) أو <code style="color:#38bdf8;">online</code>.</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="param-name">intent_token</td>
+                                        <td class="param-type">string</td>
+                                        <td><span class="opt-pill">اختياري</span> توكن النية إذا لم يتم إرساله كـ Bearer Header.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Right Code & Response Sandbox -->
+                    <div class="endpoint-code-panel">
+                        <div class="code-tabs-header">
+                            <div class="lang-tabs">
+                                <button class="lang-tab active" data-lang="curl">cURL</button>
+                                <button class="lang-tab" data-lang="js">JavaScript</button>
+                                <button class="lang-tab" data-lang="php">PHP</button>
+                                <button class="lang-tab" data-lang="python">Python</button>
+                            </div>
+                            <button class="copy-code-btn" onclick="copySnippet(this)">نسخ الكود</button>
+                        </div>
+                        <div class="code-snippet-body">
+<pre class="snippet-code" data-endpoint="/facilities/10/appointments" data-method="POST" data-idempotent="true" data-body='{"patient_name":"سارة محمد أحمد","patient_phone":"+966501234567","external_patient_id":"PAT-9481","external_appointment_id":"HOSP-4491","doctor_id":45,"service_id":12,"appointment_date":"2026-11-25","appointment_time":"16:00","payment_method":"at_clinic"}'>curl -X POST "https://sandbox-api.tebiby.com/v1/connect/facilities/10/appointments" \
+  -H "Authorization: Bearer tb_test_sk_sec9988776655" \
+  -H "Idempotency-Key: e8a7e3b1-789a-4f56-b012-c456789abcde" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "patient_name": "سارة محمد أحمد",
+    "patient_phone": "+966501234567",
+    "external_patient_id": "PAT-9481",
+    "external_appointment_id": "HOSP-4491",
+    "doctor_id": 45,
+    "service_id": 12,
+    "appointment_date": "2026-11-25",
+    "appointment_time": "16:00",
+    "payment_method": "at_clinic"
+  }'</pre>
+                        </div>
+
+                        <div class="response-container">
+                            <div class="response-tabs-header">
+                                <span style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">نموذج الاستجابة</span>
+                                <div class="response-tab-buttons">
+                                    <button class="res-tab-btn active-201">201 Created</button>
+                                    <button class="res-tab-btn" onclick="showMockError(this, '409_CONFLICT')">409 Flight</button>
+                                    <button class="res-tab-btn" onclick="showMockError(this, '422_SLOT')">422 Full</button>
+                                </div>
+                            </div>
+                            <div class="response-json-box">
+<pre>{
+  <span class="token-key">"booking_reference"</span>: <span class="token-string">"TB-SR8492"</span>,
+  <span class="token-key">"external_appointment_id"</span>: <span class="token-string">"HOSP-4491"</span>,
+  <span class="token-key">"public_token"</span>: <span class="token-string">"ptk_live_a1b2c3d4e5f67890abcdef123456"</span>,
+  <span class="token-key">"status"</span>: <span class="token-string">"confirmed"</span>,
+  <span class="token-key">"ticket"</span>: {
+    <span class="token-key">"ticket_number"</span>: <span class="token-number">1</span>,
+    <span class="token-key">"current_serving"</span>: <span class="token-number">1</span>,
+    <span class="token-key">"patients_ahead"</span>: <span class="token-number">0</span>,
+    <span class="token-key">"estimated_wait_minutes"</span>: <span class="token-number">15</span>
+  },
+  <span class="token-key">"doctor"</span>: {
+    <span class="token-key">"id"</span>: <span class="token-number">45</span>,
+    <span class="token-key">"name"</span>: <span class="token-string">"د. أحمد الشمري"</span>,
+    <span class="token-key">"title"</span>: <span class="token-string">"استشاري تقويم الأسنان"</span>
+  },
+  <span class="token-key">"facility"</span>: {
+    <span class="token-key">"id"</span>: <span class="token-number">10</span>,
+    <span class="token-key">"name"</span>: <span class="token-string">"مجمع عيادات النخبة الطبي"</span>
+  },
+  <span class="token-key">"schedule"</span>: {
+    <span class="token-key">"date"</span>: <span class="token-string">"2026-11-25"</span>,
+    <span class="token-key">"time"</span>: <span class="token-string">"16:00"</span>,
+    <span class="token-key">"formatted_time"</span>: <span class="token-string">"04:00 PM"</span>
+  },
+  <span class="token-key">"payment"</span>: {
+    <span class="token-key">"method"</span>: <span class="token-string">"at_clinic"</span>,
+    <span class="token-key">"status"</span>: <span class="token-string">"pending"</span>,
+    <span class="token-key">"currency"</span>: <span class="token-string">"SAR"</span>,
+    <span class="token-key">"amount"</span>: <span class="token-number">230.00</span>
+  }
+}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================== -->
+            <!-- ENDPOINT 5: GET /queue/{public_token} -->
+            <!-- ============================================================== -->
+            <section class="doc-section" id="endpoint-queue-token">
+                <div class="section-header">
+                    <span class="section-badge">التتبع الحي للمريض • Live Tracking</span>
+                    <h2 class="section-title">تتبع الطابور الحي بالتوكن العام (Live Queue Lookup)</h2>
+                    <p class="section-lead">
+                        استعلام سريع وخفيف مخصص لواجهات المريض دون تسجيل دخول؛ يعرض رقم التذكرة المباشر، المراجعين الحاليين، والدقائق المقدرة وأي تأخير بالعيادة، مع حماية كاملة ضد الحصر (Anti-Enumeration).
+                    </p>
+                </div>
+
+                <div class="endpoint-grid">
+                    <div class="endpoint-docs">
+                        <div class="endpoint-bar">
+                            <div class="endpoint-path-wrap">
+                                <span class="method-pill method-get">GET</span>
+                                <span class="endpoint-path">/queue/{public_token}</span>
+                            </div>
+                            <div class="endpoint-meta-badges">
+                                <span class="auth-badge">Public Token</span>
+                                <span class="auth-badge" style="color:#10b981; border-color: rgba(16,185,129,0.3);">No Auth Required</span>
+                            </div>
+                        </div>
+
+                        <div class="params-block">
+                            <div class="params-header">حقول استجابة الطابور المباشر</div>
+                            <table class="param-table">
+                                <thead><tr><th>الحقل</th><th>النوع</th><th>الوصف</th></tr></thead>
+                                <tbody>
+                                    <tr><td class="param-name">ticket_number</td><td class="param-type">integer</td><td>رقم تذكرة المريض الخاصة بالموعد.</td></tr>
+                                    <tr><td class="param-name">current_serving_number</td><td class="param-type">integer</td><td>رقم التذكرة التي يفحصها الطبيب حالياً.</td></tr>
+                                    <tr><td class="param-name">patients_ahead</td><td class="param-type">integer</td><td>عدد المرضى المتبقين قبل دور هذا المريض.</td></tr>
+                                    <tr><td class="param-name">estimated_wait_minutes</td><td class="param-type">integer</td><td>الوقت التقديري المتبقي بالدقائق.</td></tr>
+                                    <tr><td class="param-name">status</td><td class="param-type">string</td><td>الحالة العامة المعتمدة (<code style="color:#38bdf8;">checked_in</code>, <code style="color:#38bdf8;">in_progress</code>, إلخ).</td></tr>
+                                    <tr><td class="param-name">delay_minutes</td><td class="param-type">integer</td><td>دقائق التأخير بالعيادة (إن وجدت).</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Right Code & Response Sandbox -->
+                    <div class="endpoint-code-panel">
+                        <div class="code-tabs-header">
+                            <div class="lang-tabs">
+                                <button class="lang-tab active" data-lang="curl">cURL</button>
+                                <button class="lang-tab" data-lang="js">JavaScript</button>
+                                <button class="lang-tab" data-lang="php">PHP</button>
+                                <button class="lang-tab" data-lang="python">Python</button>
+                            </div>
+                            <button class="copy-code-btn" onclick="copySnippet(this)">نسخ الكود</button>
+                        </div>
+                        <div class="code-snippet-body">
+<pre class="snippet-code" data-endpoint="/queue/ptk_live_a1b2c3d4e5f67890abcdef123456" data-method="GET">curl -X GET "https://sandbox-api.tebiby.com/v1/connect/queue/ptk_live_a1b2c3d4e5f67890abcdef123456" \
+  -H "Accept: application/json"</pre>
+                        </div>
+
+                        <div class="response-container">
+                            <div class="response-tabs-header">
+                                <span style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">نموذج الاستجابة</span>
+                                <div class="response-tab-buttons">
+                                    <button class="res-tab-btn active-200">200 OK</button>
+                                    <button class="res-tab-btn" onclick="showMockError(this, '404_TOKEN')">404 Token</button>
+                                </div>
+                            </div>
+                            <div class="response-json-box">
+<pre>{
+  <span class="token-key">"ticket_number"</span>: <span class="token-number">8</span>,
+  <span class="token-key">"current_serving_number"</span>: <span class="token-number">6</span>,
+  <span class="token-key">"patients_ahead"</span>: <span class="token-number">1</span>,
+  <span class="token-key">"estimated_wait_minutes"</span>: <span class="token-number">15</span>,
+  <span class="token-key">"status"</span>: <span class="token-string">"checked_in"</span>,
+  <span class="token-key">"is_your_turn"</span>: <span class="token-bool">false</span>,
+  <span class="token-key">"delay_minutes"</span>: <span class="token-number">10</span>,
+  <span class="token-key">"delay_reason_code"</span>: <span class="token-string">"PROCEDURE_OVERRUN"</span>,
+  <span class="token-key">"scheduled_time"</span>: <span class="token-string">"05:00 م"</span>,
+  <span class="token-key">"expected_time"</span>: <span class="token-string">"05:25 م"</span>
+}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================== -->
+            <!-- ENDPOINT 6: POST /appointments/{ref}/cancel -->
+            <!-- ============================================================== -->
+            <section class="doc-section" id="endpoint-cancel-appointment">
+                <div class="section-header">
+                    <span class="section-badge">إلغاء المواعيد • State Machine</span>
+                    <h2 class="section-title">إلغاء الموعد المحجوز (Cancel Appointment)</h2>
+                    <p class="section-lead">
+                        إلغاء محمي بآلة الحالات الصارمة؛ يُسمح بالإلغاء فقط في الحالات الابتدائية، ويُحظر فوراً إذا دخل المريض غرفة الفحص السريري مع الطبيب. الإلغاء متكرر بأمان (Idempotent 200 OK).
+                    </p>
+                </div>
+
+                <div class="endpoint-grid">
+                    <div class="endpoint-docs">
+                        <div class="endpoint-bar">
+                            <div class="endpoint-path-wrap">
+                                <span class="method-pill method-post">POST</span>
+                                <span class="endpoint-path">/facilities/{facility_id}/appointments/{booking_reference}/cancel</span>
+                            </div>
+                            <div class="endpoint-meta-badges">
+                                <span class="auth-badge">Scope: cancel</span>
+                                <span class="auth-badge">Secret Key</span>
+                            </div>
+                        </div>
+
+                        <div class="params-block">
+                            <div class="params-header">قواعد آلة حالات الإلغاء (State Transitions)</div>
+                            <table class="param-table">
+                                <thead><tr><th>حالة الموعد الحالية</th><th>إمكانية الإلغاء</th><th>الاستجابة الناتجة</th></tr></thead>
+                                <tbody>
+                                    <tr>
+                                        <td><code style="color:#10b981;">pending_confirmation / confirmed / checked_in</code></td>
+                                        <td><span class="req-pill" style="background:var(--accent-green-bg); color:var(--accent-green);">مسموح</span></td>
+                                        <td>يتم الإلغاء فوراً وتسجيل سبب الإلغاء وإرجاع 200 OK.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code style="color:#94a3b8;">cancelled (ملغي مسبقاً)</code></td>
+                                        <td><span class="req-pill" style="background:var(--accent-blue-bg); color:var(--accent-blue);">Idempotent</span></td>
+                                        <td>يُعاد نجاح فوري 200 OK بالحالة الحالية دون تكرار الـ Webhooks.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code style="color:#ef4444;">in_progress / completed</code></td>
+                                        <td><span class="req-pill" style="background:var(--accent-red-bg); color:var(--accent-red);">محظور قطيعاً</span></td>
+                                        <td>يُرفض الطلب فوراً بكود 409 Conflict والرمز <code style="color:#ef4444;">ERR_INVALID_STATE</code>.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Right Code & Response Sandbox -->
+                    <div class="endpoint-code-panel">
+                        <div class="code-tabs-header">
+                            <div class="lang-tabs">
+                                <button class="lang-tab active" data-lang="curl">cURL</button>
+                                <button class="lang-tab" data-lang="js">JavaScript</button>
+                                <button class="lang-tab" data-lang="php">PHP</button>
+                                <button class="lang-tab" data-lang="python">Python</button>
+                            </div>
+                            <button class="copy-code-btn" onclick="copySnippet(this)">نسخ الكود</button>
+                        </div>
+                        <div class="code-snippet-body">
+<pre class="snippet-code" data-endpoint="/facilities/10/appointments/TB-SR8492/cancel" data-method="POST" data-idempotent="true" data-body='{"cancellation_reason":"طلب المريض - ظروف خاصة"}'>curl -X POST "https://sandbox-api.tebiby.com/v1/connect/facilities/10/appointments/TB-SR8492/cancel" \
+  -H "Authorization: Bearer tb_test_sk_sec9988776655" \
+  -H "Idempotency-Key: a1b2c3d4-e5f6-789a-bcde-f0123456789a" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cancellation_reason": "طلب المريض - ظروف خاصة"
+  }'</pre>
+                        </div>
+
+                        <div class="response-container">
+                            <div class="response-tabs-header">
+                                <span style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">نموذج الاستجابة</span>
+                                <div class="response-tab-buttons">
+                                    <button class="res-tab-btn active-200">200 OK</button>
+                                    <button class="res-tab-btn" onclick="showMockError(this, '409_STATE')">409 State</button>
+                                </div>
+                            </div>
+                            <div class="response-json-box">
+<pre>{
+  <span class="token-key">"booking_reference"</span>: <span class="token-string">"TB-SR8492"</span>,
+  <span class="token-key">"external_appointment_id"</span>: <span class="token-string">"HOSP-4491"</span>,
+  <span class="token-key">"status"</span>: <span class="token-string">"cancelled"</span>,
+  <span class="token-key">"cancelled_at"</span>: <span class="token-string">"2026-11-22T18:25:00Z"</span>,
+  <span class="token-key">"cancellation_reason"</span>: <span class="token-string">"طلب المريض - ظروف خاصة"</span>
+}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================== -->
+            <!-- SECTION: RFC 7807 Error Catalog -->
+            <!-- ============================================================== -->
+            <section class="doc-section" id="sec-error-catalog">
+                <div class="section-header">
+                    <span class="section-badge">معايير الأخطاء • RFC 7807</span>
+                    <h2 class="section-title">كتالوج رموز الأخطاء المعياري (Error Codes Catalog)</h2>
+                    <p class="section-lead">
+                        تُعاد كافة ردود الأخطاء بترويسة <code style="direction:ltr;">Content-Type: application/problem+json; charset=utf-8</code> بصيغة Problem Details المعتمدة دولياً.
+                    </p>
+                </div>
+
+                <div class="params-block">
+                    <div class="params-header">جدول رموز الأخطاء، المعنى البرمجي، والإجراء المطلوب للمطور</div>
+                    <table class="param-table">
+                        <thead>
+                            <tr>
+                                <th>رمز الخطأ (Code)</th>
+                                <th>كود HTTP</th>
+                                <th>الوصف البرمجي</th>
+                                <th>الإجراء الموصى به</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="param-name">ERR_UNAUTHORIZED</td>
+                                <td>401</td>
+                                <td>مفتاح API مفقود أو غير صالح أو منتهي الصلاحية.</td>
+                                <td>التحقق من ترويسة Authorization أو X-Publishable-Key وصلاحية البيئة.</td>
+                            </tr>
+                            <tr>
+                                <td class="param-name">ERR_FORBIDDEN_SCOPE</td>
+                                <td>403</td>
+                                <td>المنشأة مصرح بها ولكن المفتاح يفتقر لصلاحية العملية المحددة.</td>
+                                <td>إضافة الصلاحية (<code style="color:#38bdf8;">book</code>, <code style="color:#38bdf8;">cancel</code>) للمفتاح في لوحة التحكم.</td>
+                            </tr>
+                            <tr>
+                                <td class="param-name">ERR_RESOURCE_NOT_FOUND</td>
+                                <td>404</td>
+                                <td>المورد غير موجود أو يتبع لمنشأة خارج نطاق مفتاحك (Fail-Silent).</td>
+                                <td>التأكد من صحة المعرف وشموله ضمن صلاحيات مفتاحك.</td>
+                            </tr>
+                            <tr>
+                                <td class="param-name">ERR_IDEMPOTENCY_KEY_REQUIRED</td>
+                                <td>400</td>
+                                <td>ترويسة منع التكرار <code style="color:#38bdf8;">Idempotency-Key</code> مفقودة في طلب تعديلي.</td>
+                                <td>توليد وتمرير UUID v4 في ترويسة Idempotency-Key.</td>
+                            </tr>
+                            <tr>
+                                <td class="param-name">ERR_VALIDATION_FAILED</td>
+                                <td>422</td>
+                                <td>فشل التحقق من المدخلات (مثل غياب <code style="color:#38bdf8;">external_patient_id</code>).</td>
+                                <td>مراجعة مصفوفة <code style="color:#38bdf8;">invalid_params</code> وتصحيح الحقول.</td>
+                            </tr>
+                            <tr>
+                                <td class="param-name">ERR_PRICE_MISMATCH</td>
+                                <td>422</td>
+                                <td>السعر المتوقع لا يطابق السعر المعتمد للخدمة شامل الضريبة 15%.</td>
+                                <td>جلب أحدث قائمة أسعار عبر <code style="color:#38bdf8;">GET /services</code> وإعادة المحاولة.</td>
+                            </tr>
+                            <tr>
+                                <td class="param-name">ERR_SLOT_NOT_AVAILABLE</td>
+                                <td>422</td>
+                                <td>اكتملت الطاقة الاستيعابية الفورية وقائمة الانتظار في هذا الموعد.</td>
+                                <td>اختيار موعد بديل عبر استعلام التوفر <code style="color:#38bdf8;">GET /availability</code>.</td>
+                            </tr>
+                            <tr>
+                                <td class="param-name">ERR_DAILY_PHONE_LIMIT</td>
+                                <td>422</td>
+                                <td>تجاوز رقم الجوال الحد الأقصى للحجوزات اليومية (5 حجوزات/يوم).</td>
+                                <td>إبلاغ المريض بضرورة مراجعة إدارة المركز الطبي.</td>
+                            </tr>
+                            <tr>
+                                <td class="param-name">ERR_PATIENT_IDENTITY_CONFLICT</td>
+                                <td>409</td>
+                                <td>المعرف الخارجي للمريض مسجل مسبقاً بهاتف مختلف؛ تعديل الهوية محظور.</td>
+                                <td>التأكد من دقة ربط معرف المريض وعدم استخدامه لمرضى مختلفين.</td>
+                            </tr>
+                            <tr>
+                                <td class="param-name">ERR_CONFLICT_IN_FLIGHT</td>
+                                <td>409</td>
+                                <td>يوجد طلب متطابق بنفس الـ Idempotency-Key قيد المعالجة بالخادم حالياً.</td>
+                                <td>الانتظار من ثانيتين إلى 3 ثوانٍ قبل إعادة المحاولة.</td>
+                            </tr>
+                            <tr>
+                                <td class="param-name">ERR_INTENT_EXPIRED_OR_USED</td>
+                                <td>410</td>
+                                <td>توكن نية الحجز استُهلك مسبقاً أو تجاوز مهلته (15 دقيقة من إنشائه).</td>
+                                <td>توليد جلسة نية حجز جديدة عبر <code style="color:#38bdf8;">POST /booking-intents</code>.</td>
+                            </tr>
+                            <tr>
+                                <td class="param-name">ERR_RATE_LIMIT_EXCEEDED</td>
+                                <td>429</td>
+                                <td>تجاوز حد الطلبات المسموح به في الدقيقة (Rate Limit).</td>
+                                <td>تطبيق خوارزمية التراجع الأسي (Exponential Backoff).</td>
+                            </tr>
+                            <tr>
+                                <td class="param-name">ERR_NOT_IMPLEMENTED</td>
+                                <td>501</td>
+                                <td>المسار محجوز للمرحلة القادمة (مثل إعادة الجدولة).</td>
+                                <td>مراجعة وثائق الإصدار الحالي.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- JavaScript Interactive Logic -->
+    <script>
+        // State
+        let currentEnv = 'sandbox'; // sandbox | live
+        let currentLang = 'curl';   // curl | js | php | python
+
+        const baseUrls = {
+            sandbox: 'https://sandbox-api.tebiby.com/v1/connect',
+            live: 'https://api.tebiby.com/v1/connect'
+        };
+
+        // Theme Toggle
+        const themeBtn = document.getElementById('themeToggleBtn');
+        themeBtn.addEventListener('click', () => {
+            document.documentElement.classList.toggle('light');
+            document.documentElement.classList.toggle('dark');
+        });
+
+        // Mobile Menu
+        const mobileBtn = document.getElementById('mobileMenuBtn');
+        const sidebar = document.getElementById('sidebar');
+        mobileBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('mobile-open');
+        });
+
+        // Environment Switcher
+        const envSandbox = document.getElementById('envBtnSandbox');
+        const envLive = document.getElementById('envBtnLive');
+
+        function updateEnvironment(env) {
+            currentEnv = env;
+            if (env === 'sandbox') {
+                envSandbox.classList.add('active');
+                envLive.classList.remove('active');
+            } else {
+                envLive.classList.add('active');
+                envSandbox.classList.remove('active');
+            }
+            // Update Base URL badge and code snippets
+            document.querySelectorAll('.active-base-url').forEach(el => el.textContent = baseUrls[env]);
+            updateAllCodeSnippets();
+        }
+
+        envSandbox.addEventListener('click', () => updateEnvironment('sandbox'));
+        envLive.addEventListener('click', () => updateEnvironment('live'));
+
+        // Language Tabs
+        document.querySelectorAll('.lang-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                const parentPanel = this.closest('.endpoint-code-panel');
+                parentPanel.querySelectorAll('.lang-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                
+                const lang = this.getAttribute('data-lang');
+                currentLang = lang;
+                updatePanelCodeSnippet(parentPanel, lang);
+            });
+        });
+
+        function updatePanelCodeSnippet(panel, lang) {
+            const pre = panel.querySelector('.snippet-code');
+            const endpoint = pre.getAttribute('data-endpoint') || '/branches';
+            const method = pre.getAttribute('data-method') || 'GET';
+            const isIdempotent = pre.getAttribute('data-idempotent') === 'true';
+            const rawBody = pre.getAttribute('data-body');
+
+            const fullUrl = baseUrls[currentEnv] + endpoint;
+            const authHeader = (endpoint === '/branches' || endpoint.startsWith('/queue') || endpoint.includes('availability'))
+                ? (currentEnv === 'sandbox' ? 'X-Publishable-Key: tb_test_pk_demo1234567890' : 'X-Publishable-Key: tb_live_pk_real1234567890')
+                : (currentEnv === 'sandbox' ? 'Authorization: Bearer tb_test_sk_sec9988776655' : 'Authorization: Bearer tb_live_sk_prod9988776655');
+
+            let code = '';
+
+            if (lang === 'curl') {
+                code = `curl -X ${method} "${fullUrl}" \\\n  -H "${authHeader}" \\\n  -H "Accept: application/json"`;
+                if (isIdempotent) {
+                    code += ` \\\n  -H "Idempotency-Key: e8a7e3b1-789a-4f56-b012-c456789abcde"`;
+                }
+                if (rawBody) {
+                    code += ` \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify(JSON.parse(rawBody), null, 2)}'`;
+                }
+            } else if (lang === 'js') {
+                const headersObj = {
+                    'Accept': 'application/json'
+                };
+                if (authHeader.startsWith('Authorization')) {
+                    headersObj['Authorization'] = authHeader.replace('Authorization: ', '');
+                } else {
+                    headersObj['X-Publishable-Key'] = authHeader.replace('X-Publishable-Key: ', '');
+                }
+                if (isIdempotent) {
+                    headersObj['Idempotency-Key'] = 'e8a7e3b1-789a-4f56-b012-c456789abcde';
+                }
+                if (rawBody) {
+                    headersObj['Content-Type'] = 'application/json';
+                }
+
+                code = `const response = await fetch("${fullUrl}", {\n  method: "${method}",\n  headers: ${JSON.stringify(headersObj, null, 4)}`;
+                if (rawBody) {
+                    code += `,\n  body: JSON.stringify(${JSON.stringify(JSON.parse(rawBody), null, 4)})`;
+                }
+                code += `\n});\nconst data = await response.json();\nconsole.log(data);`;
+            } else if (lang === 'php') {
+                code = `<?php\n\n$client = new \\GuzzleHttp\\Client();\n\n$response = $client->request('${method}', '${fullUrl}', [\n    'headers' => [\n        'Accept' => 'application/json',\n        '${authHeader.split(': ')[0]}' => '${authHeader.split(': ')[1]}',\n`;
+                if (isIdempotent) {
+                    code += `        'Idempotency-Key' => 'e8a7e3b1-789a-4f56-b012-c456789abcde',\n`;
+                }
+                if (rawBody) {
+                    code += `        'Content-Type' => 'application/json',\n    ],\n    'json' => ${JSON.stringify(JSON.parse(rawBody), null, 8)}\n]);\n\n$data = json_decode($response->getBody(), true);`;
+                } else {
+                    code += `    ]\n]);\n\n$data = json_decode($response->getBody(), true);`;
+                }
+            } else if (lang === 'python') {
+                code = `import requests\n\nurl = "${fullUrl}"\nheaders = {\n    "Accept": "application/json",\n    "${authHeader.split(': ')[0]}": "${authHeader.split(': ')[1]}",\n`;
+                if (isIdempotent) {
+                    code += `    "Idempotency-Key": "e8a7e3b1-789a-4f56-b012-c456789abcde",\n`;
+                }
+                if (rawBody) {
+                    code += `    "Content-Type": "application/json"\n}\npayload = ${JSON.stringify(JSON.parse(rawBody), null, 4)}\n\nresponse = requests.request("${method}", url, headers=headers, json=payload)\nprint(response.json())`;
+                } else {
+                    code += `}\n\nresponse = requests.request("${method}", url, headers=headers)\nprint(response.json())`;
+                }
+            }
+
+            pre.textContent = code;
+        }
+
+        function updateAllCodeSnippets() {
+            document.querySelectorAll('.endpoint-code-panel').forEach(panel => {
+                const activeTab = panel.querySelector('.lang-tab.active');
+                const lang = activeTab ? activeTab.getAttribute('data-lang') : 'curl';
+                updatePanelCodeSnippet(panel, lang);
+            });
+        }
+
+        // Copy Code Snippet
+        function copySnippet(btn) {
+            const pre = btn.closest('.endpoint-code-panel').querySelector('.snippet-code');
+            navigator.clipboard.writeText(pre.textContent).then(() => {
+                const oldText = btn.textContent;
+                btn.textContent = 'تم النسخ! ✓';
+                btn.style.borderColor = '#10b981';
+                btn.style.color = '#10b981';
+                setTimeout(() => {
+                    btn.textContent = oldText;
+                    btn.style.borderColor = '';
+                    btn.style.color = '';
+                }, 2000);
+            });
+        }
+
+        // Mock Errors
+        const mockErrorTemplates = {
+            '401': {
+                type: 'https://api.tebiby.com/errors/ERR_UNAUTHORIZED',
+                title: 'Unauthorized',
+                status: 401,
+                code: 'ERR_UNAUTHORIZED',
+                detail: 'مفتاح API مفقود أو غير صالح أو منتهي الصلاحية.',
+                request_id: 'req_01HJ8Z7K99M88A123BC',
+                timestamp: '2026-11-22T18:30:00Z'
+            },
+            '404': {
+                type: 'https://api.tebiby.com/errors/ERR_RESOURCE_NOT_FOUND',
+                title: 'Resource Not Found',
+                status: 404,
+                code: 'ERR_RESOURCE_NOT_FOUND',
+                detail: 'المورد الطبي المطلوب غير موجود أو يتبع لمنشأة خارج نطاق مفتاحك المصرح.',
+                request_id: 'req_01HJ8Z7K99M88A123BC',
+                timestamp: '2026-11-22T18:30:00Z'
+            },
+            '422_PRICE': {
+                type: 'https://api.tebiby.com/errors/ERR_PRICE_MISMATCH',
+                title: 'Price Mismatch',
+                status: 422,
+                code: 'ERR_PRICE_MISMATCH',
+                detail: 'السعر المتوقع المرسل [200.00] لا يطابق السعر المعتمد للخدمة شامل الضريبة 15% [230.00].',
+                request_id: 'req_01HJ8Z7K99M88A123BC',
+                timestamp: '2026-11-22T18:30:00Z'
+            },
+            '409_CONFLICT': {
+                type: 'https://api.tebiby.com/errors/ERR_CONFLICT_IN_FLIGHT',
+                title: 'Request In Flight',
+                status: 409,
+                code: 'ERR_CONFLICT_IN_FLIGHT',
+                detail: 'يوجد طلب متطابق بنفس الـ Idempotency-Key قيد التنفيذ حالياً بالخادم.',
+                request_id: 'req_01HJ8Z7K99M88A123BC',
+                timestamp: '2026-11-22T18:30:00Z'
+            },
+            '422_SLOT': {
+                type: 'https://api.tebiby.com/errors/ERR_SLOT_NOT_AVAILABLE',
+                title: 'Slot Not Available',
+                status: 422,
+                code: 'ERR_SLOT_NOT_AVAILABLE',
+                detail: 'عذراً، الموعد المختار لم يعد متاحاً أو اكتملت طاقته الاستيعابية وقائمة الانتظار.',
+                request_id: 'req_01HJ8Z7K99M88A123BC',
+                timestamp: '2026-11-22T18:30:00Z'
+            },
+            '404_TOKEN': {
+                type: 'https://api.tebiby.com/errors/ERR_RESOURCE_NOT_FOUND',
+                title: 'Invalid or Expired Token',
+                status: 404,
+                code: 'ERR_RESOURCE_NOT_FOUND',
+                detail: 'توكن المتابعة المباشرة غير موجود أو انتهت صلاحيته مع انتهاء يوم الموعد.',
+                request_id: 'req_01HJ8Z7K99M88A123BC',
+                timestamp: '2026-11-22T18:30:00Z'
+            },
+            '409_STATE': {
+                type: 'https://api.tebiby.com/errors/ERR_INVALID_STATE',
+                title: 'Invalid State Transition',
+                status: 409,
+                code: 'ERR_INVALID_STATE',
+                detail: 'لا يمكن إلغاء الموعد لأن المريض داخل غرفة الفحص السريري مع الطبيب حالياً [in_consultation].',
+                request_id: 'req_01HJ8Z7K99M88A123BC',
+                timestamp: '2026-11-22T18:30:00Z'
+            }
+        };
+
+        function showMockError(btn, errType) {
+            const container = btn.closest('.response-container');
+            container.querySelectorAll('.res-tab-btn').forEach(b => {
+                b.classList.remove('active-200', 'active-201', 'active-err');
+            });
+            btn.classList.add('active-err');
+
+            const jsonPre = container.querySelector('.response-json-box pre');
+            const data = mockErrorTemplates[errType] || { status: 400, message: 'Bad Request' };
+            jsonPre.innerHTML = JSON.stringify(data, null, 2)
+                .replace(/"(.*?)":/g, '<span class="token-key">"$1":</span>')
+                .replace(/: "([^"]*)"/g, ': <span class="token-string">"$1"</span>')
+                .replace(/: ([0-9]+)/g, ': <span class="token-number">$1</span>');
+        }
+
+        // Reset response tabs to success on first tab click
+        document.querySelectorAll('.res-tab-btn:first-child').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const container = this.closest('.response-container');
+                container.querySelectorAll('.res-tab-btn').forEach(b => b.classList.remove('active-200', 'active-201', 'active-err'));
+                this.classList.add(this.textContent.includes('201') ? 'active-201' : 'active-200');
+                // Re-trigger original HTML by reloading default
+                location.reload; 
+            });
+        });
+
+        // Search in sidebar
+        const searchInput = document.getElementById('endpointSearch');
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                const text = item.textContent.toLowerCase();
+                const link = item.querySelector('a')?.getAttribute('href') || '';
+                if (!query || text.includes(query) || link.includes(query)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+
+        // Keyboard Shortcut: Ctrl+K or / to search
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                searchInput.focus();
+            }
+        });
+
+        // Active link highlighting on scroll
+        const sections = document.querySelectorAll('.doc-section');
+        const navLinks = document.querySelectorAll('.nav-item a');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop - 120;
+                if (pageYOffset >= sectionTop) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${current}`) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

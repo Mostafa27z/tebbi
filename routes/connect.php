@@ -20,6 +20,9 @@ Route::middleware([
     'throttle:60,1',
 ])->group(function () {
     Route::get('/queue/{public_token}', [QueueController::class, 'show'])->name('queue.show');
+    Route::get('/docs', function () {
+        return response()->file(public_path('docs/index.html'));
+    })->name('docs');
 });
 
 Route::middleware([
