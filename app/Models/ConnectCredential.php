@@ -18,8 +18,10 @@ class ConnectCredential extends Model
         'integration_name',
         'environment',
         'pk_prefix',
+        'pk_display',
         'pk_hash',
         'sk_prefix',
+        'sk_encrypted',
         'sk_hash',
         'scopes',
         'allowed_domains',
@@ -152,6 +154,19 @@ class ConnectCredential extends Model
             'sk_prefix' => substr($skRaw, 0, 8),
             'sk_hash' => static::hashKey($skRaw),
         ];
+    }
+
+    public function getDecryptedSecret(): ?string
+    {
+        if (! $this->sk_encrypted) {
+            return null;
+        }
+
+        try {
+            return \Illuminate\Support\Facades\Crypt::decryptString($this->sk_encrypted);
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     public static function generate(string $environment = 'sandbox'): array

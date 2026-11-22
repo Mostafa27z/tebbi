@@ -18,13 +18,15 @@ import {
     ShieldCheck,
     UserCheck,
     QrCode,
-    Settings
+    Settings,
+    KeyRound,
+    FileCode2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LiveSyncIndicator } from '@/components/common/live-sync-indicator';
 import { LiveSyncController, useInertiaLiveSync } from '@/hooks/use-live-sync';
 
-export type FacilityTab = 'queue' | 'doctors' | 'specialties' | 'appointments' | 'receptionists';
+export type FacilityTab = 'queue' | 'doctors' | 'specialties' | 'appointments' | 'receptionists' | 'api-keys' | 'api-docs';
 
 interface FacilityDashboardLayoutProps {
     children: React.ReactNode;
@@ -66,7 +68,9 @@ export const FacilityDashboardLayout: React.FC<FacilityDashboardLayoutProps> = (
         url.startsWith('/facility/doctors') ? 'doctors' :
         url.startsWith('/facility/specialties') ? 'specialties' :
         url.startsWith('/facility/appointments') ? 'appointments' :
-        url.startsWith('/facility/receptionists') ? 'receptionists' : 'queue'
+        url.startsWith('/facility/receptionists') ? 'receptionists' :
+        url.startsWith('/facility/api-keys') ? 'api-keys' :
+        url.startsWith('/facility/api-docs') ? 'api-docs' : 'queue'
     );
 
     const internalLiveSync = useInertiaLiveSync({
@@ -138,6 +142,25 @@ export const FacilityDashboardLayout: React.FC<FacilityDashboardLayoutProps> = (
             count: counts?.receptionists,
             countColor: 'bg-emerald-100 text-emerald-800',
             adminOnly: true,
+        },
+        {
+            id: 'api-keys' as FacilityTab,
+            href: '/facility/api-keys',
+            label: 'الربط البرمجي (Live API)',
+            description: 'إصدار مفاتيح ربط النظام المباشر',
+            icon: KeyRound,
+            color: 'text-indigo-600',
+            bg: 'bg-indigo-50',
+            adminOnly: true,
+        },
+        {
+            id: 'api-docs' as FacilityTab,
+            href: '/facility/api-docs',
+            label: 'دليل ومواصفات الـ API',
+            description: 'المواصفات الفنية والـ Endpoints',
+            icon: FileCode2,
+            color: 'text-cyan-600',
+            bg: 'bg-cyan-50',
         },
     ];
 

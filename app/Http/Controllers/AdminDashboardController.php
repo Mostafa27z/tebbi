@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Appointment;
 use App\Models\Clinic;
+use App\Models\ConnectCredential;
 use App\Models\DoctorFacility;
 use App\Models\DoctorProfile;
 use App\Models\Facility;
@@ -314,6 +315,78 @@ class AdminDashboardController extends Controller
                 'inConsultation' => $inConsultationAppointments,
             ],
         ]);
+    }
+
+    public function apiIntegrations(Request $request): Response
+    {
+        $facilities = Facility::with('group')->orderBy('name')->get();
+        $credentials = ConnectCredential::where('owner_type', Facility::class)
+            ->orderByDesc('id')
+            ->get();
+
+        $credentialsByFacility = $credentials->groupBy('owner_id');
+
+        $facilityCards = $facilities->map(function ($facility) use ($credentialsByFacility) {
+            $facilityCreds = $credentialsByFacility->get($facility->id, collect());
+            $activeCreds = $facilityCreds->where('status', 'active');
+            $hasLive = $activeCreds->where('environment', 'live')->isNotEmpty();
+            $hasSandbox = $activeCreds->where('environment', 'sandbox')->isNotEmpty();
+
+            $status = 'none';
+            if ($hasLive) {
+                $status = 'live';
+            } elseif ($hasSandbox) {
+                $status = 'sandbox';
+            }
+
+            return [
+                'id' => $facility->id,
+                'name' => $facility->name_ar ?? $facility->name,
+                'branch_name' => $facility->branch_name,
+                'group_name' => $facility->group?->name_ar ?? $facility->group?->name ?? 'مستقل / بدون مجمع',
+                'city' => $facility->city,
+                'api_status' => $status,
+                'credentials_count' => $facilityCreds->count(),
+                'credentials' => $facilityCreds->map(function (ConnectCredential $cred) {
+                    return [
+                        'id' => $cred->id,
+                        'integration_name' => $cred->integration_name,
+                        'environment' => $cred->environment,
+                        'pk_display' => $cred->pk_display ?? ($cred->pk_prefix . '••••••••'),
+                        'secret_preview' => $cred->getDecryptedSecret(),
+                        'status' => $cred->status,
+                        'is_active' => $cred->isActive(),
+                        'created_at' => $cred->created_at?->format('Y-m-d'),
+                        'expires_at' => $cred->expires_at?->format('Y-m-d'),
+                        'remaining_days' => $cred->expires_at ? max(0, (int) now()->diffInDays($cred->expires_at, false)) : null,
+                        'last_used_at' => $cred->last_used_at?->format('Y-m-d H:i') ?? 'لم يُستخدم بعد',
+                    ];
+                })->values(),
+            ];
+        });
+
+        $metrics = [
+            'totalFacilities' => $facilities->count(),
+            'connectedCount' => $facilityCards->where('api_status', '!=', 'none')->count(),
+            'unconnectedCount' => $facilityCards->where('api_status', 'none')->count(),
+            'activeLiveCount' => $credentials->where('status', 'active')->where('environment', 'live')->count(),
+            'activeSandboxCount' => $credentials->where('status', 'active')->where('environment', 'sandbox')->count(),
+        ];
+
+        return Inertia::render('admin/api-integrations', [
+            'facilities' => $facilityCards,
+            'allFacilities' => $facilities->map(fn($f) => [
+                'id' => $f->id,
+                'name' => ($f->name_ar ?? $f->name) . ($f->branch_name ? ' - ' . $f->branch_name : ''),
+                'group' => $f->group?->name_ar ?? $f->group?->name ?? 'مستقل',
+            ]),
+            'metrics' => $metrics,
+        ]);
+    }
+
+    public function apiDocs(Request $request): Response
+    {
+        return Inertia::render('admin/api-docs');
     }
 
     // ==========================================

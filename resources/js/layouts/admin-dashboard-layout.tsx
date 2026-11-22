@@ -16,7 +16,9 @@ import {
     ChevronLeft,
     PanelRightClose,
     PanelRightOpen,
-    Settings
+    Settings,
+    KeyRound,
+    FileCode2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LiveSyncIndicator } from '@/components/common/live-sync-indicator';
@@ -29,7 +31,9 @@ export type AdminTab =
     | 'admins' 
     | 'doctors' 
     | 'specialties' 
-    | 'appointments';
+    | 'appointments'
+    | 'api-integrations'
+    | 'api-docs';
 
 interface AdminDashboardLayoutProps {
     children: React.ReactNode;
@@ -78,6 +82,8 @@ export const AdminDashboardLayout: React.FC<AdminDashboardLayoutProps> = ({
         if (url.startsWith('/admin/doctors')) return 'doctors';
         if (url.startsWith('/admin/specialties')) return 'specialties';
         if (url.startsWith('/admin/appointments')) return 'appointments';
+        if (url.startsWith('/admin/api-integrations')) return 'api-integrations';
+        if (url.startsWith('/admin/api-docs')) return 'api-docs';
         return 'analytics';
     };
 
@@ -158,6 +164,24 @@ export const AdminDashboardLayout: React.FC<AdminDashboardLayoutProps> = ({
             color: 'text-rose-500',
             bg: 'bg-rose-50',
             count: resolvedCounts.appointments,
+        },
+        {
+            id: 'api-integrations' as AdminTab,
+            href: '/admin/api-integrations',
+            label: 'بوابات الربط والـ API',
+            icon: KeyRound,
+            color: 'text-indigo-600',
+            bg: 'bg-indigo-50',
+            count: null,
+        },
+        {
+            id: 'api-docs' as AdminTab,
+            href: '/admin/api-docs',
+            label: 'توثيق الـ API للمنصة',
+            icon: FileCode2,
+            color: 'text-cyan-600',
+            bg: 'bg-cyan-50',
+            count: null,
         },
     ];
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Appointment;
+use App\Models\ConnectCredential;
 use App\Models\DoctorFacility;
 use App\Models\DoctorProfile;
 use App\Models\Facility;
@@ -267,6 +268,46 @@ class FacilityDashboardController extends Controller
     {
         $data = $this->getFacilityData($request, 'appointments');
         return Inertia::render('facility/appointments', $data);
+    }
+
+    public function apiKeys(Request $request): Response
+    {
+        $user = $request->user();
+        $data = $this->getFacilityData($request, 'minimal');
+        $resolver = new ScopeResolver();
+
+        if (! $resolver->canManageFacility($user, $data['facility']->id)) {
+            abort(403, 'غير مصرح لك بإدارة مفاتيح الربط البرمجي لهذه المنشأة.');
+        }
+
+        $credentials = ConnectCredential::where('owner_type', Facility::class)
+            ->where('owner_id', $data['facility']->id)
+            ->orderByDesc('id')
+            ->get()
+            ->map(function (ConnectCredential $cred) {
+                return [
+                    'id' => $cred->id,
+                    'integration_name' => $cred->integration_name,
+                    'environment' => $cred->environment,
+                    'pk_display' => $cred->pk_display ?? ($cred->pk_prefix . '••••••••••••••••'),
+                    'status' => $cred->status,
+                    'is_active' => $cred->isActive(),
+                    'created_at' => $cred->created_at?->format('Y-m-d H:i'),
+                    'expires_at' => $cred->expires_at?->format('Y-m-d'),
+                    'remaining_days' => $cred->expires_at ? max(0, (int) now()->diffInDays($cred->expires_at, false)) : null,
+                    'last_used_at' => $cred->last_used_at?->format('Y-m-d H:i') ?? 'لم يُستخدم بعد',
+                ];
+            });
+
+        return Inertia::render('facility/api-keys', array_merge($data, [
+            'credentials' => $credentials,
+        ]));
+    }
+
+    public function apiDocs(Request $request): Response
+    {
+        $data = $this->getFacilityData($request, 'minimal');
+        return Inertia::render('facility/api-docs', $data);
     }
 
     public function receptionists(Request $request): Response

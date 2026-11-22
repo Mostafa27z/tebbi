@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\BookingController;
+use App\Http\Controllers\Connect\CredentialController;
 use App\Http\Controllers\DoctorDashboardController;
 use App\Http\Controllers\FacilityDashboardController;
 use App\Http\Controllers\GroupDashboardController;
@@ -56,6 +57,11 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/admin/doctors', [AdminDashboardController::class, 'doctors'])->name('admin.doctors');
     Route::get('/admin/specialties', [AdminDashboardController::class, 'specialties'])->name('admin.specialties');
     Route::get('/admin/appointments', [AdminDashboardController::class, 'appointments'])->name('admin.appointments');
+    Route::get('/admin/api-integrations', [AdminDashboardController::class, 'apiIntegrations'])->name('admin.api-integrations');
+    Route::post('/admin/api-credentials', [CredentialController::class, 'storeForAdmin'])->name('admin.api-credentials.store');
+    Route::post('/admin/api-credentials/{credential}/revoke', [CredentialController::class, 'revoke'])->name('admin.api-credentials.revoke');
+    Route::delete('/admin/api-credentials/{credential}', [CredentialController::class, 'destroy'])->name('admin.api-credentials.destroy');
+    Route::get('/admin/api-docs', [AdminDashboardController::class, 'apiDocs'])->name('admin.api-docs');
 
     // Medical Group Management (المجمعات الطبية)
     Route::post('/admin/groups', [AdminDashboardController::class, 'storeGroup'])->name('admin.groups.store');
@@ -136,6 +142,13 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/facility/receptionists', [FacilityDashboardController::class, 'storeReceptionist'])->name('facility.receptionists.store');
     Route::put('/facility/receptionists/{roleAssignment}', [FacilityDashboardController::class, 'updateReceptionist'])->name('facility.receptionists.update');
     Route::delete('/facility/receptionists/{roleAssignment}', [FacilityDashboardController::class, 'destroyReceptionist'])->name('facility.receptionists.destroy');
+
+    // Connect API Keys & Developer Documentation for Facility
+    Route::get('/facility/api-keys', [FacilityDashboardController::class, 'apiKeys'])->name('facility.api-keys');
+    Route::post('/facility/api-keys', [CredentialController::class, 'storeForFacility'])->name('facility.api-keys.store');
+    Route::post('/facility/api-keys/{credential}/revoke', [CredentialController::class, 'revoke'])->name('facility.api-keys.revoke');
+    Route::delete('/facility/api-keys/{credential}', [CredentialController::class, 'destroy'])->name('facility.api-keys.destroy');
+    Route::get('/facility/api-docs', [FacilityDashboardController::class, 'apiDocs'])->name('facility.api-docs');
 });
 
 // Doctor Operational Dashboard & Live Consultation Routes (لوحة الطبيب وإدارة الكشوفات)
