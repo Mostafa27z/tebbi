@@ -1,0 +1,1514 @@
+openapi: 3.1.0
+info:
+  title: Tebiby Connect API
+  version: 2.4.0
+  description: |
+    Enterprise B2B Partner Integration API for Tebiby Healthcare Platform (Saudi Arabia).
+    Compliant with the Saudi Personal Data Protection Law (PDPL) and Saudi Health Regulations.
+    
+    ## Authentication
+    - **Publishable Key (`X-Publishable-Key`)**: Used in client-side apps/browsers for public catalog lookups and queue tracking. Prefix: `tb_live_pk_` or `tb_test_pk_`.
+    - **Secret Key (`Authorization: Bearer <sk>`)**: Used exclusively server-to-server for privileged operations (booking intents, cancellation, webhooks, reconciliation). Prefix: `tb_live_sk_` or `tb_test_sk_`.
+    - **Booking Intent Token (`Authorization: Bearer <bit>`)**: Single-use signed token for atomic appointment creation. Prefix: `bit_live_` or `bit_test_`.
+    
+    ## Scopes & Permissions
+    Supported credential scopes: `read`, `book`, `cancel`, `webhooks`, and `facility_wide`.
+    - `facility_wide`: Restricted scope granted only upon explicit written client approval per credential. Broadcasts anonymous queue/status events for the entire facility (payloads never include patient identity). Partners must acknowledge residual re-identification risk when correlating ticket numbers, appointment times, and doctor IDs with physical clinic waiting areas. Elevated audit logging applies to all requests.
+    
+    ## Financial Consistency (VAT & Fees)
+    All `expected_fee` parameters represent the **total VAT-inclusive amount** in SAR (Base Fee + 15% VAT). Source hierarchy verified in REPO_AUDIT_2: `DoctorService.price` (if service selected) else `DoctorProfile.consultation_fee`.
+    
+    ## Timezone & Timestamps
+    All timestamps are formatted according to ISO 8601 UTC (e.g., `YYYY-MM-DDTHH:mm:ssZ`). Clinic local times in payloads represent Saudi Arabia (`Asia/Riyadh`, UTC+3). Verified against `config/app.php` in REPO_AUDIT_2.
+    
+    ## SSRF Protection
+    All webhook callback URLs are validated at registration and re-validated with socket pinning at dispatch time.
+    Blocked addresses include: `0.0.0.0/8`, `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, `100.64.0.0/10`, `fe80::/10`, `fc00::/7`, `::1`, and `::ffff:127.0.0.1/104`.
+    
+    ## Environments
+    - **Live Base URL**: `https://api.tebiby.com/v1/connect`
+    - **Sandbox Base URL**: `https://sandbox-api.tebiby.com/v1/connect`
+servers:
+  - url: https://api.tebiby.com/v1/connect
+    description: Production Environment (Physical Isolated Deployment)
+  - url: https://sandbox-api.tebiby.com/v1/connect
+    description: Isolated Sandbox Environment (Zero WhatsApp, Dedicated Database)
+
+tags:
+  - name: Catalog
+    description: Public branches, specialties, doctors, services, and live availability
+  - name: Booking Intents
+    description: Server-validated booking intent lifecycle
+  - name: Appointments
+    description: Atomic creation, status reconciliation, and idempotent cancellation
+  - name: Queue
+    description: Privacy-preserving live queue tracking via public tokens
+  - name: Webhooks
+    description: Real-time event subscriptions, delivery auditing, secret rotation, and redelivery
+  - name: Sandbox
+    description: Sandbox-only utilities (disabled in production)
+
+paths:
+  /branches:
+    get:
+      tags:
+        - Catalog
+      summary: List authorized facility branches
+      description: Returns facility branches authorized for the supplied API key (default-deny policy).
+      operationId: listBranches
+      security:
+        - PublishableKeyAuth: []
+        - SecretKeyAuth: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Branch'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /specialties:
+    get:
+      tags:
+        - Catalog
+      summary: List medical specialties
+      description: Returns active medical specialties for an authorized facility branch.
+      operationId: listSpecialties
+      security:
+        - PublishableKeyAuth: []
+        - SecretKeyAuth: []
+      parameters:
+        - name: facility_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Facility ID authorized under the credential
+      responses:
+        '200':
+          description: List of specialties
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Specialty'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /doctors:
+    get:
+      tags:
+        - Catalog
+      summary: List doctors
+      description: Returns doctors practicing at an authorized facility branch, optionally filtered by specialty.
+      operationId: listDoctors
+      security:
+        - PublishableKeyAuth: []
+        - SecretKeyAuth: []
+      parameters:
+        - name: facility_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Facility ID authorized under the credential
+        - name: specialty_id
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Optional medical specialty filter
+      responses:
+        '200':
+          description: List of doctors
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Doctor'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /doctors/{doctor_id}/services:
+    get:
+      tags:
+        - Catalog
+      summary: List doctor services and pricing
+      description: Returns billable consultation services and verified base fees for a doctor at a facility branch.
+      operationId: listDoctorServices
+      security:
+        - PublishableKeyAuth: []
+        - SecretKeyAuth: []
+      parameters:
+        - name: doctor_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: facility_id
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of services
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DoctorService'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /doctors/{doctor_id}/availability:
+    get:
+      tags:
+        - Catalog
+      summary: Check doctor slot availability
+      description: Returns real-time capacity and waitlist status for time slots on a given date under atomic locks.
+      operationId: getDoctorAvailability
+      security:
+        - PublishableKeyAuth: []
+        - SecretKeyAuth: []
+      parameters:
+        - name: doctor_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: facility_id
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          example: "2026-11-25"
+      responses:
+        '200':
+          description: Real-time slot availability
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailabilityResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /booking-intents:
+    post:
+      tags:
+        - Booking Intents
+      summary: Create signed booking intent
+      description: |
+        Server-to-Server endpoint that pre-validates doctor schedule, facility scope, service fee (VAT inclusive),
+        and returns a cryptographic single-use token (`bit_...`) valid for 15 minutes from creation time.
+      operationId: createBookingIntent
+      security:
+        - SecretKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingIntentRequest'
+      responses:
+        '201':
+          description: Booking intent created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingIntentResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Validation error, price mismatch, slot outside schedule, or service mismatch
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /appointments:
+    post:
+      tags:
+        - Appointments
+      summary: Create and confirm appointment atomically
+      description: |
+        Exchanges a single-use booking intent token (`bit_...`) for a confirmed appointment.
+        Executes inside a resilient transaction (`DB::transaction($cb, 3)`) with capacity locks.
+        Requires `Idempotency-Key` header (UUID v4).
+      operationId: createAppointment
+      security:
+        - IntentTokenAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAppointmentRequest'
+      responses:
+        '201':
+          description: Appointment successfully created
+          headers:
+            Idempotent-Replay:
+              schema:
+                type: boolean
+              description: Set to true if the response is replayed from idempotency cache
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateAppointmentResponse'
+        '400':
+          description: Missing required Idempotency-Key header (ERR_IDEMPOTENCY_KEY_REQUIRED)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Conflict - concurrent request in-flight (ERR_CONFLICT_IN_FLIGHT) or patient identity mismatch for external_patient_id (ERR_PATIENT_IDENTITY_CONFLICT)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '410':
+          description: Booking intent expired or already consumed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error, slot capacity exceeded, or daily phone booking cap reached
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+    get:
+      tags:
+        - Appointments
+      summary: Reconcile appointment status updates
+      description: |
+        Queries appointments modified since a given timestamp or falls back to date-based full day reconciliation.
+        Supports pagination with a maximum of 100 records per page.
+      operationId: reconcileAppointments
+      security:
+        - SecretKeyAuth: []
+      parameters:
+        - name: updated_since
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+          example: "2026-11-22T00:00:00Z"
+        - name: date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Fallback query parameter for full day reconciliation
+          example: "2026-11-25"
+        - name: facility_id
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+      responses:
+        '200':
+          description: List of updated appointments with pagination metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconciliationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /appointments/{booking_reference}/cancel:
+    post:
+      tags:
+        - Appointments
+      summary: Cancel appointment
+      description: |
+        Cancels an appointment in `pending_confirmation`, `confirmed`, or `checked_in` status.
+        Rejects cancellation if appointment is `in_progress` or `completed` with HTTP 409.
+        Requires `Idempotency-Key` header. Idempotent: returns 200 OK without duplicate webhooks if already cancelled.
+      operationId: cancelAppointment
+      security:
+        - SecretKeyAuth: []
+      parameters:
+        - name: booking_reference
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "TB-SR8492"
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelAppointmentRequest'
+      responses:
+        '200':
+          description: Appointment successfully cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelAppointmentResponse'
+        '400':
+          description: Missing required Idempotency-Key header (ERR_IDEMPOTENCY_KEY_REQUIRED)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Invalid state transition (e.g. consultation already started)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /appointments/{booking_reference}/reschedule:
+    patch:
+      tags:
+        - Appointments
+      summary: Reschedule appointment (Reserved)
+      description: |
+        Reserved endpoint for Phase 2 pending client and financial workflow approval.
+        Always returns HTTP 501 Not Implemented in Phase 1.
+      operationId: rescheduleAppointmentReserved
+      security:
+        - SecretKeyAuth: []
+      parameters:
+        - name: booking_reference
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '501':
+          description: Endpoint reserved for future phase
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /queue/{public_token}:
+    get:
+      tags:
+        - Queue
+      summary: Live queue and delay lookup via anonymous public token
+      description: |
+        Privacy-preserving endpoint for mobile and web screens.
+        Uses SHA-256 hashed public token (`ptk_...`) with an expiration date of `appointment_date + 1 day`.
+        `delay_minutes` and `delay_reason_code` reflect real-time clinic status.
+        Note: In Phase 1, queue delay events are dynamic lookups only; no webhook event is emitted on delay.
+      operationId: getQueueStatus
+      security:
+        - PublishableKeyAuth: []
+        - SecretKeyAuth: []
+      parameters:
+        - name: public_token
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "ptk_live_e9a1b2c3d4e5f6a7b8c9d0e1"
+      responses:
+        '200':
+          description: Live queue metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueStatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /webhooks:
+    get:
+      tags:
+        - Webhooks
+      summary: List registered webhook subscriptions
+      description: Returns all active webhook subscriptions for the authenticated credential.
+      operationId: listWebhooks
+      security:
+        - SecretKeyAuth: []
+      responses:
+        '200':
+          description: List of registered webhooks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      tags:
+        - Webhooks
+      summary: Register webhook subscription
+      description: |
+        Registers an HTTPS callback endpoint. The URL is strictly validated against SSRF at registration time
+        and verified again at dispatch time: HTTPS only, Port 443 only, no credentials in URL, private and loopback IPs blocked.
+      operationId: createWebhook
+      security:
+        - SecretKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWebhookRequest'
+      responses:
+        '201':
+          description: Webhook registered with signing secret returned once
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookEndpointWithSecret'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: SSRF violation or invalid events
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /webhooks/{id}:
+    get:
+      tags:
+        - Webhooks
+      summary: Get webhook subscription details
+      operationId: getWebhook
+      security:
+        - SecretKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Webhook details
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WebhookEndpoint'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Webhooks
+      summary: Delete webhook subscription
+      operationId: deleteWebhook
+      security:
+        - SecretKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Webhook deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /webhooks/{id}/rotate-secret:
+    post:
+      tags:
+        - Webhooks
+      summary: Rotate webhook signing secret
+      description: |
+        Generates a new signing secret for the webhook endpoint.
+        Activates a 24-hour grace period during which both the previous and new secrets are simultaneously valid.
+      operationId: rotateWebhookSecret
+      security:
+        - SecretKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: New secret generated with previous secret remaining valid until grace_period_expires_at
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RotateSecretResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /webhooks/{id}/deliveries:
+    get:
+      tags:
+        - Webhooks
+      summary: List delivery attempts for a webhook
+      description: Returns delivery history, HTTP response codes, and attempt counts for auditability.
+      operationId: listWebhookDeliveries
+      security:
+        - SecretKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: List of deliveries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookDeliveriesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /webhooks/deliveries/{delivery_id}/redeliver:
+    post:
+      tags:
+        - Webhooks
+      summary: Manually redeliver a failed webhook delivery
+      description: Re-queues a failed or dead-letter delivery attempt for immediate dispatch.
+      operationId: redeliverWebhook
+      security:
+        - SecretKeyAuth: []
+      parameters:
+        - name: delivery_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "del_01HJ8Z8871MN4499XA"
+      responses:
+        '202':
+          description: Delivery re-queued successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedeliverResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /sandbox/reset:
+    post:
+      tags:
+        - Sandbox
+      summary: Reset sandbox data (Sandbox Only)
+      description: |
+        Wipes test appointments, links, booking intents, idempotency keys, and logs.
+        Preserves credentials and webhook configurations, then re-seeds test catalog.
+        Registered ONLY when APP_ENV=sandbox; returns 404 in production.
+      operationId: resetSandbox
+      security:
+        - SecretKeyAuth: []
+      responses:
+        '200':
+          description: Sandbox successfully wiped and re-seeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SandboxResetResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Endpoint not found in production
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    SecretKeyAuth:
+      type: http
+      scheme: bearer
+      description: Partner server secret key (`tb_live_sk_...` or `tb_test_sk_...`)
+    PublishableKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Publishable-Key
+      description: Client-facing publishable key (`tb_live_pk_...` or `tb_test_pk_...`)
+    IntentTokenAuth:
+      type: http
+      scheme: bearer
+      description: Single-use signed intent token (`bit_live_...` or `bit_test_...`)
+
+  responses:
+    Unauthorized:
+      description: Missing, invalid, or expired API key
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Insufficient scope inside an authorized facility (ERR_FORBIDDEN_SCOPE)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found or out-of-scope facility access (ERR_RESOURCE_NOT_FOUND)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unprocessable:
+      description: Validation failure or business constraint violation
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    RateLimitExceeded:
+      description: Rate limit exceeded
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [type, title, status, detail, code, request_id, timestamp]
+      properties:
+        type:
+          type: string
+          example: "https://api.tebiby.com/errors/ERR_SLOT_NOT_AVAILABLE"
+        title:
+          type: string
+          example: "Slot Not Available"
+        status:
+          type: integer
+          example: 422
+        code:
+          type: string
+          enum:
+            - ERR_UNAUTHORIZED
+            - ERR_FORBIDDEN_SCOPE
+            - ERR_RESOURCE_NOT_FOUND
+            - ERR_IDEMPOTENCY_KEY_REQUIRED
+            - ERR_VALIDATION_FAILED
+            - ERR_CONFLICT_IN_FLIGHT
+            - ERR_PATIENT_IDENTITY_CONFLICT
+            - ERR_INVALID_STATE
+            - ERR_INTENT_EXPIRED_OR_USED
+            - ERR_PRICE_MISMATCH
+            - ERR_SLOT_NOT_AVAILABLE
+            - ERR_SLOT_OUTSIDE_SCHEDULE
+            - ERR_SERVICE_MISMATCH
+            - ERR_PAYLOAD_MISMATCH
+            - ERR_DAILY_PHONE_LIMIT
+            - ERR_RATE_LIMIT_EXCEEDED
+            - ERR_NOT_IMPLEMENTED
+            - ERR_INTERNAL_SERVER
+          example: "ERR_SLOT_NOT_AVAILABLE"
+        detail:
+          type: string
+          example: "The selected appointment slot is no longer available."
+        request_id:
+          type: string
+          description: Server-generated unique trace identifier
+          example: "req_01HJ8Z7K99M88A123BC"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-11-22T01:30:00Z"
+        invalid_params:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              reason:
+                type: string
+
+    Branch:
+      type: object
+      required: [id, name_ar, city, district, phone, is_active]
+      properties:
+        id:
+          type: integer
+          example: 10
+        name_ar:
+          type: string
+          example: "مجمع عيادات النخبة الطبي - الفرع الرئيسي"
+        city:
+          type: string
+          example: "الرياض"
+        district:
+          type: string
+          example: "حي النخيل"
+        phone:
+          type: string
+          example: "+966112003000"
+        is_active:
+          type: boolean
+          example: true
+
+    Specialty:
+      type: object
+      required: [id, name_ar]
+      properties:
+        id:
+          type: integer
+          example: 4
+        name_ar:
+          type: string
+          example: "طب وجراحة الأسنان"
+
+    Doctor:
+      type: object
+      required: [id, name_ar, title, specialty_id, specialty_name]
+      properties:
+        id:
+          type: integer
+          example: 45
+        name_ar:
+          type: string
+          example: "د. أحمد الشمري"
+        title:
+          type: string
+          example: "استشاري تقويم الأسنان"
+        specialty_id:
+          type: integer
+          example: 4
+        specialty_name:
+          type: string
+          example: "طب وجراحة الأسنان"
+        photo_url:
+          type: string
+          nullable: true
+
+    DoctorService:
+      type: object
+      required: [id, name_ar, base_fee, vat_rate, vat_amount, total_fee]
+      properties:
+        id:
+          type: integer
+          example: 12
+        name_ar:
+          type: string
+          example: "كشف استشاري تقويم أسنان"
+        base_fee:
+          type: number
+          format: float
+          example: 250.00
+        vat_rate:
+          type: number
+          format: float
+          example: 0.15
+        vat_amount:
+          type: number
+          format: float
+          example: 37.50
+        total_fee:
+          type: number
+          format: float
+          description: Total VAT-inclusive consultation fee
+          example: 287.50
+
+    AvailabilityResponse:
+      type: object
+      required: [date, doctor_id, facility_id, slot_auto_confirm_limit, slot_waitlist_limit, slots]
+      properties:
+        date:
+          type: string
+          format: date
+          example: "2026-11-25"
+        doctor_id:
+          type: integer
+          example: 45
+        facility_id:
+          type: integer
+          example: 10
+        slot_auto_confirm_limit:
+          type: integer
+          example: 1
+        slot_waitlist_limit:
+          type: integer
+          example: 2
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/Slot'
+
+    Slot:
+      type: object
+      required: [time, formatted_time, status, remaining_capacity]
+      properties:
+        time:
+          type: string
+          example: "17:00"
+        formatted_time:
+          type: string
+          example: "05:00 م"
+        status:
+          type: string
+          enum: [available_instant, available_waitlist, fully_booked]
+          example: "available_instant"
+        remaining_capacity:
+          type: integer
+          example: 2
+
+    BookingIntentRequest:
+      type: object
+      required: [facility_id, doctor_id, doctor_service_id, appointment_date, appointment_time, expected_fee]
+      properties:
+        facility_id:
+          type: integer
+          example: 10
+        doctor_id:
+          type: integer
+          example: 45
+        doctor_service_id:
+          type: integer
+          example: 12
+        appointment_date:
+          type: string
+          format: date
+          example: "2026-11-25"
+        appointment_time:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+          example: "17:00"
+        expected_fee:
+          type: number
+          format: float
+          description: Total VAT-inclusive fee expected in SAR (must match service total_fee)
+          example: 287.50
+
+    BookingIntentResponse:
+      type: object
+      required: [intent_token, expires_at, facility_id, doctor_id, appointment_date, appointment_time, base_fee, vat_amount, expected_fee]
+      properties:
+        intent_token:
+          type: string
+          example: "bit_live_9a8b7c6d5e4f3a2b1c0d"
+        expires_at:
+          type: string
+          format: date-time
+          description: Exact timestamp 15 minutes from intent creation (ISO 8601 UTC)
+          example: "2026-11-22T01:45:00Z"
+        facility_id:
+          type: integer
+          example: 10
+        doctor_id:
+          type: integer
+          example: 45
+        appointment_date:
+          type: string
+          format: date
+          example: "2026-11-25"
+        appointment_time:
+          type: string
+          example: "17:00"
+        base_fee:
+          type: number
+          format: float
+          example: 250.00
+        vat_amount:
+          type: number
+          format: float
+          example: 37.50
+        expected_fee:
+          type: number
+          format: float
+          description: Total VAT-inclusive fee in SAR
+          example: 287.50
+
+    CreateAppointmentRequest:
+      type: object
+      required: [patient_name, patient_phone, payment_method]
+      properties:
+        patient_name:
+          type: string
+          maxLength: 100
+          example: "سارة محمد أحمد"
+        patient_phone:
+          type: string
+          pattern: '^\+[1-9]\d{7,14}$'
+          description: Strict E.164 phone number
+          example: "+966501234567"
+        payment_method:
+          type: string
+          enum: [at_clinic]
+          example: "at_clinic"
+        external_appointment_id:
+          type: string
+          maxLength: 100
+          nullable: true
+          example: "HOSP-94821"
+        external_patient_id:
+          type: string
+          maxLength: 100
+          nullable: true
+          example: "PAT-00381"
+        send_whatsapp_notification:
+          type: boolean
+          default: false
+          description: Set to true if Tebiby WhatsApp notifications should be sent. Defaults to false.
+          example: false
+        patient_notes:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Neutral administrative note (Pending client approval; max 500 chars; scrubbed from audit logs and never sent in webhooks)
+          example: "مراجعة دورية"
+
+    CreateAppointmentResponse:
+      type: object
+      required: [booking_reference, public_token, status, ticket, doctor, facility, schedule, payment]
+      properties:
+        booking_reference:
+          type: string
+          example: "TB-SR8492"
+        external_appointment_id:
+          type: string
+          nullable: true
+          example: "HOSP-94821"
+        public_token:
+          type: string
+          example: "ptk_live_e9a1b2c3d4e5f6a7b8c9d0e1"
+        status:
+          type: string
+          enum: [confirmed, pending_confirmation]
+          example: "confirmed"
+        ticket:
+          type: object
+          required: [ticket_number, current_serving, patients_ahead, estimated_wait_minutes]
+          properties:
+            ticket_number:
+              type: integer
+              example: 8
+            current_serving:
+              type: integer
+              example: 4
+            patients_ahead:
+              type: integer
+              example: 3
+            estimated_wait_minutes:
+              type: integer
+              example: 45
+        doctor:
+          type: object
+          required: [id, name, title]
+          properties:
+            id:
+              type: integer
+              example: 45
+            name:
+              type: string
+              example: "د. أحمد الشمري"
+            title:
+              type: string
+              example: "استشاري تقويم الأسنان"
+        facility:
+          type: object
+          required: [id, name]
+          properties:
+            id:
+              type: integer
+              example: 10
+            name:
+              type: string
+              example: "مجمع عيادات النخبة الطبي"
+        schedule:
+          type: object
+          required: [date, time, formatted_time]
+          properties:
+            date:
+              type: string
+              format: date
+              example: "2026-11-25"
+            time:
+              type: string
+              example: "17:00"
+            formatted_time:
+              type: string
+              example: "05:00 م"
+        payment:
+          type: object
+          required: [method, status, currency, amount]
+          properties:
+            method:
+              type: string
+              example: "at_clinic"
+            status:
+              type: string
+              example: "pending"
+            currency:
+              type: string
+              example: "SAR"
+            amount:
+              type: number
+              format: float
+              example: 287.50
+
+    AppointmentSummary:
+      type: object
+      required: [booking_reference, status, updated_at]
+      properties:
+        booking_reference:
+          type: string
+          example: "TB-SR8492"
+        external_appointment_id:
+          type: string
+          nullable: true
+          example: "HOSP-94821"
+        status:
+          type: string
+          enum: [pending_confirmation, confirmed, checked_in, in_progress, completed, cancelled]
+          example: "checked_in"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-11-22T16:45:10Z"
+
+    ReconciliationResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppointmentSummary'
+        meta:
+          type: object
+          required: [current_page, per_page, total_records, total_pages]
+          properties:
+            current_page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 50
+            total_records:
+              type: integer
+              example: 182
+            total_pages:
+              type: integer
+              example: 4
+            next_page:
+              type: string
+              nullable: true
+              format: uri
+              example: "https://api.tebiby.com/v1/connect/appointments?updated_since=2026-11-22T00:00:00Z&page=2&per_page=50"
+            prev_page:
+              type: string
+              nullable: true
+              format: uri
+              example: null
+
+    CancelAppointmentRequest:
+      type: object
+      properties:
+        cancellation_reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Neutral cancellation reason (Pending client approval; max 500 chars; scrubbed from audit logs and never sent in webhooks)
+          example: "طلب المريض - ظروف خاصة"
+
+    CancelAppointmentResponse:
+      type: object
+      required: [booking_reference, status, cancelled_at]
+      properties:
+        booking_reference:
+          type: string
+          example: "TB-SR8492"
+        status:
+          type: string
+          enum: [cancelled]
+          example: "cancelled"
+        cancelled_at:
+          type: string
+          format: date-time
+          example: "2026-11-22T01:36:00Z"
+
+    QueueStatusResponse:
+      type: object
+      required: [ticket_number, current_serving_number, patients_ahead, estimated_wait_minutes, status, is_your_turn, delay_minutes, delay_reason_code, scheduled_time, expected_time]
+      properties:
+        ticket_number:
+          type: integer
+          example: 8
+        current_serving_number:
+          type: integer
+          example: 6
+        patients_ahead:
+          type: integer
+          example: 1
+        estimated_wait_minutes:
+          type: integer
+          example: 15
+        status:
+          type: string
+          enum: [pending_confirmation, confirmed, checked_in, in_progress, completed, cancelled]
+          example: "checked_in"
+        is_your_turn:
+          type: boolean
+          example: false
+        delay_minutes:
+          type: integer
+          description: Real-time estimated clinic delay in minutes (read-only query; no webhook dispatched on delay in Phase 1)
+          example: 10
+        delay_reason_code:
+          type: string
+          enum: [EMERGENCY_CASE, PROCEDURE_OVERRUN, DOCTOR_DELAYED, SCHEDULE_SHIFT, OTHER]
+          example: "PROCEDURE_OVERRUN"
+        scheduled_time:
+          type: string
+          example: "05:00 م"
+        expected_time:
+          type: string
+          example: "05:25 م"
+
+    WebhookEndpoint:
+      type: object
+      required: [id, url, events, is_active, created_at]
+      properties:
+        id:
+          type: integer
+          example: 1
+        url:
+          type: string
+          format: uri
+          example: "https://hospital.com/api/tebiby-events"
+        events:
+          type: array
+          items:
+            type: string
+          example: ["appointment.confirmed", "appointment.checked_in", "appointment.completed", "appointment.cancelled"]
+        is_active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-11-22T01:30:00Z"
+
+    WebhookListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookEndpoint'
+
+    WebhookEndpointWithSecret:
+      allOf:
+        - $ref: '#/components/schemas/WebhookEndpoint'
+        - type: object
+          required: [secret]
+          properties:
+            secret:
+              type: string
+              description: Webhook signing secret (displayed once). Prefix `whsec_`.
+              example: "whsec_live_9f8a3c428172bc910a8801928374"
+
+    CreateWebhookRequest:
+      type: object
+      required: [url, events]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Must be HTTPS on port 443; no local, private, or metadata IPs.
+          example: "https://hospital.com/api/tebiby-events"
+        events:
+          type: array
+          items:
+            type: string
+            enum:
+              - appointment.confirmed
+              - appointment.pending_confirmation
+              - appointment.checked_in
+              - appointment.in_progress
+              - appointment.completed
+              - appointment.cancelled
+          example: ["appointment.confirmed", "appointment.checked_in", "appointment.completed", "appointment.cancelled"]
+
+    RotateSecretResponse:
+      type: object
+      required: [new_secret, grace_period_expires_at, description]
+      properties:
+        new_secret:
+          type: string
+          description: Newly issued signing secret (displayed once)
+          example: "whsec_live_a1b2c3d4e5f6g7h8i9j0k1l2"
+        grace_period_expires_at:
+          type: string
+          format: date-time
+          description: Timestamp when the previous signing secret permanently expires (both secrets valid until this time)
+          example: "2026-11-23T01:30:00Z"
+        description:
+          type: string
+          example: "The previous signing secret remains valid until grace_period_expires_at for seamless rotation."
+
+    WebhookDelivery:
+      type: object
+      required: [delivery_id, event_id, event, status, attempts, created_at]
+      properties:
+        delivery_id:
+          type: string
+          example: "del_01HJ8Z8871MN4499XA"
+        event_id:
+          type: string
+          example: "evt_01HJ8Z7K99M88A123BC"
+        event:
+          type: string
+          example: "appointment.confirmed"
+        status:
+          type: string
+          enum: [pending, success, retrying, failed, dead_letter]
+          example: "success"
+        attempts:
+          type: integer
+          example: 1
+        response_code:
+          type: integer
+          nullable: true
+          example: 200
+        delivered_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-11-22T01:30:05Z"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-11-22T01:30:00Z"
+
+    WebhookDeliveriesResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookDelivery'
+        meta:
+          type: object
+          required: [current_page, per_page, total_records, total_pages]
+          properties:
+            current_page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 20
+            total_records:
+              type: integer
+              example: 45
+            total_pages:
+              type: integer
+              example: 3
+            next_page:
+              type: string
+              nullable: true
+              format: uri
+              example: "https://api.tebiby.com/v1/connect/webhooks/1/deliveries?page=2&per_page=20"
+            prev_page:
+              type: string
+              nullable: true
+              format: uri
+              example: null
+
+    RedeliverResponse:
+      type: object
+      required: [status, delivery_id, queued_at]
+      properties:
+        status:
+          type: string
+          example: "queued"
+        delivery_id:
+          type: string
+          example: "del_01HJ8Z8871MN4499XA"
+        queued_at:
+          type: string
+          format: date-time
+          example: "2026-11-22T01:35:00Z"
+
+    SandboxResetResponse:
+      type: object
+      required: [success, message, purged_records, reseeded_catalog]
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Sandbox database purged and re-seeded successfully."
+        purged_records:
+          type: object
+          properties:
+            appointments:
+              type: integer
+            links:
+              type: integer
+            intents:
+              type: integer
+            idempotency_keys:
+              type: integer
+            outbox:
+              type: integer
+            logs:
+              type: integer
+        reseeded_catalog:
+          type: object
+          properties:
+            facilities:
+              type: integer
+            doctors:
+              type: integer
+            schedules:
+              type: integer
+            services:
+              type: integer

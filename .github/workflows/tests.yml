@@ -14,6 +14,16 @@ jobs:
   ci:
     runs-on: ubuntu-latest
 
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_DATABASE: tebiby_test
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,6 +32,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: 8.4
+          extensions: mbstring, pdo, pdo_sqlite, pdo_mysql
           tools: composer:v2
           coverage: xdebug
 
@@ -49,5 +60,8 @@ jobs:
       - name: Generate Application Key
         run: php artisan key:generate
 
-      - name: Tests
+      - name: Run Tests (SQLite In-Memory Baseline)
         run: ./vendor/bin/phpunit
+
+      - name: Run MySQL Characterization Tests
+        run: ./vendor/bin/phpunit --configuration phpunit.mysql.xml --group mysql
